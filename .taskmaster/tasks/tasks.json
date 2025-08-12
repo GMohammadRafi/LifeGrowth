@@ -4,13 +4,95 @@
       {
         "id": 1,
         "title": "Setup Flutter Project",
-        "description": "Initialize a new Flutter project with necessary configurations for Android and iOS platforms.",
-        "details": "Use `flutter create life_growth` to create the project. Configure the project for both Android and iOS by setting up the necessary SDKs and emulators/simulators. Add `flutter_lints` for code linting and formatting. Initialize Git repository for version control.",
-        "testStrategy": "Verify that the Flutter project builds successfully for both Android and iOS. Check that linting rules are applied correctly.",
-        "priority": "high",
+        "description": "Initialize a new Flutter project with necessary configurations for Android, iOS, Web, and Linux platforms.",
+        "status": "in-progress",
         "dependencies": [],
-        "status": "pending",
-        "subtasks": []
+        "priority": "high",
+        "details": "Create Flutter project via `flutter create life_growth`. Configure the project for Android, iOS, Web, and Linux platforms. Update platform-specific configurations, including application IDs and metadata. Add `flutter_lints` for code linting and formatting. Initialize Git repository for version control. Prepare Supabase and platform secrets management for Task 2 dependency setup.",
+        "testStrategy": "Verify that the Flutter project builds successfully for Android, iOS, Web, and Linux. Check that linting rules are applied correctly. Verify the app runs on Chrome.",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "",
+            "description": "Created Flutter project via `flutter create life_growth`",
+            "status": "completed",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "",
+            "description": "Updated web/index.html title & meta to \"Life Growth\"",
+            "status": "completed",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "",
+            "description": "Updated web/manifest.json name, short_name, description",
+            "status": "completed",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "",
+            "description": "Updated Android `applicationId`/`namespace` in android/app/build.gradle to `app.lifegrowth`",
+            "status": "completed",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "",
+            "description": "Updated package declaration in MainActivity.kt",
+            "status": "completed",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "",
+            "description": "Updated Linux APPLICATION_ID in linux/CMakeLists.txt",
+            "status": "completed",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "",
+            "description": "Ran `flutter pub get`",
+            "status": "completed",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 8,
+            "title": "",
+            "description": "Verified app runs: Chrome dev URL http://127.0.0.1:57022/EMFTPvtxu88=",
+            "status": "completed",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 9,
+            "title": "",
+            "description": "Prepare Supabase and platform secrets management for Task 2 dependency setup.",
+            "status": "to-do",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          }
+        ]
       },
       {
         "id": 2,
@@ -227,7 +309,7 @@
     ],
     "metadata": {
       "created": "2025-08-12T05:23:05.732Z",
-      "updated": "2025-08-12T05:23:05.733Z",
+      "updated": "2025-08-12T05:34:42.624Z",
       "description": "Tasks for master context"
     }
   }
