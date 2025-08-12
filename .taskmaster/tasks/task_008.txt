@@ -1,0 +1,11 @@
+# Task ID: 8
+# Title: Implement Basic Analytics
+# Status: pending
+# Dependencies: 4
+# Priority: medium
+# Description: Implement basic analytics (totals, completion rates, streaks).
+# Details:
+Calculate weekly/monthly totals for minutes, pages, and steps. Calculate completion rates for each task. Calculate streaks for consecutive days completed per task and overall. Display analytics using charts and graphs. Use `fl_chart` package (latest version) for charts.
+
+# Test Strategy:
+Verify that the analytics are calculated correctly. Confirm that the charts and graphs display the data accurately.

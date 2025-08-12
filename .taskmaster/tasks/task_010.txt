@@ -1,0 +1,11 @@
+# Task ID: 10
+# Title: Implement Undo Functionality
+# Status: pending
+# Dependencies: 6, 7
+# Priority: low
+# Description: Implement undo functionality for edits and deletes.
+# Details:
+Use `provider` package (latest version) for state management. Store the previous state before each edit or delete. Implement an undo button that restores the previous state.
+
+# Test Strategy:
+Verify that the undo functionality restores the previous state correctly.

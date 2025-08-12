@@ -1,0 +1,11 @@
+# Task ID: 4
+# Title: Setup Local SQLite Database (Drift)
+# Status: pending
+# Dependencies: 1
+# Priority: high
+# Description: Set up local SQLite database using Drift for offline storage.
+# Details:
+Add `drift` and `sqlite3_flutter_libs` (latest versions) dependencies to the project. Define the database schema in Drift, mirroring the `daily_tasks` table in Supabase. Implement DAOs (Data Access Objects) for CRUD operations. Configure Drift to use SQLite in Flutter. Implement schema versioning and automated migrations using Drift's migration system.
+
+# Test Strategy:
+Verify that the local SQLite database is created with the correct schema. Test CRUD operations using DAOs. Confirm that schema migrations work correctly.

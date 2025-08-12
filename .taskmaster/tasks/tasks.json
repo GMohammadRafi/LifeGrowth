@@ -1,0 +1,234 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Setup Flutter Project",
+        "description": "Initialize a new Flutter project with necessary configurations for Android and iOS platforms.",
+        "details": "Use `flutter create life_growth` to create the project. Configure the project for both Android and iOS by setting up the necessary SDKs and emulators/simulators. Add `flutter_lints` for code linting and formatting. Initialize Git repository for version control.",
+        "testStrategy": "Verify that the Flutter project builds successfully for both Android and iOS. Check that linting rules are applied correctly.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "Configure Supabase Backend",
+        "description": "Set up Supabase as the backend, including authentication and database.",
+        "details": "Create a new Supabase project. Enable email/password and OAuth authentication methods. Define the `daily_tasks` table in Supabase using the provided SQL DDL. Implement RLS policies as specified in the PRD. Ensure `updated_at` trigger and `set_user_id_from_auth` function are correctly set up. Use `supabase flutter` CLI for Flutter integration.",
+        "testStrategy": "Verify that the `daily_tasks` table is created with the correct schema and RLS policies. Test authentication using email/password and OAuth. Confirm that the `updated_at` trigger and `set_user_id_from_auth` function work as expected.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Implement Supabase Authentication",
+        "description": "Integrate Supabase authentication into the Flutter app.",
+        "details": "Use the `supabase_flutter` package (latest version) to integrate Supabase authentication. Implement login, logout, and signup functionalities using email/password and OAuth. Store the user session securely. Handle authentication state changes using `SupabaseAuthListener`. Implement biometric lock using `local_auth` package (latest version).",
+        "testStrategy": "Test login, logout, and signup functionalities with valid and invalid credentials. Verify that the user session is stored securely. Confirm that biometric lock works correctly.",
+        "priority": "high",
+        "dependencies": [
+          1,
+          2
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Setup Local SQLite Database (Drift)",
+        "description": "Set up local SQLite database using Drift for offline storage.",
+        "details": "Add `drift` and `sqlite3_flutter_libs` (latest versions) dependencies to the project. Define the database schema in Drift, mirroring the `daily_tasks` table in Supabase. Implement DAOs (Data Access Objects) for CRUD operations. Configure Drift to use SQLite in Flutter. Implement schema versioning and automated migrations using Drift's migration system.",
+        "testStrategy": "Verify that the local SQLite database is created with the correct schema. Test CRUD operations using DAOs. Confirm that schema migrations work correctly.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Implement Background Sync",
+        "description": "Implement background sync between local SQLite and Supabase.",
+        "details": "Use `workmanager` package (latest version) for background sync. Implement a sync service that periodically checks for changes in the local SQLite database and syncs them to Supabase. Handle conflicts using the last-updated-wins strategy with opportunistic field-wise merge. Implement a brief in-app notice for sync confirmations. Use `flutter_local_notifications` (latest version) for local notifications.",
+        "testStrategy": "Test background sync with various network conditions (online, offline, intermittent). Verify that conflicts are resolved correctly. Confirm that the in-app notice is displayed after sync. Test local notifications.",
+        "priority": "high",
+        "dependencies": [
+          2,
+          3,
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Implement Daily Check-in Screen",
+        "description": "Implement the Daily Check-in screen with task toggles and detail inputs.",
+        "details": "Create a UI for the Daily Check-in screen with a list of tasks and toggles for completion. Implement a bottom sheet or dialog for entering task details (pages, minutes, steps, etc.). Use `intl` package (latest version) for date and time formatting. Implement input validation for numeric fields. Use `flutter_material_pickers` (latest version) for time pickers.",
+        "testStrategy": "Verify that the Daily Check-in screen displays the correct tasks and toggles. Test entering task details with valid and invalid inputs. Confirm that the UI is responsive and accessible.",
+        "priority": "high",
+        "dependencies": [
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Implement History View and Edit",
+        "description": "Implement history view, edit, soft delete, and restore functionalities.",
+        "details": "Create a UI for viewing past days' logs. Implement inline editing of task details. Implement soft delete functionality by setting the `deleted_at` timestamp. Implement restore functionality for soft-deleted items within 7 days. Use `table_calendar` package (latest version) for calendar view.",
+        "testStrategy": "Verify that the history view displays the correct logs. Test inline editing of task details. Confirm that soft delete and restore functionalities work correctly.",
+        "priority": "medium",
+        "dependencies": [
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Implement Basic Analytics",
+        "description": "Implement basic analytics (totals, completion rates, streaks).",
+        "details": "Calculate weekly/monthly totals for minutes, pages, and steps. Calculate completion rates for each task. Calculate streaks for consecutive days completed per task and overall. Display analytics using charts and graphs. Use `fl_chart` package (latest version) for charts.",
+        "testStrategy": "Verify that the analytics are calculated correctly. Confirm that the charts and graphs display the data accurately.",
+        "priority": "medium",
+        "dependencies": [
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Implement Local Reminders",
+        "description": "Implement optional local reminders.",
+        "details": "Use `flutter_local_notifications` package (latest version) to implement local reminders. Allow users to set a daily reminder and per-task reminders. Implement snooze and turn off functionalities.",
+        "testStrategy": "Verify that local reminders are triggered at the correct time. Test snooze and turn off functionalities.",
+        "priority": "low",
+        "dependencies": [
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Implement Undo Functionality",
+        "description": "Implement undo functionality for edits and deletes.",
+        "details": "Use `provider` package (latest version) for state management. Store the previous state before each edit or delete. Implement an undo button that restores the previous state.",
+        "testStrategy": "Verify that the undo functionality restores the previous state correctly.",
+        "priority": "low",
+        "dependencies": [
+          6,
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 11,
+        "title": "Implement CSV Export",
+        "description": "Implement CSV export functionality.",
+        "details": "Use `csv` package (latest version) to generate CSV files. Allow users to export their data to a CSV file. Use `share_plus` package (latest version) to share the CSV file.",
+        "testStrategy": "Verify that the CSV file is generated correctly. Confirm that the CSV file can be shared successfully.",
+        "priority": "low",
+        "dependencies": [
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 12,
+        "title": "Implement Personalization Options",
+        "description": "Implement personalization options (reordering tasks, hiding tasks, renaming Avoid X, toggling Avoid Sweets).",
+        "details": "Allow users to reorder tasks using drag and drop. Allow users to hide tasks they don't use. Allow users to rename the Avoid X label. Allow users to toggle the Avoid Sweets task on/off. Store personalization settings locally using `shared_preferences` package (latest version).",
+        "testStrategy": "Verify that personalization options are saved and applied correctly.",
+        "priority": "medium",
+        "dependencies": [
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 13,
+        "title": "Implement Accessibility Features",
+        "description": "Implement accessibility features (48x48 dp tap targets, screen reader labels, color contrast, dark mode).",
+        "details": "Ensure all interactive elements meet the 48x48 dp minimum tap target size. Add screen reader labels to all interactive elements. Ensure colors meet contrast standards. Implement dark mode using `ThemeData.dark()`.",
+        "testStrategy": "Verify that all accessibility features are implemented correctly using accessibility tools.",
+        "priority": "medium",
+        "dependencies": [
+          1,
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 14,
+        "title": "Implement Telemetry, Logging, and Error Handling",
+        "description": "Implement telemetry, logging, and error handling.",
+        "details": "Use `firebase_analytics` package (latest version) for anonymous event telemetry. Track task toggles, detail edits, sync starts/finishes, and errors. Use `flutter_sentry` package (latest version) for error reporting. Implement non-blocking toasts for sync and conflict notices using `fluttertoast` package (latest version).",
+        "testStrategy": "Verify that telemetry events are tracked correctly. Confirm that errors are reported correctly. Test that non-blocking toasts are displayed for sync and conflict notices.",
+        "priority": "low",
+        "dependencies": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 15,
+        "title": "Implement Migrations and Data Integrity",
+        "description": "Implement migrations and data integrity checks.",
+        "details": "Implement SQLite migrations using Drift's migration system. Enforce non-negative numeric values, valid stretch_type, and notes length in the database. Enforce duration caps in the app. Use upserts consistently to prevent duplicate rows.",
+        "testStrategy": "Verify that migrations are executed correctly. Confirm that data integrity checks are enforced.",
+        "priority": "high",
+        "dependencies": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-08-12T05:23:05.732Z",
+      "updated": "2025-08-12T05:23:05.733Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+# Task ID: 1
+# Title: Setup Flutter Project
+# Status: pending
+# Dependencies: None
+# Priority: high
+# Description: Initialize a new Flutter project with necessary configurations for Android and iOS platforms.
+# Details:
+Use `flutter create life_growth` to create the project. Configure the project for both Android and iOS by setting up the necessary SDKs and emulators/simulators. Add `flutter_lints` for code linting and formatting. Initialize Git repository for version control.
+
+# Test Strategy:
+Verify that the Flutter project builds successfully for both Android and iOS. Check that linting rules are applied correctly.

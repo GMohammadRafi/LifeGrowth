@@ -1,0 +1,11 @@
+# Task ID: 14
+# Title: Implement Telemetry, Logging, and Error Handling
+# Status: pending
+# Dependencies: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+# Priority: low
+# Description: Implement telemetry, logging, and error handling.
+# Details:
+Use `firebase_analytics` package (latest version) for anonymous event telemetry. Track task toggles, detail edits, sync starts/finishes, and errors. Use `flutter_sentry` package (latest version) for error reporting. Implement non-blocking toasts for sync and conflict notices using `fluttertoast` package (latest version).
+
+# Test Strategy:
+Verify that telemetry events are tracked correctly. Confirm that errors are reported correctly. Test that non-blocking toasts are displayed for sync and conflict notices.

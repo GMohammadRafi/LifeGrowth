@@ -1,0 +1,11 @@
+# Task ID: 12
+# Title: Implement Personalization Options
+# Status: pending
+# Dependencies: 6
+# Priority: medium
+# Description: Implement personalization options (reordering tasks, hiding tasks, renaming Avoid X, toggling Avoid Sweets).
+# Details:
+Allow users to reorder tasks using drag and drop. Allow users to hide tasks they don't use. Allow users to rename the Avoid X label. Allow users to toggle the Avoid Sweets task on/off. Store personalization settings locally using `shared_preferences` package (latest version).
+
+# Test Strategy:
+Verify that personalization options are saved and applied correctly.

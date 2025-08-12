@@ -1,0 +1,11 @@
+# Task ID: 15
+# Title: Implement Migrations and Data Integrity
+# Status: pending
+# Dependencies: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
+# Priority: high
+# Description: Implement migrations and data integrity checks.
+# Details:
+Implement SQLite migrations using Drift's migration system. Enforce non-negative numeric values, valid stretch_type, and notes length in the database. Enforce duration caps in the app. Use upserts consistently to prevent duplicate rows.
+
+# Test Strategy:
+Verify that migrations are executed correctly. Confirm that data integrity checks are enforced.

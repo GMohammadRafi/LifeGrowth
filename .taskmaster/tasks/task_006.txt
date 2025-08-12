@@ -1,0 +1,11 @@
+# Task ID: 6
+# Title: Implement Daily Check-in Screen
+# Status: pending
+# Dependencies: 4
+# Priority: high
+# Description: Implement the Daily Check-in screen with task toggles and detail inputs.
+# Details:
+Create a UI for the Daily Check-in screen with a list of tasks and toggles for completion. Implement a bottom sheet or dialog for entering task details (pages, minutes, steps, etc.). Use `intl` package (latest version) for date and time formatting. Implement input validation for numeric fields. Use `flutter_material_pickers` (latest version) for time pickers.
+
+# Test Strategy:
+Verify that the Daily Check-in screen displays the correct tasks and toggles. Test entering task details with valid and invalid inputs. Confirm that the UI is responsive and accessible.

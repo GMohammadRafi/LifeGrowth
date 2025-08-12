@@ -1,0 +1,242 @@
+### PRD — Life Growth (Flutter + Supabase)
+
+#### 1. Purpose
+Life Growth is a fast, simple daily tracker for a fixed set of repeating tasks. It is offline‑first with automatic background sync to Supabase for backup and multi‑device consistency. The experience prioritizes one‑tap completion with optional details, clear streaks, and lightweight analytics.
+
+#### 2. Scope
+In scope for v1: a fixed task list with per‑task completion toggles and optional details, history editing by date, basic analytics (totals, completion rates, streaks), offline cache with background sync, Supabase Auth, soft delete with restore, and CSV export. Out of scope for v1 (backlog): user‑defined tasks (beyond “Avoid X” and “Avoid Sweets”), push notifications, advanced conflict UI, and cross‑day session splitting.
+
+#### 3. Target Users and Goals
+People who want a low‑friction way to build daily habits and keep a light log. Goals are to mark tasks done in under 2 seconds, avoid data loss, and stay motivated via streaks and simple summaries.
+
+#### 4. Success Metrics
+Primary metrics include daily active users who complete at least one task, median time to log a task (target under 2 seconds), 7‑day retention, and visible sync/conflict error rate (target near zero). Secondary metrics include average streak length and percent of days with at least one task completed.
+
+#### 5. Functional Requirements
+Daily logging offers a single screen with toggles; a secondary tap opens details. Tasks auto‑repeat daily. Users can view, edit, and soft‑delete past days and restore within 7 days. Life Growth works fully offline, then syncs to Supabase when online. Conflicts resolve via last‑updated wins with opportunistic field‑wise merge and a brief in‑app notice. Authentication uses Supabase Auth (email/password and OAuth). Data stays consistent across devices. Analytics provide weekly/monthly totals (minutes, pages, steps), completion rates, and streaks. Quality‑of‑life includes optional local reminders, undo for edits/deletes, biometric lock, and CSV export.
+
+#### 6. Non‑Functional Requirements
+Platform is Flutter for Android and iOS. Backend is Supabase (PostgreSQL, Auth, Storage). Offline‑first uses a local SQLite store (e.g., Drift) and background sync. Performance targets are sub‑2‑second logging and instant offline interactions. Security uses HTTPS, Supabase Row Level Security (RLS), and biometric lock. Maintainability includes schema versioning, clean data/domain/UI layers, and automated migrations. Accessibility includes 48x48 dp tap targets, screen reader labels, color contrast, and dark mode.
+
+#### 7. UX and User Flows
+The Daily Check‑in screen lists today’s tasks with big toggles. A tap marks complete; a second tap opens a lightweight sheet with quick inputs such as +5/+10 minute chips, small number pads for pages or steps, and a simple stopwatch for meditation/walking. Stretch is displayed as a single task; users can optionally specify whether they did Yoga or a Home Workout. Movie/Series supports title and either duration or start/end; if both times are provided, Life Growth auto‑calculates duration and counts the session toward the start date. History allows picking dates and editing inline; soft deletions go to Recently Deleted and can be restored for 7 days. Analytics show a calendar heatmap, weekly bars for minutes/pages/steps, and streak counters. Personalization in v1 allows reordering tasks, hiding tasks not used, renaming the Avoid X label, and toggling the dedicated Avoid Sweets task on/off.
+
+#### 8. Data Model Overview
+Life Growth uses one row per user per date in a “wide” daily_tasks table. This keeps UX simple, queries fast, and sync predictable. All durations are stored as integer minutes. A task is effectively complete if its completed flag is true or any associated numeric detail is greater than zero. Midnight crossings for Movie/Series count toward the day on which the session started. Each row stores timezone_offset in minutes at save time to interpret the local date and aggregate correctly.
+
+#### 9. Tasks and Fields (v1)
+Reading Book: pages (int, optional), time_minutes (int, optional), completed (bool). Stretch (Yoga or Home Workout): type (Yoga | Home Workout, optional), duration_minutes (int, optional), completed (bool). Meditation: duration_minutes (int, optional), completed (bool). Reading Docs: name_or_link (string, optional), pages (int, optional), time_minutes (int, optional), completed (bool). Learning New Technology: tech_name (string, optional), source_name (string, optional), url (string, optional), time_minutes (int, optional), completed (bool). Walking: steps (int, optional), time_minutes (int, optional), completed (bool). Avoid X: label (string, user‑editable display label), avoided (bool). Avoid Sweets: avoided (bool). Work Done Today: worked (bool). Movie or Series: title (string, optional), start_time (HH:MM, optional), end_time (HH:MM, optional), duration_minutes (int, optional, auto‑calculated when start/end present; editable), completed (bool).
+
+#### 10. Supabase Database Schema
+Table daily_tasks has a single row per user per date. Columns: id (uuid PK), user_id (uuid, Supabase Auth), date (date), reading_book_pages (int), reading_book_time (int minutes), reading_book_completed (bool), stretch_type (text: “Yoga” or “Home Workout”), stretch_minutes (int), stretch_completed (bool), meditation_minutes (int), meditation_completed (bool), reading_docs_name_link (text), reading_docs_pages (int), reading_docs_time (int), reading_docs_completed (bool), learning_tech_name (text), learning_tech_source (text), learning_tech_url (text), learning_tech_time (int), learning_tech_completed (bool), walking_steps (int), walking_time (int), walking_completed (bool), avoid_habit_label (text), avoid_habit_value (bool), avoid_sweets_value (bool), work_done_value (bool), movie_series_name (text), movie_series_start_time (time), movie_series_end_time (time), movie_series_duration (int), movie_series_completed (bool), notes (text, <= 500 chars), timezone_offset (int minutes), created_at (timestamptz default now), updated_at (timestamptz default now; server‑managed), client_updated_at (timestamptz, set by app), deleted_at (timestamptz), schema_version (int default 1). Constraints require non‑negative numeric fields, valid stretch_type, and notes length. A partial unique index enforces one active row per user per date (where deleted_at is null). Indexes support history queries and sync scans. Server triggers set updated_at on every update and can set user_id from auth.uid() on insert when missing.
+
+#### 11. RLS and Security
+RLS is enabled on daily_tasks. Policies allow select, insert, update, and delete only where user_id equals auth.uid(). Insert policy permits user_id to be null so a trigger can fill it. All network calls use HTTPS. Life Growth can optionally offer a biometric lock on open and encrypt the local database when supported.
+
+#### 12. Offline, Sync, and Conflict Resolution
+Local writes first; background sync upserts rows by (user_id, date). The client sets client_updated_at on each edit; the database sets updated_at via trigger. On conflict, the client fetches the current server row; if edits are to non‑overlapping fields, it merges field‑wise; if overlapping, it prefers the payload with the newer client_updated_at and falls back to updated_at. After resolving, Life Growth shows a brief “Synced changes” notice. Soft deletes set deleted_at; Recently Deleted shows items for 7 days before purge.
+
+#### 13. Analytics Definitions
+Weekly and monthly totals sum minutes/pages/steps using the local date and timezone_offset. Completion uses the explicit completed flag or any associated numeric detail greater than zero for that task. Binary tasks (Avoid X, Avoid Sweets, Work Done) use their boolean values directly. Streaks count consecutive days completed per task and overall. Movie/Series analytics rely on duration_minutes; if missing, it is derived from start/end with wrap‑around and the session belongs to the start date. Weeks start Monday unless the device locale specifies otherwise.
+
+#### 14. Notifications
+Local notifications allow an optional daily reminder and per‑task reminders. Users can snooze or turn off reminders. Push notifications are a backlog item.
+
+#### 15. Performance and Reliability Budgets
+Marking a task complete should be under 2 seconds round‑trip when online and instant offline. Cold start should be under 2 seconds on mid‑range devices. Sync should complete within 5 seconds on typical networks for a week of changes. The app should remain responsive with at least two years of daily data.
+
+#### 16. Accessibility and Internationalization
+All interactive elements meet 48x48 dp minimum. Labels and hints support VoiceOver/TalkBack. Colors meet contrast standards and dark mode is supported. The app stores the user’s local date and timezone_offset per row and uses 24‑hour or 12‑hour time based on locale.
+
+#### 17. Telemetry, Logging, and Errors
+Anonymous event telemetry tracks task toggles, detail edits, sync starts/finishes, and errors. The app uses non‑blocking toasts for sync and conflict notices and offers undo for destructive actions. No PII is sent in analytics.
+
+#### 18. Migrations and Data Integrity
+The app maintains a schema_version and runs SQLite migrations as needed. The database enforces non‑negative numeric values, valid stretch_type, and notes length. Duration caps (for example, 12 hours) are enforced in the app to avoid extreme values. Upserts are used consistently to prevent duplicate rows.
+
+#### 19. Release Plan and Acceptance Criteria
+Alpha targets a stable daily flow, basic sync, and analytics with internal testing for one week. Beta expands to a small user group for two weeks to validate conflict handling and reminders. Production launches with crash‑free sessions above 99.5% and median task logging under 2 seconds. Acceptance criteria include correct uniqueness per day, reliable offline edits that sync cleanly, accurate streaks across time changes, and the ability to restore soft‑deleted days.
+
+#### 20. Open Questions
+Decide whether to store an IANA timezone name per row for travel and DST audits. Confirm the default “overall streak” rule (for example, at least one task completed per day vs. at least N tasks). Confirm if Avoid Sweets is always visible or user‑toggleable in settings.
+
+#### 21. Example JSON Payload
+```json
+{
+  "user_id": "3d2f9a74-92c8-4b98-b7f7-f74a82c3d5e4",
+  "date": "2025-08-11",
+  "reading_book_pages": 20,
+  "reading_book_time": 30,
+  "reading_book_completed": true,
+  "stretch_type": "Yoga",
+  "stretch_minutes": 15,
+  "stretch_completed": true,
+  "meditation_minutes": 10,
+  "meditation_completed": true,
+  "reading_docs_name_link": "https://example.com/doc.pdf",
+  "reading_docs_pages": 5,
+  "reading_docs_time": 20,
+  "reading_docs_completed": true,
+  "learning_tech_name": "Flutter",
+  "learning_tech_source": "Udemy",
+  "learning_tech_url": "https://udemy.com/flutter-course",
+  "learning_tech_time": 40,
+  "learning_tech_completed": true,
+  "walking_steps": 3000,
+  "walking_time": 25,
+  "walking_completed": true,
+  "avoid_habit_label": "Avoid Screens Late",
+  "avoid_habit_value": true,
+  "avoid_sweets_value": true,
+  "work_done_value": false,
+  "movie_series_name": "Interstellar",
+  "movie_series_start_time": "20:00",
+  "movie_series_end_time": "22:45",
+  "movie_series_duration": 165,
+  "movie_series_completed": true,
+  "notes": "Felt productive today.",
+  "timezone_offset": 330,
+  "created_at": "2025-08-11T17:30:00Z",
+  "updated_at": "2025-08-11T18:00:00Z",
+  "client_updated_at": "2025-08-11T18:00:00Z",
+  "deleted_at": null,
+  "schema_version": 1
+}
+```
+
+#### 22. SQL DDL Snippets (Core)
+```sql
+-- Create table (illustrative: adjust extensions/defaults to your project)
+create table if not exists public.daily_tasks (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  date date not null,
+
+  reading_book_pages integer,
+  reading_book_time integer,
+  reading_book_completed boolean not null default false,
+
+  stretch_type text,
+  stretch_minutes integer,
+  stretch_completed boolean not null default false,
+
+  meditation_minutes integer,
+  meditation_completed boolean not null default false,
+
+  reading_docs_name_link text,
+  reading_docs_pages integer,
+  reading_docs_time integer,
+  reading_docs_completed boolean not null default false,
+
+  learning_tech_name text,
+  learning_tech_source text,
+  learning_tech_url text,
+  learning_tech_time integer,
+  learning_tech_completed boolean not null default false,
+
+  walking_steps integer,
+  walking_time integer,
+  walking_completed boolean not null default false,
+
+  avoid_habit_label text,
+  avoid_habit_value boolean not null default false,
+
+  avoid_sweets_value boolean not null default false,
+
+  work_done_value boolean not null default false,
+
+  movie_series_name text,
+  movie_series_start_time time,
+  movie_series_end_time time,
+  movie_series_duration integer,
+  movie_series_completed boolean not null default false,
+
+  notes text,
+  timezone_offset integer not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  client_updated_at timestamptz,
+  deleted_at timestamptz,
+  schema_version integer not null default 1,
+
+  constraint chk_nonnegative_values check (
+    coalesce(reading_book_time,0) >= 0 and
+    coalesce(reading_book_pages,0) >= 0 and
+    coalesce(stretch_minutes,0) >= 0 and
+    coalesce(meditation_minutes,0) >= 0 and
+    coalesce(reading_docs_pages,0) >= 0 and
+    coalesce(reading_docs_time,0) >= 0 and
+    coalesce(learning_tech_time,0) >= 0 and
+    coalesce(walking_steps,0) >= 0 and
+    coalesce(walking_time,0) >= 0 and
+    coalesce(movie_series_duration,0) >= 0
+  ),
+  constraint chk_stretch_type check (
+    stretch_type in ('Yoga','Home Workout') or stretch_type is null
+  ),
+  constraint chk_notes_length check (
+    notes is null or char_length(notes) <= 500
+  )
+);
+
+-- Soft-delete friendly uniqueness
+create unique index if not exists daily_tasks_user_date_unique_active
+on public.daily_tasks (user_id, date)
+where deleted_at is null;
+
+-- Fast reads for history and sync
+create index if not exists daily_tasks_user_date_idx
+  on public.daily_tasks (user_id, date desc);
+create index if not exists daily_tasks_user_updated_idx
+  on public.daily_tasks (user_id, updated_at desc);
+
+-- Server-managed updated_at
+create or replace function public.set_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_set_updated_at on public.daily_tasks;
+create trigger trg_set_updated_at
+before update on public.daily_tasks
+for each row execute function public.set_updated_at();
+
+-- Optional: set user_id automatically from auth context on insert
+create or replace function public.set_user_id_from_auth()
+returns trigger as $$
+begin
+  if new.user_id is null then
+    new.user_id = auth.uid();
+  end if;
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_set_user_id on public.daily_tasks;
+create trigger trg_set_user_id
+before insert on public.daily_tasks
+for each row execute function public.set_user_id_from_auth();
+
+-- RLS
+alter table public.daily_tasks enable row level security;
+
+create policy "select_own" on public.daily_tasks
+for select using (auth.uid() = user_id);
+
+create policy "insert_own" on public.daily_tasks
+for insert with check (auth.uid() = user_id or user_id is null);
+
+create policy "update_own" on public.daily_tasks
+for update using (auth.uid() = user_id);
+
+create policy "delete_own" on public.daily_tasks
+for delete using (auth.uid() = user_id);
+```
+
+#### 23. Client Upsert Pattern (Concept)
+Life Growth always upserts by user_id and date. Before an update, it fetches the current server row. If only different fields changed, it merges and upserts. If the same fields changed, it selects the payload with a newer client_updated_at and upserts. The server trigger sets updated_at, and the client shows a tiny “Synced changes” toast.
+
+Want me to add a short one‑page “stakeholder summary” with the Life Growth name and top three goals, or include basic wireframes for the Daily, History, and Analytics screens?

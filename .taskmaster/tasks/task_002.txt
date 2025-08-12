@@ -1,0 +1,11 @@
+# Task ID: 2
+# Title: Configure Supabase Backend
+# Status: pending
+# Dependencies: 1
+# Priority: high
+# Description: Set up Supabase as the backend, including authentication and database.
+# Details:
+Create a new Supabase project. Enable email/password and OAuth authentication methods. Define the `daily_tasks` table in Supabase using the provided SQL DDL. Implement RLS policies as specified in the PRD. Ensure `updated_at` trigger and `set_user_id_from_auth` function are correctly set up. Use `supabase flutter` CLI for Flutter integration.
+
+# Test Strategy:
+Verify that the `daily_tasks` table is created with the correct schema and RLS policies. Test authentication using email/password and OAuth. Confirm that the `updated_at` trigger and `set_user_id_from_auth` function work as expected.

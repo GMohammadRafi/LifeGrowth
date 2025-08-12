@@ -1,0 +1,11 @@
+# Task ID: 9
+# Title: Implement Local Reminders
+# Status: pending
+# Dependencies: 6
+# Priority: low
+# Description: Implement optional local reminders.
+# Details:
+Use `flutter_local_notifications` package (latest version) to implement local reminders. Allow users to set a daily reminder and per-task reminders. Implement snooze and turn off functionalities.
+
+# Test Strategy:
+Verify that local reminders are triggered at the correct time. Test snooze and turn off functionalities.

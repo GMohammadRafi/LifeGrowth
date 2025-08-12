@@ -1,0 +1,11 @@
+# Task ID: 7
+# Title: Implement History View and Edit
+# Status: pending
+# Dependencies: 4
+# Priority: medium
+# Description: Implement history view, edit, soft delete, and restore functionalities.
+# Details:
+Create a UI for viewing past days' logs. Implement inline editing of task details. Implement soft delete functionality by setting the `deleted_at` timestamp. Implement restore functionality for soft-deleted items within 7 days. Use `table_calendar` package (latest version) for calendar view.
+
+# Test Strategy:
+Verify that the history view displays the correct logs. Test inline editing of task details. Confirm that soft delete and restore functionalities work correctly.

@@ -1,0 +1,11 @@
+# Task ID: 5
+# Title: Implement Background Sync
+# Status: pending
+# Dependencies: 2, 3, 4
+# Priority: high
+# Description: Implement background sync between local SQLite and Supabase.
+# Details:
+Use `workmanager` package (latest version) for background sync. Implement a sync service that periodically checks for changes in the local SQLite database and syncs them to Supabase. Handle conflicts using the last-updated-wins strategy with opportunistic field-wise merge. Implement a brief in-app notice for sync confirmations. Use `flutter_local_notifications` (latest version) for local notifications.
+
+# Test Strategy:
+Test background sync with various network conditions (online, offline, intermittent). Verify that conflicts are resolved correctly. Confirm that the in-app notice is displayed after sync. Test local notifications.
