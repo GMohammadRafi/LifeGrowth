@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/daily_task.dart';
+import '../models/daily_task.dart' as model;
+import '../database/database.dart';
 import 'database_service.dart';
 
 class SupabaseService {
@@ -56,15 +57,16 @@ class SupabaseService {
           .maybeSingle();
       
       if (response != null) {
-        final remoteTask = DailyTask.fromJson(response);
+        final remoteTask = model.DailyTask.fromJson(response);
         
-        // If remote task is newer, update local database
+        // Convert model to database entity and update local database
         if (localTask == null || 
             (remoteTask.updatedAt != null && localTask.updatedAt != null &&
              remoteTask.updatedAt!.isAfter(localTask.updatedAt!))) {
-          await DatabaseService.instance.upsertDailyTask(remoteTask);
+          final dbTask = _convertModelToDbTask(remoteTask);
+          await DatabaseService.instance.upsertDailyTask(dbTask);
           await DatabaseService.instance.markTaskAsSynced(userId, date);
-          return remoteTask;
+          return dbTask;
         }
       }
     } catch (e) {
@@ -82,13 +84,16 @@ class SupabaseService {
     bool includeDeleted = false,
   }) async {
     // First, get from local database
-    List<DailyTask> localTasks;
-    if (startDate != null && endDate != null) {
-      localTasks = await DatabaseService.instance.getDailyTasksInRange(
-        userId, startDate, endDate, includeDeleted: includeDeleted);
-    } else {
-      localTasks = await DatabaseService.instance.getAllDailyTasksForUser(
-        userId, includeDeleted: includeDeleted);
+    List<DailyTask> localTasks = await DatabaseService.instance.getAllDailyTasksForUser(
+      userId, includeDeleted: includeDeleted);
+    
+    // Filter by date range if specified
+    if (startDate != null || endDate != null) {
+      localTasks = localTasks.where((task) {
+        if (startDate != null && task.date.isBefore(startDate)) return false;
+        if (endDate != null && task.date.isAfter(endDate)) return false;
+        return true;
+      }).toList();
     }
     
     // Try to sync with Supabase
@@ -111,33 +116,39 @@ class SupabaseService {
       }
       
       final response = await query.order('date', ascending: false);
-      final remoteTasks = response.map<DailyTask>((json) => DailyTask.fromJson(json)).toList();
+      final remoteTasks = response.map<model.DailyTask>((json) => model.DailyTask.fromJson(json)).toList();
       
       // Merge remote tasks with local tasks (remote takes precedence if newer)
       for (final remoteTask in remoteTasks) {
-        final localTask = localTasks.firstWhere(
+        final localTaskIndex = localTasks.indexWhere(
           (t) => t.userId == remoteTask.userId && 
                  t.date.day == remoteTask.date.day &&
                  t.date.month == remoteTask.date.month &&
                  t.date.year == remoteTask.date.year,
-          orElse: () => DailyTask.empty(date: remoteTask.date),
         );
         
-        if (localTask.updatedAt == null || 
+        final localTask = localTaskIndex >= 0 ? localTasks[localTaskIndex] : null;
+        
+        if (localTask == null || localTask.updatedAt == null || 
             (remoteTask.updatedAt != null && remoteTask.updatedAt!.isAfter(localTask.updatedAt!))) {
-          await DatabaseService.instance.upsertDailyTask(remoteTask);
+          final dbTask = _convertModelToDbTask(remoteTask);
+          await DatabaseService.instance.upsertDailyTask(dbTask);
           await DatabaseService.instance.markTaskAsSynced(userId, remoteTask.date);
         }
       }
       
       // Return updated local tasks
-      if (startDate != null && endDate != null) {
-        return await DatabaseService.instance.getDailyTasksInRange(
-          userId, startDate, endDate, includeDeleted: includeDeleted);
-      } else {
-        return await DatabaseService.instance.getAllDailyTasksForUser(
-          userId, includeDeleted: includeDeleted);
-      }
+      return await DatabaseService.instance.getAllDailyTasksForUser(
+        userId, includeDeleted: includeDeleted).then((tasks) {
+        if (startDate != null || endDate != null) {
+          return tasks.where((task) {
+            if (startDate != null && task.date.isBefore(startDate)) return false;
+            if (endDate != null && task.date.isAfter(endDate)) return false;
+            return true;
+          }).toList();
+        }
+        return tasks;
+      });
     } catch (e) {
       print('Network error in getDailyTasks: $e');
       return localTasks;
@@ -146,8 +157,7 @@ class SupabaseService {
   
   static Future<DailyTask> upsertDailyTask(DailyTask task) async {
     // Always save to local database first
-    final updatedTask = task.copyWith(updatedAt: DateTime.now());
-    final localTask = await DatabaseService.instance.upsertDailyTask(updatedTask);
+    final localTask = await DatabaseService.instance.upsertDailyTask(task);
     
     // Try to sync with Supabase in background
     _syncTaskToSupabase(localTask).catchError((e) {
@@ -159,7 +169,8 @@ class SupabaseService {
   
   static Future<void> _syncTaskToSupabase(DailyTask task) async {
     try {
-      final taskJson = task.toJson();
+      final modelTask = _convertDbToModelTask(task);
+      final taskJson = modelTask.toJson();
       taskJson['client_updated_at'] = DateTime.now().toIso8601String();
       
       await _client
@@ -294,7 +305,7 @@ class SupabaseService {
   static Future<void> syncAllPendingChanges(String userId) async {
     try {
       // Get all tasks that need syncing
-      final tasksToSync = await DatabaseService.instance.getTasksToSync(userId);
+      final tasksToSync = await DatabaseService.instance.getTasksToSync();
       
       for (final task in tasksToSync) {
         await _syncTaskToSupabase(task);
@@ -352,5 +363,47 @@ class SupabaseService {
     }
     
     return syncedTasks;
+  }
+
+  // Helper method to convert model DailyTask to database DailyTask
+  static DailyTask _convertModelToDbTask(model.DailyTask modelTask) {
+    return DailyTask(
+      userId: modelTask.userId,
+      date: modelTask.date,
+      readingBook: modelTask.readingBook,
+      stretch: modelTask.stretch,
+      meditation: modelTask.meditation,
+      exercise: modelTask.exercise,
+      healthyEating: modelTask.healthyEating,
+      noSmoking: modelTask.noSmoking,
+      noDrinking: modelTask.noDrinking,
+      skincare: modelTask.skincare,
+      createdAt: modelTask.createdAt,
+      updatedAt: modelTask.updatedAt,
+      deletedAt: modelTask.deletedAt,
+      timezoneOffset: modelTask.timezoneOffset,
+      needsSync: false,
+      lastSyncAt: DateTime.now(),
+    );
+  }
+
+  // Helper method to convert database DailyTask to model DailyTask
+  static model.DailyTask _convertDbToModelTask(DailyTask dbTask) {
+    return model.DailyTask(
+      userId: dbTask.userId,
+      date: dbTask.date,
+      readingBook: dbTask.readingBook,
+      stretch: dbTask.stretch,
+      meditation: dbTask.meditation,
+      exercise: dbTask.exercise,
+      healthyEating: dbTask.healthyEating,
+      noSmoking: dbTask.noSmoking,
+      noDrinking: dbTask.noDrinking,
+      skincare: dbTask.skincare,
+      createdAt: dbTask.createdAt,
+      updatedAt: dbTask.updatedAt,
+      deletedAt: dbTask.deletedAt,
+      timezoneOffset: dbTask.timezoneOffset,
+    );
   }
 }
