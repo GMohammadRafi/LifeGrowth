@@ -39,7 +39,7 @@ class SupabaseService {
   }
   
   // Database methods for daily_tasks (offline-first)
-  static Future<DailyTask?> getDailyTask({
+  static Future<model.DailyTask?> getDailyTask({
     required String userId,
     required DateTime date,
   }) async {
@@ -66,7 +66,7 @@ class SupabaseService {
           final dbTask = _convertModelToDbTask(remoteTask);
           await DatabaseService.instance.upsertDailyTask(dbTask);
           await DatabaseService.instance.markTaskAsSynced(userId, date);
-          return dbTask;
+          return remoteTask;
         }
       }
     } catch (e) {
@@ -74,7 +74,7 @@ class SupabaseService {
       print('Network error in getDailyTask: $e');
     }
     
-    return localTask;
+    return localTask != null ? _convertDbToModelTask(localTask) : null;
   }
   
   static Future<List<DailyTask>> getDailyTasks({
@@ -155,16 +155,17 @@ class SupabaseService {
     }
   }
   
-  static Future<DailyTask> upsertDailyTask(DailyTask task) async {
-    // Always save to local database first
-    final localTask = await DatabaseService.instance.upsertDailyTask(task);
+  static Future<model.DailyTask> upsertDailyTask(model.DailyTask task) async {
+    // Convert model to database entity and save to local database first
+    final dbTask = _convertModelToDbTask(task);
+    await DatabaseService.instance.upsertDailyTask(dbTask);
     
     // Try to sync with Supabase in background
-    _syncTaskToSupabase(localTask).catchError((e) {
+    _syncTaskToSupabase(dbTask).catchError((e) {
       print('Background sync error: $e');
     });
     
-    return localTask;
+    return task;
   }
   
   static Future<void> _syncTaskToSupabase(DailyTask task) async {
@@ -353,8 +354,11 @@ class SupabaseService {
     
     for (final task in localTasks) {
       try {
-        final synced = await upsertDailyTask(task);
-        syncedTasks.add(synced);
+        // Convert database task to model task, sync it, then convert back
+        final modelTask = _convertDbToModelTask(task);
+        final syncedModelTask = await upsertDailyTask(modelTask);
+        final syncedDbTask = _convertModelToDbTask(syncedModelTask);
+        syncedTasks.add(syncedDbTask);
       } catch (e) {
         // Handle conflict resolution here
         // For now, just rethrow the error
@@ -368,18 +372,40 @@ class SupabaseService {
   // Helper method to convert model DailyTask to database DailyTask
   static DailyTask _convertModelToDbTask(model.DailyTask modelTask) {
     return DailyTask(
-      userId: modelTask.userId,
+      userId: modelTask.userId ?? '',
       date: modelTask.date,
-      readingBook: modelTask.readingBook,
-      stretch: modelTask.stretch,
-      meditation: modelTask.meditation,
-      exercise: modelTask.exercise,
-      healthyEating: modelTask.healthyEating,
-      noSmoking: modelTask.noSmoking,
-      noDrinking: modelTask.noDrinking,
-      skincare: modelTask.skincare,
-      createdAt: modelTask.createdAt,
-      updatedAt: modelTask.updatedAt,
+      readingBookCompleted: modelTask.readingBookCompleted,
+      readingBookPages: modelTask.readingBookPages,
+      readingBookTime: modelTask.readingBookTime,
+      stretchCompleted: modelTask.stretchCompleted,
+      stretchMinutes: modelTask.stretchMinutes,
+      stretchType: modelTask.stretchType,
+      meditationCompleted: modelTask.meditationCompleted,
+      meditationMinutes: modelTask.meditationMinutes,
+      readingDocsCompleted: modelTask.readingDocsCompleted,
+      readingDocsPages: modelTask.readingDocsPages,
+      readingDocsTime: modelTask.readingDocsTime,
+      readingDocsNameLink: modelTask.readingDocsNameLink,
+      learningTechCompleted: modelTask.learningTechCompleted,
+      learningTechName: modelTask.learningTechName,
+      learningTechTime: modelTask.learningTechTime,
+      learningTechSource: modelTask.learningTechSource,
+      learningTechUrl: modelTask.learningTechUrl,
+      walkingCompleted: modelTask.walkingCompleted,
+      walkingSteps: modelTask.walkingSteps,
+      walkingTime: modelTask.walkingTime,
+      avoidHabitLabel: modelTask.avoidHabitLabel,
+      avoidHabitValue: modelTask.avoidHabitValue,
+      avoidSweetsValue: modelTask.avoidSweetsValue,
+      workDoneValue: modelTask.workDoneValue,
+      movieSeriesCompleted: modelTask.movieSeriesCompleted,
+      movieSeriesName: modelTask.movieSeriesName,
+      movieSeriesDuration: modelTask.movieSeriesDuration,
+      movieSeriesStartTime: modelTask.movieSeriesStartTime,
+      movieSeriesEndTime: modelTask.movieSeriesEndTime,
+      notes: modelTask.notes,
+      createdAt: modelTask.createdAt ?? DateTime.now(),
+      updatedAt: modelTask.updatedAt ?? DateTime.now(),
       deletedAt: modelTask.deletedAt,
       timezoneOffset: modelTask.timezoneOffset,
       needsSync: false,
@@ -392,18 +418,40 @@ class SupabaseService {
     return model.DailyTask(
       userId: dbTask.userId,
       date: dbTask.date,
-      readingBook: dbTask.readingBook,
-      stretch: dbTask.stretch,
-      meditation: dbTask.meditation,
-      exercise: dbTask.exercise,
-      healthyEating: dbTask.healthyEating,
-      noSmoking: dbTask.noSmoking,
-      noDrinking: dbTask.noDrinking,
-      skincare: dbTask.skincare,
+      readingBookCompleted: dbTask.readingBookCompleted,
+      readingBookPages: dbTask.readingBookPages,
+      readingBookTime: dbTask.readingBookTime,
+      stretchCompleted: dbTask.stretchCompleted,
+      stretchMinutes: dbTask.stretchMinutes,
+      stretchType: dbTask.stretchType,
+      meditationCompleted: dbTask.meditationCompleted,
+      meditationMinutes: dbTask.meditationMinutes,
+      readingDocsCompleted: dbTask.readingDocsCompleted,
+      readingDocsPages: dbTask.readingDocsPages,
+      readingDocsTime: dbTask.readingDocsTime,
+      readingDocsNameLink: dbTask.readingDocsNameLink,
+      learningTechCompleted: dbTask.learningTechCompleted,
+      learningTechName: dbTask.learningTechName,
+      learningTechTime: dbTask.learningTechTime,
+      learningTechSource: dbTask.learningTechSource,
+      learningTechUrl: dbTask.learningTechUrl,
+      walkingCompleted: dbTask.walkingCompleted,
+      walkingSteps: dbTask.walkingSteps,
+      walkingTime: dbTask.walkingTime,
+      avoidHabitLabel: dbTask.avoidHabitLabel,
+      avoidHabitValue: dbTask.avoidHabitValue,
+      avoidSweetsValue: dbTask.avoidSweetsValue,
+      workDoneValue: dbTask.workDoneValue,
+      movieSeriesCompleted: dbTask.movieSeriesCompleted,
+      movieSeriesName: dbTask.movieSeriesName,
+      movieSeriesDuration: dbTask.movieSeriesDuration,
+      movieSeriesStartTime: dbTask.movieSeriesStartTime,
+      movieSeriesEndTime: dbTask.movieSeriesEndTime,
+      notes: dbTask.notes,
       createdAt: dbTask.createdAt,
       updatedAt: dbTask.updatedAt,
       deletedAt: dbTask.deletedAt,
-      timezoneOffset: dbTask.timezoneOffset,
+      timezoneOffset: dbTask.timezoneOffset ?? 0,
     );
   }
 }

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_material_pickers/flutter_material_pickers.dart';
-import '../models/daily_task.dart';
+import '../models/daily_task.dart' as model;
 import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
 
 class DailyCheckinScreen extends StatefulWidget {
-  final DailyTask? existingTask;
+  final model.DailyTask? existingTask;
   final DateTime date;
 
   const DailyCheckinScreen({
@@ -21,7 +21,7 @@ class DailyCheckinScreen extends StatefulWidget {
 
 class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
   final _formKey = GlobalKey<FormState>();
-  late DailyTask _currentTask;
+  late model.DailyTask _currentTask;
   bool _isLoading = false;
   bool _hasChanges = false;
 
@@ -56,7 +56,7 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
     if (widget.existingTask != null) {
       _currentTask = widget.existingTask!;
     } else {
-      _currentTask = DailyTask.empty(
+      _currentTask = model.DailyTask.empty(
         date: widget.date,
         timezoneOffset: DateTime.now().timeZoneOffset.inMinutes,
       ).copyWith(userId: AuthService.userId);
@@ -125,7 +125,7 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
     super.dispose();
   }
 
-  void _updateTaskField<T>(T value, DailyTask Function(T) updater) {
+  void _updateTaskField<T>(T value, model.DailyTask Function(T) updater) {
     setState(() {
       _currentTask = updater(value);
       _hasChanges = true;

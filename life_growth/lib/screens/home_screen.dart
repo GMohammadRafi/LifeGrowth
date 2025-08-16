@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
 import '../services/database_service.dart';
-import '../models/daily_task.dart';
+import '../models/daily_task.dart' as model;
 import 'auth_screen.dart';
 import 'daily_checkin_screen.dart';
 
@@ -14,7 +14,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  DailyTask? _todayTask;
+  model.DailyTask? _todayTask;
   bool _isLoading = true;
   bool _isSyncing = false;
   String? _errorMessage;
@@ -44,13 +44,13 @@ class _HomeScreenState extends State<HomeScreen> {
       final today = DateTime.now();
       final userId = AuthService.userId!;
       
-      DailyTask? task = await SupabaseService.getDailyTask(
+      model.DailyTask? task = await SupabaseService.getDailyTask(
         userId: userId,
         date: today,
       );
       
       // If no task exists for today, create an empty one
-      task ??= DailyTask.empty(date: today);
+      task ??= model.DailyTask.empty(date: today);
 
       setState(() {
         _todayTask = task;
@@ -64,7 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _updateTask(DailyTask updatedTask) async {
+  Future<void> _updateTask(model.DailyTask updatedTask) async {
     if (!AuthService.isAuthenticated) return;
 
     try {
