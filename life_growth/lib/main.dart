@@ -1,6 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'services/auth_service.dart';
+import 'services/database_service.dart';
+import 'screens/auth_screen.dart';
+import 'screens/home_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Load environment variables
+  await dotenv.load(fileName: ".env");
+  
+  // Initialize local SQLite database
+  await DatabaseService.initialize();
+  
+  // Initialize Supabase
+  final supabaseUrl = dotenv.env['SUPABASE_URL'];
+  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
+  
+  if (supabaseUrl != null && supabaseAnonKey != null) {
+    await Supabase.initialize(
+      url: supabaseUrl,
+      anonKey: supabaseAnonKey,
+    );
+  }
+  
   runApp(const MyApp());
 }
 
@@ -12,81 +37,41 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Life Growth',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF154D71), // Primary dark blue
-          primary: const Color(0xFF154D71),
-          secondary: const Color(0xFF1C6EA4),
-          tertiary: const Color(0xFF33A1E0),
-          surface: const Color(0xFFFAF8E6), // Light background
-        ),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFFAF8E6),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF154D71),
-          foregroundColor: Colors.white,
-        ),
-        floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: Color(0xFF33A1E0),
-          foregroundColor: Colors.white,
-        ),
       ),
-      home: const MyHomePage(title: 'Life Growth'),
+      home: const AuthWrapper(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
+class AuthWrapper extends StatefulWidget {
+  const AuthWrapper({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<AuthWrapper> createState() => _AuthWrapperState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
+class _AuthWrapperState extends State<AuthWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    // Listen to auth state changes
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (mounted) {
+        setState(() {});
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      backgroundColor: const Color(0xFFFAF8E6), // Light background
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
-              style: TextStyle(
-                color: const Color(0xFF154D71),
-                fontSize: 18,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: const Color(0xFF1C6EA4),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
-    );
+    // Check if user is authenticated
+    if (AuthService.isAuthenticated) {
+      return const HomeScreen();
+    } else {
+      return const AuthScreen();
+    }
   }
 }

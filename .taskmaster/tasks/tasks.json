@@ -5,7 +5,7 @@
         "id": 1,
         "title": "Setup Flutter Project",
         "description": "Initialize a new Flutter project with necessary configurations for Android, iOS, Web, and Linux platforms.",
-        "status": "in-progress",
+        "status": "done",
         "dependencies": [],
         "priority": "high",
         "details": "Create Flutter project via `flutter create life_growth`. Configure the project for Android, iOS, Web, and Linux platforms. Update platform-specific configurations, including application IDs and metadata. Add `flutter_lints` for code linting and formatting. Initialize Git repository for version control. Prepare Supabase and platform secrets management for Task 2 dependency setup.",
@@ -87,7 +87,7 @@
             "id": 9,
             "title": "",
             "description": "Prepare Supabase and platform secrets management for Task 2 dependency setup.",
-            "status": "to-do",
+            "status": "done",
             "dependencies": [],
             "details": "",
             "testStrategy": ""
@@ -104,7 +104,7 @@
         "dependencies": [
           1
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -131,7 +131,7 @@
         "dependencies": [
           1
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -309,7 +309,7 @@
     ],
     "metadata": {
       "created": "2025-08-12T05:23:05.732Z",
-      "updated": "2025-08-12T05:34:42.624Z",
+      "updated": "2025-08-12T07:51:25.986Z",
       "description": "Tasks for master context"
     }
   }
