@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/auth_service.dart';
@@ -12,8 +13,10 @@ void main() async {
   // Load environment variables
   await dotenv.load(fileName: ".env");
   
-  // Initialize local SQLite database
-  await DatabaseService.initialize();
+  // Initialize local SQLite database (skip for web due to SQL.js issues)
+  if (!kIsWeb) {
+    await DatabaseService.initialize();
+  }
   
   // Initialize Supabase
   final supabaseUrl = dotenv.env['SUPABASE_URL'];

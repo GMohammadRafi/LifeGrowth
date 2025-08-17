@@ -2,7 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 
 // Conditional imports
-import 'database_native.dart' if (dart.library.html) 'database_web_impl.dart';
+import 'database_web_impl.dart' if (dart.library.io) 'database_native.dart';
 
 import 'tables.dart';
 
