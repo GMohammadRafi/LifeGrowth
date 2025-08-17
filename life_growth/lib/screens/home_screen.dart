@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
 import '../services/database_service.dart';
+import '../services/background_sync_manager.dart';
 import '../models/daily_task.dart' as model;
 import 'auth_screen.dart';
 import 'daily_checkin_screen.dart';
@@ -102,6 +103,10 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
+      // Use background sync manager for immediate sync
+      await BackgroundSyncManager().scheduleImmediateSync();
+      
+      // Also perform direct sync for immediate feedback
       await SupabaseService.syncAllPendingChanges(AuthService.userId!);
       await _loadTodayTask(); // Reload to get any updates
       

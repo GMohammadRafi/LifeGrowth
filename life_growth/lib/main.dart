@@ -4,6 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/auth_service.dart';
 import 'services/database_service.dart';
+import 'services/background_sync_manager.dart';
 import 'screens/auth_screen.dart';
 import 'screens/home_screen.dart';
 
@@ -27,6 +28,20 @@ void main() async {
       url: supabaseUrl,
       anonKey: supabaseAnonKey,
     );
+  }
+  
+  // Initialize background sync manager (only on mobile platforms)
+  if (!kIsWeb) {
+    try {
+      await BackgroundSyncManager().initialize();
+      if (kDebugMode) {
+        print('Background sync manager initialized successfully');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to initialize background sync manager: $e');
+      }
+    }
   }
   
   runApp(const MyApp());
