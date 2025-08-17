@@ -49,6 +49,9 @@ dependencies:
   # Internationalization and material pickers for Daily Check-in screen
   intl: ^0.19.0
   flutter_material_pickers: ^3.7.0
+  
+  # Biometric authentication
+  local_auth: ^2.1.8
 
 dev_dependencies:
   flutter_test:

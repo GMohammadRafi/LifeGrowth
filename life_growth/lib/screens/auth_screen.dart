@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:local_auth/local_auth.dart';
 import '../services/auth_service.dart';
 import 'home_screen.dart';
 
@@ -18,12 +20,36 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isLoading = false;
   bool _isSignUp = false;
   String? _errorMessage;
+  bool _isBiometricAvailable = false;
+  List<BiometricType> _availableBiometrics = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometricAvailability();
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+  
+  Future<void> _checkBiometricAvailability() async {
+    try {
+      final isAvailable = await AuthService.isBiometricAvailable();
+      final availableBiometrics = await AuthService.getAvailableBiometrics();
+      
+      if (mounted) {
+        setState(() {
+          _isBiometricAvailable = isAvailable;
+          _availableBiometrics = availableBiometrics;
+        });
+      }
+    } catch (e) {
+      // Biometric check failed, continue without biometric option
+    }
   }
 
   Future<void> _handleEmailAuth() async {
@@ -120,6 +146,53 @@ class _AuthScreenState extends State<AuthScreen> {
     } catch (e) {
       setState(() {
         _errorMessage = 'An unexpected error occurred with GitHub sign in';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+  
+  Future<void> _handleBiometricAuth() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final didAuthenticate = await AuthService.authenticateWithBiometrics(
+        localizedReason: 'Please authenticate to access Life Growth',
+      );
+      
+      if (didAuthenticate && mounted) {
+        // Check if user is already signed in after biometric auth
+        if (AuthService.isAuthenticated) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        } else {
+          // If not authenticated, show message that they need to sign in first
+          setState(() {
+            _errorMessage = 'Please sign in with your email and password first to enable biometric authentication';
+          });
+        }
+      }
+    } on PlatformException catch (e) {
+      setState(() {
+        if (e.code == 'NotAvailable') {
+          _errorMessage = 'Biometric authentication is not available on this device';
+        } else if (e.code == 'NotEnrolled') {
+          _errorMessage = 'No biometrics enrolled. Please set up biometric authentication in your device settings';
+        } else {
+          _errorMessage = 'Biometric authentication failed: ${e.message}';
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'An unexpected error occurred during biometric authentication';
       });
     } finally {
       if (mounted) {
@@ -298,6 +371,32 @@ class _AuthScreenState extends State<AuthScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
+                
+                // Biometric authentication button
+                if (_isBiometricAvailable && _availableBiometrics.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _handleBiometricAuth,
+                    icon: Icon(
+                      _availableBiometrics.contains(BiometricType.face)
+                          ? Icons.face
+                          : _availableBiometrics.contains(BiometricType.fingerprint)
+                              ? Icons.fingerprint
+                              : Icons.security,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    label: Text(
+                      _availableBiometrics.contains(BiometricType.face)
+                          ? 'Continue with Face ID'
+                          : _availableBiometrics.contains(BiometricType.fingerprint)
+                              ? 'Continue with Fingerprint'
+                              : 'Continue with Biometrics',
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:local_auth/local_auth.dart';
 
 class AuthService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -207,5 +209,120 @@ class AuthService {
   static DateTime? get lastSignInAt {
     final lastSignInStr = currentUser?.lastSignInAt;
     return lastSignInStr != null ? DateTime.tryParse(lastSignInStr) : null;
+  }
+  
+  // Biometric Authentication Methods
+  static final LocalAuthentication _localAuth = LocalAuthentication();
+  
+  // Check if biometric authentication is available
+  static Future<bool> isBiometricAvailable() async {
+    try {
+      final bool isAvailable = await _localAuth.isDeviceSupported();
+      if (!isAvailable) return false;
+      
+      final bool canCheckBiometrics = await _localAuth.canCheckBiometrics;
+      if (!canCheckBiometrics) return false;
+      
+      final availableBiometrics = await _localAuth.getAvailableBiometrics();
+      return availableBiometrics.isNotEmpty;
+    } catch (e) {
+      debugPrint('Error checking biometric availability: $e');
+      return false;
+    }
+  }
+  
+  // Get available biometric types
+  static Future<List<BiometricType>> getAvailableBiometrics() async {
+    try {
+      return await _localAuth.getAvailableBiometrics();
+    } catch (e) {
+      debugPrint('Error getting available biometrics: $e');
+      return [];
+    }
+  }
+  
+  // Authenticate with biometrics
+  static Future<bool> authenticateWithBiometrics({
+    String localizedReason = 'Please authenticate to access your account',
+    bool biometricOnly = false,
+  }) async {
+    try {
+      final bool isAvailable = await isBiometricAvailable();
+      if (!isAvailable) {
+        throw PlatformException(
+          code: 'NotAvailable',
+          message: 'Biometric authentication is not available on this device',
+        );
+      }
+      
+      // Check if biometrics are enrolled
+      final availableBiometrics = await getAvailableBiometrics();
+      if (availableBiometrics.isEmpty) {
+        throw PlatformException(
+          code: 'NotEnrolled',
+          message: 'No biometrics are enrolled on this device',
+        );
+      }
+      
+      final bool didAuthenticate = await _localAuth.authenticate(
+        localizedReason: localizedReason,
+        options: AuthenticationOptions(
+          biometricOnly: biometricOnly,
+          stickyAuth: true,
+        ),
+      );
+      
+      return didAuthenticate;
+    } on PlatformException catch (e) {
+      debugPrint('Biometric authentication error: ${e.message}');
+      rethrow;
+    } catch (e) {
+      debugPrint('Unexpected error during biometric authentication: $e');
+      throw PlatformException(
+        code: 'AuthenticationError',
+        message: 'An error occurred during biometric authentication: $e',
+      );
+    }
+  }
+  
+  // Stop biometric authentication
+  static Future<void> stopAuthentication() async {
+    try {
+      await _localAuth.stopAuthentication();
+    } catch (e) {
+      debugPrint('Error stopping biometric authentication: $e');
+    }
+  }
+  
+  // Enhanced session management
+  static Future<bool> hasValidSession() async {
+    try {
+      final session = _client.auth.currentSession;
+      if (session == null) return false;
+      
+      // Check if session is expired
+      final now = DateTime.now().millisecondsSinceEpoch / 1000;
+      return session.expiresAt != null && session.expiresAt! > now;
+    } catch (e) {
+      debugPrint('Error checking session validity: $e');
+      return false;
+    }
+  }
+  
+  static Future<void> refreshSessionIfNeeded() async {
+    try {
+      final session = _client.auth.currentSession;
+      if (session == null) return;
+      
+      // Refresh if session expires within 5 minutes
+      final now = DateTime.now().millisecondsSinceEpoch / 1000;
+      final expiresAt = session.expiresAt ?? 0;
+      
+      if (expiresAt - now < 300) { // 5 minutes
+        await _client.auth.refreshSession();
+      }
+    } catch (e) {
+      debugPrint('Error refreshing session: $e');
+    }
   }
 }

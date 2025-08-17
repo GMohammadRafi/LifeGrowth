@@ -57,6 +57,8 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
+  bool _isCheckingBiometric = false;
+  
   @override
   void initState() {
     super.initState();
@@ -66,10 +68,49 @@ class _AuthWrapperState extends State<AuthWrapper> {
         setState(() {});
       }
     });
+    
+    // Check for biometric authentication on app start
+    _checkBiometricOnStart();
+  }
+  
+  Future<void> _checkBiometricOnStart() async {
+    // Only attempt biometric auth if user was previously authenticated
+    // and biometric is available
+    if (!AuthService.isAuthenticated) {
+      final isAvailable = await AuthService.isBiometricAvailable();
+      if (isAvailable) {
+        setState(() {
+          _isCheckingBiometric = true;
+        });
+        
+        try {
+          // This is a placeholder for checking if user has enabled biometric auth
+          // In a real app, you'd store this preference in secure storage
+          // For now, we'll skip automatic biometric prompt
+        } catch (e) {
+          // Biometric auth failed, continue to normal auth screen
+        } finally {
+          if (mounted) {
+            setState(() {
+              _isCheckingBiometric = false;
+            });
+          }
+        }
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Show loading while checking biometric
+    if (_isCheckingBiometric) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    
     // Check if user is authenticated
     if (AuthService.isAuthenticated) {
       return const HomeScreen();
