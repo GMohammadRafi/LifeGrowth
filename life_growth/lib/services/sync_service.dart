@@ -6,10 +6,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:drift/drift.dart';
 import '../database/database.dart';
-import '../models/habit.dart';
+import '../models/habit.dart' as models;
 import '../models/daily_checkin.dart';
-import '../models/goal.dart';
+import '../models/goal.dart' as models;
 import '../models/journal_entry.dart';
+import '../database/tables.dart';
 import 'auth_service.dart';
 
 class SyncService {
@@ -52,7 +53,7 @@ class SyncService {
       iOS: iosSettings,
     );
     
-    await _notificationsPlugin.initialize(initSettings);
+    await _notificationsPlugin?.initialize(initSettings);
     
     // Create notification channel for Android
     const androidChannel = AndroidNotificationChannel(
@@ -63,7 +64,7 @@ class SyncService {
     );
     
     await _notificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(androidChannel);
   }
 
@@ -96,7 +97,7 @@ class SyncService {
   /// Perform manual sync
   Future<SyncResult> performSync() async {
     try {
-      if (!await _authService.hasValidSession()) {
+      if (!await AuthService.hasValidSession()) {
         return SyncResult(
           success: false,
           message: 'User not authenticated',
@@ -291,7 +292,7 @@ class SyncService {
       int conflicts = 0;
 
       // Get local habits that need syncing
-      final localHabits = await _database.getHabitsToSync(userId);
+      final localHabits = await _database?.getHabitsToSync(userId) ?? [];
       
       for (final habit in localHabits) {
         try {
@@ -311,7 +312,7 @@ class SyncService {
           await supabase.from('habits').upsert(habitJson);
           
           // Mark as synced locally
-          await _database.markHabitAsSynced(habit.id);
+          await _database?.markHabitAsSynced(habit.id);
           synced++;
         } catch (e) {
           if (kDebugMode) {
@@ -329,7 +330,7 @@ class SyncService {
       
       for (final habitData in remoteHabits) {
         final habitId = habitData['id'] as String;
-        final localHabit = await _database.getHabit(habitId);
+        final localHabit = await _database?.getHabit(habitId);
         final remoteUpdatedAt = DateTime.parse(habitData['updated_at']);
         
         if (localHabit == null || 
@@ -350,7 +351,7 @@ class SyncService {
             needsSync: const Value(false),
             lastSyncAt: Value(DateTime.now()),
           );
-          await _database.upsertHabit(habitCompanion);
+          await _database?.upsertHabit(habitCompanion);
           synced++;
         } else if (localHabit.updatedAt.isAfter(remoteUpdatedAt) && 
                    localHabit.needsSync) {
@@ -366,7 +367,7 @@ class SyncService {
             'updated_at': localHabit.updatedAt.toIso8601String(),
           };
           await supabase.from('habits').upsert(habitJson);
-          await _database.markHabitAsSynced(habitId);
+          await _database?.markHabitAsSynced(habitId);
           conflicts++;
         }
       }
@@ -395,7 +396,7 @@ class SyncService {
       int conflicts = 0;
 
       // Get local check-ins that need syncing
-      final localCheckins = await _database.getDailyCheckinsToSync(userId);
+      final localCheckins = await _database?.getDailyCheckinsToSync(userId) ?? [];
       
       for (final checkin in localCheckins) {
         try {
@@ -416,7 +417,7 @@ class SyncService {
           await supabase.from('daily_checkins').upsert(checkinJson);
           
           // Mark as synced locally
-          await _database.markDailyCheckinAsSynced(checkin.id);
+          await _database?.markDailyCheckinAsSynced(checkin.id);
           synced++;
         } catch (e) {
           if (kDebugMode) {
@@ -434,7 +435,7 @@ class SyncService {
       
       for (final checkinData in remoteCheckins) {
         final checkinId = checkinData['id'] as String;
-        final localCheckin = await _database.getDailyCheckin(checkinId);
+        final localCheckin = await _database?.getDailyCheckin(checkinId);
         final remoteUpdatedAt = DateTime.parse(checkinData['updated_at']);
         
         if (localCheckin == null || 
@@ -453,7 +454,7 @@ class SyncService {
             needsSync: const Value(false),
             lastSyncAt: Value(DateTime.now()),
           );
-          await _database.upsertDailyCheckin(checkinCompanion);
+          await _database?.upsertDailyCheckin(checkinCompanion);
           synced++;
         } else if (localCheckin.updatedAt.isAfter(remoteUpdatedAt) && 
                    localCheckin.needsSync) {
@@ -470,7 +471,7 @@ class SyncService {
             'updated_at': localCheckin.updatedAt.toIso8601String(),
           };
           await supabase.from('daily_checkins').upsert(checkinJson);
-          await _database.markDailyCheckinAsSynced(checkinId);
+          await _database?.markDailyCheckinAsSynced(checkinId);
           conflicts++;
         }
       }
@@ -499,7 +500,7 @@ class SyncService {
       int conflicts = 0;
 
       // Get local goals that need syncing
-      final localGoals = await _database.getGoalsToSync(userId);
+      final localGoals = await _database?.getGoalsToSync(userId) ?? [];
       
       for (final goal in localGoals) {
         try {
@@ -520,7 +521,7 @@ class SyncService {
           await supabase.from('goals').upsert(goalJson);
           
           // Mark as synced locally
-          await _database.markGoalAsSynced(goal.id);
+          await _database?.markGoalAsSynced(goal.id);
           synced++;
         } catch (e) {
           if (kDebugMode) {
@@ -538,7 +539,7 @@ class SyncService {
       
       for (final goalData in remoteGoals) {
         final goalId = goalData['id'] as String;
-        final localGoal = await _database.getGoal(goalId);
+        final localGoal = await _database?.getGoal(goalId);
         final remoteUpdatedAt = DateTime.parse(goalData['updated_at']);
         
         if (localGoal == null || 

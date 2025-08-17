@@ -3,7 +3,7 @@ import 'package:workmanager/workmanager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'sync_service.dart';
 import 'notification_service.dart';
-import 'background_task_handler.dart';
+import 'background_task_handler.dart' as bg_handler;
 
 class BackgroundSyncManager {
   static const String _syncTaskName = 'life_growth_sync';
@@ -25,7 +25,7 @@ class BackgroundSyncManager {
 
       // Initialize WorkManager
       await Workmanager().initialize(
-        callbackDispatcher, // Use the callback dispatcher from background_task_handler.dart
+        bg_handler.callbackDispatcher, // Use the callback dispatcher from background_task_handler.dart
         isInDebugMode: kDebugMode,
       );
 
