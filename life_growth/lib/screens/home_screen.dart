@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
 import '../services/background_sync_manager.dart';
+import '../services/personalization_service.dart';
 import '../models/daily_task.dart' as model;
+import '../models/personalization_settings.dart';
 import 'auth_screen.dart';
 import 'daily_checkin_screen.dart';
 import 'history_screen.dart';
@@ -19,6 +21,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   model.DailyTask? _todayTask;
   bool _isLoading = true;
+  PersonalizationService? _personalizationService;
+  PersonalizationSettings? _personalizationSettings;
   bool _isSyncing = false;
   String? _errorMessage;
   String? _syncStatus;
@@ -26,7 +30,20 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _initializePersonalization();
     _loadTodayTask();
+  }
+
+  Future<void> _initializePersonalization() async {
+    try {
+      _personalizationService = await PersonalizationService.getInstance();
+      _personalizationSettings = await _personalizationService!.loadSettings();
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      print('Error initializing personalization: $e');
+    }
   }
 
   Future<void> _loadTodayTask() async {
@@ -246,7 +263,7 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: 'Sync Data',
           ),
           PopupMenuButton<String>(
-            onSelected: (value) {
+            onSelected: (value) async {
               if (value == 'history') {
                 Navigator.of(context).push(
                   MaterialPageRoute(
@@ -260,11 +277,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 );
               } else if (value == 'personalization') {
-                Navigator.of(context).push(
+                final result = await Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => const PersonalizationScreen(),
                   ),
                 );
+                if (result == true) {
+                  await _initializePersonalization();
+                }
               } else if (value == 'signout') {
                 _signOut();
               }
@@ -374,154 +394,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
 
                           // Task list
-                          _buildTaskTile(
-                            title: 'Reading Book',
-                            completed:
-                                _todayTask!.isReadingBookEffectivelyCompleted,
-                            subtitle: _todayTask!.readingBookPages != null ||
-                                    _todayTask!.readingBookTime != null
-                                ? '${_todayTask!.readingBookPages ?? 0} pages, ${_todayTask!.readingBookTime ?? 0} min'
-                                : null,
-                            onToggle: () {
-                              final updated = _todayTask!.copyWith(
-                                readingBookCompleted:
-                                    !_todayTask!.readingBookCompleted,
-                              );
-                              _updateTask(updated);
-                            },
-                          ),
-
-                          _buildTaskTile(
-                            title:
-                                'Stretch (${_todayTask!.stretchType ?? 'Not specified'})',
-                            completed:
-                                _todayTask!.isStretchEffectivelyCompleted,
-                            subtitle: _todayTask!.stretchMinutes != null
-                                ? '${_todayTask!.stretchMinutes} minutes'
-                                : null,
-                            onToggle: () {
-                              final updated = _todayTask!.copyWith(
-                                stretchCompleted: !_todayTask!.stretchCompleted,
-                              );
-                              _updateTask(updated);
-                            },
-                          ),
-
-                          _buildTaskTile(
-                            title: 'Meditation',
-                            completed:
-                                _todayTask!.isMeditationEffectivelyCompleted,
-                            subtitle: _todayTask!.meditationMinutes != null
-                                ? '${_todayTask!.meditationMinutes} minutes'
-                                : null,
-                            onToggle: () {
-                              final updated = _todayTask!.copyWith(
-                                meditationCompleted:
-                                    !_todayTask!.meditationCompleted,
-                              );
-                              _updateTask(updated);
-                            },
-                          ),
-
-                          _buildTaskTile(
-                            title: 'Reading Docs',
-                            completed:
-                                _todayTask!.isReadingDocsEffectivelyCompleted,
-                            subtitle: _todayTask!.readingDocsPages != null ||
-                                    _todayTask!.readingDocsTime != null
-                                ? '${_todayTask!.readingDocsPages ?? 0} pages, ${_todayTask!.readingDocsTime ?? 0} min'
-                                : null,
-                            onToggle: () {
-                              final updated = _todayTask!.copyWith(
-                                readingDocsCompleted:
-                                    !_todayTask!.readingDocsCompleted,
-                              );
-                              _updateTask(updated);
-                            },
-                          ),
-
-                          _buildTaskTile(
-                            title: 'Learning New Technology',
-                            completed:
-                                _todayTask!.isLearningTechEffectivelyCompleted,
-                            subtitle: _todayTask!.learningTechName != null ||
-                                    _todayTask!.learningTechTime != null
-                                ? '${_todayTask!.learningTechName ?? 'Not specified'}, ${_todayTask!.learningTechTime ?? 0} min'
-                                : null,
-                            onToggle: () {
-                              final updated = _todayTask!.copyWith(
-                                learningTechCompleted:
-                                    !_todayTask!.learningTechCompleted,
-                              );
-                              _updateTask(updated);
-                            },
-                          ),
-
-                          _buildTaskTile(
-                            title: 'Walking',
-                            completed:
-                                _todayTask!.isWalkingEffectivelyCompleted,
-                            subtitle: _todayTask!.walkingSteps != null ||
-                                    _todayTask!.walkingTime != null
-                                ? '${_todayTask!.walkingSteps ?? 0} steps, ${_todayTask!.walkingTime ?? 0} min'
-                                : null,
-                            onToggle: () {
-                              final updated = _todayTask!.copyWith(
-                                walkingCompleted: !_todayTask!.walkingCompleted,
-                              );
-                              _updateTask(updated);
-                            },
-                          ),
-
-                          _buildTaskTile(
-                            title: _todayTask!.avoidHabitLabel ?? 'Avoid X',
-                            completed: _todayTask!.avoidHabitValue,
-                            onToggle: () {
-                              final updated = _todayTask!.copyWith(
-                                avoidHabitValue: !_todayTask!.avoidHabitValue,
-                              );
-                              _updateTask(updated);
-                            },
-                          ),
-
-                          _buildTaskTile(
-                            title: 'Avoid Sweets',
-                            completed: _todayTask!.avoidSweetsValue,
-                            onToggle: () {
-                              final updated = _todayTask!.copyWith(
-                                avoidSweetsValue: !_todayTask!.avoidSweetsValue,
-                              );
-                              _updateTask(updated);
-                            },
-                          ),
-
-                          _buildTaskTile(
-                            title: 'Work Done Today',
-                            completed: _todayTask!.workDoneValue,
-                            onToggle: () {
-                              final updated = _todayTask!.copyWith(
-                                workDoneValue: !_todayTask!.workDoneValue,
-                              );
-                              _updateTask(updated);
-                            },
-                          ),
-
-                          _buildTaskTile(
-                            title: 'Movie or Series',
-                            completed:
-                                _todayTask!.isMovieSeriesEffectivelyCompleted,
-                            subtitle: _todayTask!.movieSeriesName != null ||
-                                    _todayTask!.movieSeriesDuration != null
-                                ? '${_todayTask!.movieSeriesName ?? 'Not specified'}, ${_todayTask!.movieSeriesDuration ?? 0} min'
-                                : null,
-                            onToggle: () {
-                              final updated = _todayTask!.copyWith(
-                                movieSeriesCompleted:
-                                    !_todayTask!.movieSeriesCompleted,
-                              );
-                              _updateTask(updated);
-                            },
-                          ),
+                          ..._buildPersonalizedTaskList(),
 
                           const SizedBox(height: 16),
                         ],
@@ -548,5 +421,188 @@ class _HomeScreenState extends State<HomeScreen> {
               label: const Text('Daily Check-in'),
             ),
     );
+  }
+
+  List<Widget> _buildPersonalizedTaskList() {
+    if (_personalizationSettings == null || _todayTask == null) {
+      return _buildDefaultTaskList();
+    }
+
+    final List<Widget> taskWidgets = [];
+    final taskOrder = _personalizationSettings!.taskOrder;
+    final hiddenTasks = _personalizationSettings!.hiddenTasks;
+
+    for (final taskType in taskOrder) {
+       if (!hiddenTasks.contains(taskType)) {
+         final widget = _buildTaskTileForType(taskType);
+         if (widget != null) {
+           taskWidgets.add(widget);
+         }
+       }
+     }
+
+    return taskWidgets;
+  }
+
+  List<Widget> _buildDefaultTaskList() {
+    if (_todayTask == null) return [];
+    
+    return [
+      _buildTaskTileForType('readingBook'),
+      _buildTaskTileForType('stretch'),
+      _buildTaskTileForType('meditation'),
+      _buildTaskTileForType('readingDocs'),
+      _buildTaskTileForType('learningTech'),
+      _buildTaskTileForType('walking'),
+      _buildTaskTileForType('avoidHabit'),
+      _buildTaskTileForType('avoidSweets'),
+      _buildTaskTileForType('workDone'),
+      _buildTaskTileForType('movieSeries'),
+    ].where((widget) => widget != null).cast<Widget>().toList();
+  }
+
+  Widget? _buildTaskTileForType(String taskType) {
+    if (_todayTask == null) return null;
+
+    switch (taskType) {
+      case 'readingBook':
+        return _buildTaskTile(
+          title: 'Reading Book',
+          completed: _todayTask!.isReadingBookEffectivelyCompleted,
+          subtitle: _todayTask!.readingBookPages != null ||
+                  _todayTask!.readingBookTime != null
+              ? '${_todayTask!.readingBookPages ?? 0} pages, ${_todayTask!.readingBookTime ?? 0} min'
+              : null,
+          onToggle: () {
+            final updated = _todayTask!.copyWith(
+              readingBookCompleted: !_todayTask!.readingBookCompleted,
+            );
+            _updateTask(updated);
+          },
+        );
+      case 'stretch':
+        return _buildTaskTile(
+          title: 'Stretch (${_todayTask!.stretchType ?? 'Not specified'})',
+          completed: _todayTask!.isStretchEffectivelyCompleted,
+          subtitle: _todayTask!.stretchMinutes != null
+              ? '${_todayTask!.stretchMinutes} minutes'
+              : null,
+          onToggle: () {
+            final updated = _todayTask!.copyWith(
+              stretchCompleted: !_todayTask!.stretchCompleted,
+            );
+            _updateTask(updated);
+          },
+        );
+      case 'meditation':
+        return _buildTaskTile(
+          title: 'Meditation',
+          completed: _todayTask!.isMeditationEffectivelyCompleted,
+          subtitle: _todayTask!.meditationMinutes != null
+              ? '${_todayTask!.meditationMinutes} minutes'
+              : null,
+          onToggle: () {
+            final updated = _todayTask!.copyWith(
+              meditationCompleted: !_todayTask!.meditationCompleted,
+            );
+            _updateTask(updated);
+          },
+        );
+      case 'readingDocs':
+        return _buildTaskTile(
+          title: 'Reading Docs',
+          completed: _todayTask!.isReadingDocsEffectivelyCompleted,
+          subtitle: _todayTask!.readingDocsPages != null ||
+                  _todayTask!.readingDocsTime != null
+              ? '${_todayTask!.readingDocsPages ?? 0} pages, ${_todayTask!.readingDocsTime ?? 0} min'
+              : null,
+          onToggle: () {
+            final updated = _todayTask!.copyWith(
+              readingDocsCompleted: !_todayTask!.readingDocsCompleted,
+            );
+            _updateTask(updated);
+          },
+        );
+      case 'learningTech':
+        return _buildTaskTile(
+          title: 'Learning New Technology',
+          completed: _todayTask!.isLearningTechEffectivelyCompleted,
+          subtitle: _todayTask!.learningTechName != null ||
+                  _todayTask!.learningTechTime != null
+              ? '${_todayTask!.learningTechName ?? 'Not specified'}, ${_todayTask!.learningTechTime ?? 0} min'
+              : null,
+          onToggle: () {
+            final updated = _todayTask!.copyWith(
+              learningTechCompleted: !_todayTask!.learningTechCompleted,
+            );
+            _updateTask(updated);
+          },
+        );
+      case 'walking':
+        return _buildTaskTile(
+          title: 'Walking',
+          completed: _todayTask!.isWalkingEffectivelyCompleted,
+          subtitle: _todayTask!.walkingSteps != null ||
+                  _todayTask!.walkingTime != null
+              ? '${_todayTask!.walkingSteps ?? 0} steps, ${_todayTask!.walkingTime ?? 0} min'
+              : null,
+          onToggle: () {
+            final updated = _todayTask!.copyWith(
+              walkingCompleted: !_todayTask!.walkingCompleted,
+            );
+            _updateTask(updated);
+          },
+        );
+      case 'avoidHabit':
+        return _buildTaskTile(
+          title: _todayTask!.avoidHabitLabel ?? 'Avoid X',
+          completed: _todayTask!.avoidHabitValue,
+          onToggle: () {
+            final updated = _todayTask!.copyWith(
+              avoidHabitValue: !_todayTask!.avoidHabitValue,
+            );
+            _updateTask(updated);
+          },
+        );
+      case 'avoidSweets':
+        return _buildTaskTile(
+          title: 'Avoid Sweets',
+          completed: _todayTask!.avoidSweetsValue,
+          onToggle: () {
+            final updated = _todayTask!.copyWith(
+              avoidSweetsValue: !_todayTask!.avoidSweetsValue,
+            );
+            _updateTask(updated);
+          },
+        );
+      case 'workDone':
+        return _buildTaskTile(
+          title: 'Work Done Today',
+          completed: _todayTask!.workDoneValue,
+          onToggle: () {
+            final updated = _todayTask!.copyWith(
+              workDoneValue: !_todayTask!.workDoneValue,
+            );
+            _updateTask(updated);
+          },
+        );
+      case 'movieSeries':
+        return _buildTaskTile(
+          title: 'Movie or Series',
+          completed: _todayTask!.isMovieSeriesEffectivelyCompleted,
+          subtitle: _todayTask!.movieSeriesName != null ||
+                  _todayTask!.movieSeriesDuration != null
+              ? '${_todayTask!.movieSeriesName ?? 'Not specified'}, ${_todayTask!.movieSeriesDuration ?? 0} min'
+              : null,
+          onToggle: () {
+            final updated = _todayTask!.copyWith(
+              movieSeriesCompleted: !_todayTask!.movieSeriesCompleted,
+            );
+            _updateTask(updated);
+          },
+        );
+      default:
+        return null;
+    }
   }
 }
