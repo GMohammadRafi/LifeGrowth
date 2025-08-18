@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/personalization_settings.dart';
 import '../services/personalization_service.dart';
+import '../services/notification_service.dart';
 
 class PersonalizationScreen extends StatefulWidget {
   const PersonalizationScreen({super.key});
@@ -11,8 +12,11 @@ class PersonalizationScreen extends StatefulWidget {
 
 class _PersonalizationScreenState extends State<PersonalizationScreen> {
   late PersonalizationService _personalizationService;
+  late NotificationService _notificationService;
   PersonalizationSettings? _settings;
   bool _isLoading = true;
+  bool _dailyReminderEnabled = false;
+  TimeOfDay _dailyReminderTime = const TimeOfDay(hour: 20, minute: 0);
   final _avoidHabitLabelController = TextEditingController();
 
   @override
@@ -23,7 +27,9 @@ class _PersonalizationScreenState extends State<PersonalizationScreen> {
 
   Future<void> _initializeService() async {
     _personalizationService = await PersonalizationService.getInstance();
+    _notificationService = NotificationService();
     await _loadSettings();
+    await _loadReminderSettings();
   }
 
   Future<void> _loadSettings() async {
@@ -31,6 +37,15 @@ class _PersonalizationScreenState extends State<PersonalizationScreen> {
     setState(() {
       _settings = settings;
       _avoidHabitLabelController.text = settings.avoidHabitLabel;
+    });
+  }
+
+  Future<void> _loadReminderSettings() async {
+    final enabled = await _notificationService.isDailyReminderEnabled();
+    final time = await _notificationService.getDailyReminderTime();
+    setState(() {
+      _dailyReminderEnabled = enabled;
+      _dailyReminderTime = time;
       _isLoading = false;
     });
   }
@@ -100,6 +115,51 @@ class _PersonalizationScreenState extends State<PersonalizationScreen> {
     setState(() {
       _settings = _settings!.copyWith(showAvoidSweets: !_settings!.showAvoidSweets);
     });
+  }
+
+  Future<void> _toggleDailyReminder(bool enabled) async {
+    setState(() {
+      _dailyReminderEnabled = enabled;
+    });
+    
+    await _notificationService.setDailyReminder(
+      enabled: enabled,
+      time: _dailyReminderTime,
+    );
+    
+    if (enabled && mounted) {
+      // Request notification permissions if enabling
+      final hasPermission = await _notificationService.requestPermissions();
+      if (!hasPermission && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notification permission is required for reminders'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _selectDailyReminderTime() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: _dailyReminderTime,
+    );
+    
+    if (picked != null && picked != _dailyReminderTime) {
+      setState(() {
+        _dailyReminderTime = picked;
+      });
+      
+      // Update the reminder if it's enabled
+      if (_dailyReminderEnabled) {
+        await _notificationService.setDailyReminder(
+          enabled: true,
+          time: picked,
+        );
+      }
+    }
   }
 
   String _getTaskDisplayName(String taskId) {
@@ -320,6 +380,53 @@ class _PersonalizationScreenState extends State<PersonalizationScreen> {
                       value: _settings!.showAvoidSweets,
                       onChanged: (_) => _toggleAvoidSweets(),
                     ),
+                  ],
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Reminder Settings Section
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Reminder Settings',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Configure daily reminders for your check-ins',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    SwitchListTile(
+                      title: const Text('Daily Reminder'),
+                      subtitle: Text(
+                        _dailyReminderEnabled
+                            ? 'Reminder enabled at ${_dailyReminderTime.format(context)}'
+                            : 'No daily reminder set',
+                      ),
+                      value: _dailyReminderEnabled,
+                      onChanged: _toggleDailyReminder,
+                    ),
+                    if (_dailyReminderEnabled) ...[                      
+                      const SizedBox(height: 8),
+                      ListTile(
+                        leading: const Icon(Icons.access_time),
+                        title: const Text('Reminder Time'),
+                        subtitle: Text(_dailyReminderTime.format(context)),
+                        trailing: const Icon(Icons.edit),
+                        onTap: _selectDailyReminderTime,
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -11,6 +11,7 @@ import 'history_screen.dart';
 import 'analytics_screen.dart';
 import 'personalization_screen.dart';
 import 'accessibility_settings_screen.dart';
+import 'task_reminder_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -317,6 +318,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     builder: (context) => const AccessibilitySettingsScreen(),
                   ),
                 );
+              } else if (value == 'reminders') {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const TaskReminderScreen(),
+                  ),
+                );
               } else if (value == 'signout') {
                 _signOut();
               }
@@ -378,6 +385,21 @@ class _HomeScreenState extends State<HomeScreen> {
                       Icon(Icons.accessibility),
                       SizedBox(width: 8),
                       Text('Accessibility'),
+                    ],
+                  ),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'reminders',
+                child: Semantics(
+                  label: 'Task Reminders',
+                  hint: 'Manage reminders for your tasks',
+                  button: true,
+                  child: const Row(
+                    children: [
+                      Icon(Icons.notifications),
+                      SizedBox(width: 8),
+                      Text('Task Reminders'),
                     ],
                   ),
                 ),

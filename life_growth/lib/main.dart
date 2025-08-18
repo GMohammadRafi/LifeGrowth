@@ -3,9 +3,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 import 'services/auth_service.dart';
 import 'services/database_service.dart';
 import 'services/background_sync_manager.dart';
+import 'services/notification_service.dart';
 import 'services/theme_service.dart';
 import 'providers/theme_provider.dart';
 import 'screens/auth_screen.dart';
@@ -31,6 +34,24 @@ void main() async {
       url: supabaseUrl,
       anonKey: supabaseAnonKey,
     );
+  }
+
+  // Initialize timezone data
+  tz.initializeTimeZones();
+  tz.setLocalLocation(tz.getLocation('UTC')); // Default to UTC, will be updated based on device timezone
+
+  // Initialize notification service (only on mobile platforms)
+  if (!kIsWeb) {
+    try {
+      await NotificationService().initialize();
+      if (kDebugMode) {
+        print('Notification service initialized successfully');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to initialize notification service: $e');
+      }
+    }
   }
 
   // Initialize background sync manager (only on mobile platforms)
