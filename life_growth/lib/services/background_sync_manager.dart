@@ -26,7 +26,6 @@ class BackgroundSyncManager {
       await Workmanager().initialize(
         bg_handler
             .callbackDispatcher, // Use the callback dispatcher from background_task_handler.dart
-        isInDebugMode: kDebugMode,
       );
 
       _isInitialized = true;

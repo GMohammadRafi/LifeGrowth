@@ -17,21 +17,17 @@ class SyncService {
   static const String _syncChannelName = 'Sync Notifications';
 
   final AppDatabase? _database;
-  final AuthService? _authService;
   final FlutterLocalNotificationsPlugin? _notificationsPlugin;
 
   SyncService({
     AppDatabase? database,
-    AuthService? authService,
     FlutterLocalNotificationsPlugin? notificationsPlugin,
   })  : _database = database,
-        _authService = authService,
         _notificationsPlugin = notificationsPlugin;
 
   /// Default constructor for background tasks
   SyncService.background()
       : _database = null,
-        _authService = null,
         _notificationsPlugin = null;
 
   /// Initialize the sync service
@@ -75,7 +71,6 @@ class SyncService {
   Future<void> _initializeWorkManager() async {
     await Workmanager().initialize(
       callbackDispatcher,
-      isInDebugMode: kDebugMode,
     );
   }
 
@@ -684,40 +679,7 @@ class SyncService {
     }
   }
 
-  /// Show sync notification
-  Future<void> _showSyncNotification(SyncResult result) async {
-    const androidDetails = AndroidNotificationDetails(
-      _syncChannelId,
-      _syncChannelName,
-      channelDescription: 'Notifications for data synchronization',
-      importance: Importance.low,
-      priority: Priority.low,
-      icon: '@mipmap/ic_launcher',
-    );
 
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: false,
-    );
-
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
-    String message = 'Synced ${result.syncedItemsCount} items';
-    if (result.conflictMessages.isNotEmpty) {
-      message += ', resolved ${result.conflictMessages.length} conflicts';
-    }
-
-    await _notificationsPlugin?.show(
-      0,
-      'Life Growth Sync',
-      message,
-      details,
-    );
-  }
 }
 
 /// Background task callback dispatcher

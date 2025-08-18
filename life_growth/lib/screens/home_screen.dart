@@ -5,6 +5,7 @@ import '../services/background_sync_manager.dart';
 import '../models/daily_task.dart' as model;
 import 'auth_screen.dart';
 import 'daily_checkin_screen.dart';
+import 'history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -244,11 +245,27 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           PopupMenuButton<String>(
             onSelected: (value) {
-              if (value == 'signout') {
+              if (value == 'history') {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const HistoryScreen(),
+                  ),
+                );
+              } else if (value == 'signout') {
                 _signOut();
               }
             },
             itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'history',
+                child: Row(
+                  children: [
+                    Icon(Icons.history),
+                    SizedBox(width: 8),
+                    Text('History'),
+                  ],
+                ),
+              ),
               PopupMenuItem(
                 value: 'signout',
                 child: Row(

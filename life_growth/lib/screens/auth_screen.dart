@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:local_auth/local_auth.dart';
 import '../services/auth_service.dart';
+import '../services/background_sync_manager.dart';
 import 'home_screen.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -81,6 +82,14 @@ class _AuthScreenState extends State<AuthScreen> {
           password: _passwordController.text,
         );
 
+        // Schedule background sync after successful login
+        try {
+          await BackgroundSyncManager().schedulePeriodicSync();
+        } catch (e) {
+          // Log error but don't prevent navigation
+          print('Failed to schedule background sync: $e');
+        }
+
         if (mounted) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => const HomeScreen()),
@@ -112,6 +121,15 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       await AuthService.signInWithGoogle();
+      
+      // Schedule background sync after successful login
+      try {
+        await BackgroundSyncManager().schedulePeriodicSync();
+      } catch (e) {
+        // Log error but don't prevent navigation
+        print('Failed to schedule background sync: $e');
+      }
+      
       // Navigation will be handled by auth state listener
     } on AuthException catch (e) {
       setState(() {
@@ -138,6 +156,15 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       await AuthService.signInWithGitHub();
+      
+      // Schedule background sync after successful login
+      try {
+        await BackgroundSyncManager().schedulePeriodicSync();
+      } catch (e) {
+        // Log error but don't prevent navigation
+        print('Failed to schedule background sync: $e');
+      }
+      
       // Navigation will be handled by auth state listener
     } on AuthException catch (e) {
       setState(() {
@@ -170,6 +197,14 @@ class _AuthScreenState extends State<AuthScreen> {
       if (didAuthenticate && mounted) {
         // Check if user is already signed in after biometric auth
         if (AuthService.isAuthenticated) {
+          // Schedule background sync after successful biometric login
+          try {
+            await BackgroundSyncManager().schedulePeriodicSync();
+          } catch (e) {
+            // Log error but don't prevent navigation
+            print('Failed to schedule background sync: $e');
+          }
+          
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => const HomeScreen()),
           );

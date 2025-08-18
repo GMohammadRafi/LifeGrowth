@@ -2,7 +2,7 @@ import 'package:workmanager/workmanager.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'sync_service.dart';
+import 'supabase_service.dart';
 import 'notification_service.dart';
 import 'auth_service.dart';
 
@@ -139,40 +139,12 @@ Future<void> _performBackgroundSync(
       print('Starting background sync for user: $userId');
     }
 
-    // Initialize sync service for background tasks
-    final syncService = SyncService.background();
+    // Use the daily_tasks-focused sync to avoid errors from non-existent tables
+    await SupabaseService.syncAllPendingChanges(userId);
 
-    // Perform synchronization
-    final result = await syncService.performFullSync(userId);
-
-    if (result.hasConflicts) {
-      // Show conflict notification
-      await notificationService.showConflictResolvedNotification(
-        result.conflictMessages.length,
-      );
-
-      if (kDebugMode) {
-        print('Background sync completed with conflicts');
-      }
-    } else if (result.hasErrors) {
-      // Show error notification
-      await notificationService.showSyncErrorNotification(
-        'Some data failed to sync. Please check your connection.',
-      );
-
-      if (kDebugMode) {
-        print('Background sync completed with errors');
-      }
-    } else {
-      // Show success notification (optional, can be disabled for less intrusive UX)
-      if (result.syncedItemsCount > 0) {
-        await notificationService.showSyncSuccessNotification();
-      }
-
-      if (kDebugMode) {
-        print(
-            'Background sync completed successfully. Synced ${result.syncedItemsCount} items');
-      }
+    // Be silent on success to reduce notification noise
+    if (kDebugMode) {
+      print('Background sync completed successfully.');
     }
   } catch (e) {
     if (kDebugMode) {
