@@ -10,26 +10,26 @@ import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Load environment variables
   await dotenv.load(fileName: ".env");
-  
+
   // Initialize local SQLite database (skip for web due to SQL.js issues)
   if (!kIsWeb) {
     await DatabaseService.initialize();
   }
-  
+
   // Initialize Supabase
   final supabaseUrl = dotenv.env['SUPABASE_URL'];
   final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
-  
+
   if (supabaseUrl != null && supabaseAnonKey != null) {
     await Supabase.initialize(
       url: supabaseUrl,
       anonKey: supabaseAnonKey,
     );
   }
-  
+
   // Initialize background sync manager (only on mobile platforms)
   if (!kIsWeb) {
     try {
@@ -43,7 +43,7 @@ void main() async {
       }
     }
   }
-  
+
   runApp(const MyApp());
 }
 
@@ -73,7 +73,7 @@ class AuthWrapper extends StatefulWidget {
 
 class _AuthWrapperState extends State<AuthWrapper> {
   bool _isCheckingBiometric = false;
-  
+
   @override
   void initState() {
     super.initState();
@@ -83,11 +83,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
         setState(() {});
       }
     });
-    
+
     // Check for biometric authentication on app start
     _checkBiometricOnStart();
   }
-  
+
   Future<void> _checkBiometricOnStart() async {
     // Only attempt biometric auth if user was previously authenticated
     // and biometric is available
@@ -97,7 +97,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
         setState(() {
           _isCheckingBiometric = true;
         });
-        
+
         try {
           // This is a placeholder for checking if user has enabled biometric auth
           // In a real app, you'd store this preference in secure storage
@@ -125,7 +125,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
         ),
       );
     }
-    
+
     // Check if user is authenticated
     if (AuthService.isAuthenticated) {
       return const HomeScreen();

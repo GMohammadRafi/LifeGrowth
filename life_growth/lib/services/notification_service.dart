@@ -12,7 +12,8 @@ class NotificationService {
 
   static const String _channelId = 'life_growth_sync';
   static const String _channelName = 'Life Growth Sync';
-  static const String _channelDescription = 'Notifications for background sync operations';
+  static const String _channelDescription =
+      'Notifications for background sync operations';
 
   Future<void> initialize() async {
     const AndroidInitializationSettings initializationSettingsAndroid =
@@ -128,7 +129,8 @@ class NotificationService {
         _flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
 
-    final bool? grantedAndroid = await androidImplementation?.requestNotificationsPermission();
+    final bool? grantedAndroid =
+        await androidImplementation?.requestNotificationsPermission();
 
     bool? grantedIOS;
     if (!kIsWeb && (Platform.isIOS || Platform.isMacOS)) {

@@ -5,10 +5,10 @@ import 'database_service.dart';
 
 class SupabaseService {
   static final SupabaseClient _client = Supabase.instance.client;
-  
+
   // Get the current user
   static User? get currentUser => _client.auth.currentUser;
-  
+
   // Auth methods
   static Future<AuthResponse> signInWithEmailPassword({
     required String email,
@@ -19,7 +19,7 @@ class SupabaseService {
       password: password,
     );
   }
-  
+
   static Future<AuthResponse> signUpWithEmailPassword({
     required String email,
     required String password,
@@ -29,15 +29,15 @@ class SupabaseService {
       password: password,
     );
   }
-  
+
   static Future<void> signInWithOAuth(OAuthProvider provider) async {
     await _client.auth.signInWithOAuth(provider);
   }
-  
+
   static Future<void> signOut() async {
     await _client.auth.signOut();
   }
-  
+
   // Database methods for daily_tasks (offline-first)
   static Future<model.DailyTask?> getDailyTask({
     required String userId,
@@ -45,7 +45,7 @@ class SupabaseService {
   }) async {
     // First, try to get from local database
     final localTask = await DatabaseService.instance.getDailyTask(userId, date);
-    
+
     // If we have internet connection, try to sync with Supabase
     try {
       final response = await _client
@@ -55,14 +55,14 @@ class SupabaseService {
           .eq('date', date.toIso8601String().split('T')[0])
           .isFilter('deleted_at', null)
           .maybeSingle();
-      
+
       if (response != null) {
         final remoteTask = model.DailyTask.fromJson(response);
-        
+
         // Convert model to database entity and update local database
-        if (localTask == null || 
-            (remoteTask.updatedAt != null && localTask.updatedAt != null &&
-             remoteTask.updatedAt!.isAfter(localTask.updatedAt!))) {
+        if (localTask == null ||
+            (remoteTask.updatedAt != null &&
+                remoteTask.updatedAt!.isAfter(localTask.updatedAt))) {
           // Remote task is newer or doesn't exist locally, mark as not needing sync
           final dbTask = _convertModelToDbTask(remoteTask, needsSync: false);
           await DatabaseService.instance.upsertDailyTask(dbTask);
@@ -73,10 +73,10 @@ class SupabaseService {
       // Network error, fall back to local data
       print('Network error in getDailyTask: $e');
     }
-    
+
     return localTask != null ? _convertDbToModelTask(localTask) : null;
   }
-  
+
   static Future<List<DailyTask>> getDailyTasks({
     required String userId,
     DateTime? startDate,
@@ -84,9 +84,9 @@ class SupabaseService {
     bool includeDeleted = false,
   }) async {
     // First, get from local database
-    List<DailyTask> localTasks = await DatabaseService.instance.getAllDailyTasksForUser(
-      userId, includeDeleted: includeDeleted);
-    
+    List<DailyTask> localTasks = await DatabaseService.instance
+        .getAllDailyTasksForUser(userId, includeDeleted: includeDeleted);
+
     // Filter by date range if specified
     if (startDate != null || endDate != null) {
       localTasks = localTasks.where((task) {
@@ -95,54 +95,58 @@ class SupabaseService {
         return true;
       }).toList();
     }
-    
+
     // Try to sync with Supabase
     try {
-      var query = _client
-          .from('daily_tasks')
-          .select()
-          .eq('user_id', userId);
-      
+      var query = _client.from('daily_tasks').select().eq('user_id', userId);
+
       if (startDate != null) {
         query = query.gte('date', startDate.toIso8601String().split('T')[0]);
       }
-      
+
       if (endDate != null) {
         query = query.lte('date', endDate.toIso8601String().split('T')[0]);
       }
-      
+
       if (!includeDeleted) {
         query = query.isFilter('deleted_at', null);
       }
-      
+
       final response = await query.order('date', ascending: false);
-      final remoteTasks = response.map<model.DailyTask>((json) => model.DailyTask.fromJson(json)).toList();
-      
+      final remoteTasks = response
+          .map<model.DailyTask>((json) => model.DailyTask.fromJson(json))
+          .toList();
+
       // Merge remote tasks with local tasks (remote takes precedence if newer)
       for (final remoteTask in remoteTasks) {
         final localTaskIndex = localTasks.indexWhere(
-          (t) => t.userId == remoteTask.userId && 
-                 t.date.day == remoteTask.date.day &&
-                 t.date.month == remoteTask.date.month &&
-                 t.date.year == remoteTask.date.year,
+          (t) =>
+              t.userId == remoteTask.userId &&
+              t.date.day == remoteTask.date.day &&
+              t.date.month == remoteTask.date.month &&
+              t.date.year == remoteTask.date.year,
         );
-        
-        final localTask = localTaskIndex >= 0 ? localTasks[localTaskIndex] : null;
-        
-        if (localTask == null || localTask.updatedAt == null || 
-            (remoteTask.updatedAt != null && remoteTask.updatedAt!.isAfter(localTask.updatedAt!))) {
+
+        final localTask =
+            localTaskIndex >= 0 ? localTasks[localTaskIndex] : null;
+
+        if (localTask == null ||
+            (remoteTask.updatedAt != null &&
+                remoteTask.updatedAt!.isAfter(localTask.updatedAt))) {
           // Remote task is newer, mark as not needing sync
           final dbTask = _convertModelToDbTask(remoteTask, needsSync: false);
           await DatabaseService.instance.upsertDailyTask(dbTask);
         }
       }
-      
+
       // Return updated local tasks
-      return await DatabaseService.instance.getAllDailyTasksForUser(
-        userId, includeDeleted: includeDeleted).then((tasks) {
+      return await DatabaseService.instance
+          .getAllDailyTasksForUser(userId, includeDeleted: includeDeleted)
+          .then((tasks) {
         if (startDate != null || endDate != null) {
           return tasks.where((task) {
-            if (startDate != null && task.date.isBefore(startDate)) return false;
+            if (startDate != null && task.date.isBefore(startDate))
+              return false;
             if (endDate != null && task.date.isAfter(endDate)) return false;
             return true;
           }).toList();
@@ -154,32 +158,32 @@ class SupabaseService {
       return localTasks;
     }
   }
-  
+
   static Future<model.DailyTask> upsertDailyTask(model.DailyTask task) async {
     // Convert model to database entity and save to local database first
     // Mark as needing sync since this is a local update
     final dbTask = _convertModelToDbTask(task, needsSync: true);
     await DatabaseService.instance.upsertDailyTask(dbTask);
-    
+
     // Try to sync with Supabase in background
     _syncTaskToSupabase(dbTask).catchError((e) {
       print('Background sync error: $e');
       // If sync fails, the task will remain marked as needing sync
     });
-    
+
     return task;
   }
-  
+
   static Future<void> _syncTaskToSupabase(DailyTask task) async {
     try {
       final modelTask = _convertDbToModelTask(task);
       final taskJson = modelTask.toJson();
       taskJson['client_updated_at'] = DateTime.now().toIso8601String();
-      
+
       await _client
           .from('daily_tasks')
           .upsert(taskJson, onConflict: 'user_id,date');
-      
+
       // Mark as synced in local database by updating with needsSync: false
       final syncedDbTask = _convertModelToDbTask(modelTask, needsSync: false);
       await DatabaseService.instance.upsertDailyTask(syncedDbTask);
@@ -188,34 +192,35 @@ class SupabaseService {
       rethrow;
     }
   }
-  
+
   static Future<void> softDeleteDailyTask({
     required String userId,
     required DateTime date,
   }) async {
     // Always update local database first
     await DatabaseService.instance.softDeleteDailyTask(userId, date);
-    
+
     // Try to sync with Supabase in background
     _syncDeleteToSupabase(userId, date, true).catchError((e) {
       print('Background sync error for soft delete: $e');
     });
   }
-  
+
   static Future<void> restoreDailyTask({
     required String userId,
     required DateTime date,
   }) async {
     // Always update local database first
     await DatabaseService.instance.restoreDailyTask(userId, date);
-    
+
     // Try to sync with Supabase in background
     _syncDeleteToSupabase(userId, date, false).catchError((e) {
       print('Background sync error for restore: $e');
     });
   }
-  
-  static Future<void> _syncDeleteToSupabase(String userId, DateTime date, bool isDelete) async {
+
+  static Future<void> _syncDeleteToSupabase(
+      String userId, DateTime date, bool isDelete) async {
     try {
       await _client
           .from('daily_tasks')
@@ -225,9 +230,10 @@ class SupabaseService {
           })
           .eq('user_id', userId)
           .eq('date', date.toIso8601String().split('T')[0]);
-      
+
       // Mark as synced in local database by getting the task and updating it
-      final localTask = await DatabaseService.instance.getDailyTask(userId, date);
+      final localTask =
+          await DatabaseService.instance.getDailyTask(userId, date);
       if (localTask != null) {
         final modelTask = _convertDbToModelTask(localTask);
         final syncedDbTask = _convertModelToDbTask(modelTask, needsSync: false);
@@ -238,21 +244,21 @@ class SupabaseService {
       rethrow;
     }
   }
-  
+
   static Future<List<DailyTask>> getDeletedTasks({
     required String userId,
     int daysBack = 7,
   }) async {
     // First, get from local database
-    final localTasks = await DatabaseService.instance.getAllDailyTasksForUser(
-      userId, includeDeleted: true);
-    
+    final localTasks = await DatabaseService.instance
+        .getAllDailyTasksForUser(userId, includeDeleted: true);
+
     final cutoffDate = DateTime.now().subtract(Duration(days: daysBack));
-    final localDeletedTasks = localTasks.where((task) => 
-      task.deletedAt != null && 
-      task.deletedAt!.isAfter(cutoffDate)
-    ).toList();
-    
+    final localDeletedTasks = localTasks
+        .where((task) =>
+            task.deletedAt != null && task.deletedAt!.isAfter(cutoffDate))
+        .toList();
+
     // Try to sync with Supabase
     try {
       final response = await _client
@@ -262,43 +268,46 @@ class SupabaseService {
           .not('deleted_at', 'is', null)
           .gte('deleted_at', cutoffDate.toIso8601String())
           .order('deleted_at', ascending: false);
-      
-      final remoteTasks = response.map<model.DailyTask>((json) => model.DailyTask.fromJson(json)).toList();
-      
+
+      final remoteTasks = response
+          .map<model.DailyTask>((json) => model.DailyTask.fromJson(json))
+          .toList();
+
       // Merge and update local database
       for (final remoteTask in remoteTasks) {
         // Convert remote task and mark as not needing sync
         final dbTask = _convertModelToDbTask(remoteTask, needsSync: false);
         await DatabaseService.instance.upsertDailyTask(dbTask);
       }
-      
+
       // Return updated local tasks
-      final updatedLocalTasks = await DatabaseService.instance.getAllDailyTasksForUser(
-        userId, includeDeleted: true);
-      return updatedLocalTasks.where((task) => 
-        task.deletedAt != null && 
-        task.deletedAt!.isAfter(cutoffDate)
-      ).toList();
+      final updatedLocalTasks = await DatabaseService.instance
+          .getAllDailyTasksForUser(userId, includeDeleted: true);
+      return updatedLocalTasks
+          .where((task) =>
+              task.deletedAt != null && task.deletedAt!.isAfter(cutoffDate))
+          .toList();
     } catch (e) {
       print('Network error in getDeletedTasks: $e');
       return localDeletedTasks;
     }
   }
-  
+
   static Future<void> permanentlyDeleteTask({
     required String userId,
     required DateTime date,
   }) async {
     // Always delete from local database first
     await DatabaseService.instance.permanentlyDeleteDailyTask(userId, date);
-    
+
     // Try to sync with Supabase in background
     _syncPermanentDeleteToSupabase(userId, date).catchError((e) {
       print('Background sync error for permanent delete: $e');
     });
   }
-  
-  static Future<void> _syncPermanentDeleteToSupabase(String userId, DateTime date) async {
+
+  static Future<void> _syncPermanentDeleteToSupabase(
+      String userId, DateTime date) async {
     try {
       await _client
           .from('daily_tasks')
@@ -310,30 +319,29 @@ class SupabaseService {
       rethrow;
     }
   }
-  
+
   // Comprehensive sync method for offline support
   static Future<void> syncAllPendingChanges(String userId) async {
     try {
       // Get all tasks that need syncing
       final tasksToSync = await DatabaseService.instance.getTasksToSync();
-      
+
       for (final task in tasksToSync) {
         await _syncTaskToSupabase(task);
       }
-      
+
       // Pull latest changes from Supabase
-      final lastSyncTime = DateTime.now().subtract(Duration(days: 30)); // Sync last 30 days
-      final remoteTasks = await getTasksModifiedAfter(
-        userId: userId, 
-        timestamp: lastSyncTime
-      );
-      
+      final lastSyncTime =
+          DateTime.now().subtract(Duration(days: 30)); // Sync last 30 days
+      final remoteTasks =
+          await getTasksModifiedAfter(userId: userId, timestamp: lastSyncTime);
+
       // Update local database with remote changes
       for (final remoteTask in remoteTasks) {
-        final localTask = await DatabaseService.instance.getDailyTask(userId, remoteTask.date);
-        if (localTask == null || 
-            (remoteTask.updatedAt != null && 
-             (localTask.updatedAt == null || remoteTask.updatedAt!.isAfter(localTask.updatedAt!)))) {
+        final localTask = await DatabaseService.instance
+            .getDailyTask(userId, remoteTask.date);
+        if (localTask == null ||
+            remoteTask.updatedAt.isAfter(localTask.updatedAt)) {
           // Mark remote task as not needing sync and upsert
           final dbTask = remoteTask.copyWith(needsSync: false);
           await DatabaseService.instance.upsertDailyTask(dbTask);
@@ -344,7 +352,7 @@ class SupabaseService {
       rethrow;
     }
   }
-  
+
   static Future<List<DailyTask>> getTasksModifiedAfter({
     required String userId,
     required DateTime timestamp,
@@ -355,13 +363,17 @@ class SupabaseService {
         .eq('user_id', userId)
         .gte('updated_at', timestamp.toIso8601String())
         .order('updated_at', ascending: true);
-    
-    return response.map<DailyTask>((json) => _convertModelToDbTask(model.DailyTask.fromJson(json), needsSync: false)).toList();
+
+    return response
+        .map<DailyTask>((json) => _convertModelToDbTask(
+            model.DailyTask.fromJson(json),
+            needsSync: false))
+        .toList();
   }
-  
+
   static Future<List<DailyTask>> syncTasks(List<DailyTask> localTasks) async {
     final List<DailyTask> syncedTasks = [];
-    
+
     for (final task in localTasks) {
       try {
         // Convert database task to model task, sync it, then convert back
@@ -375,15 +387,17 @@ class SupabaseService {
         rethrow;
       }
     }
-    
+
     return syncedTasks;
   }
 
   // Helper method to convert model DailyTask to database DailyTask
-  static DailyTask _convertModelToDbTask(model.DailyTask modelTask, {bool needsSync = true}) {
+  static DailyTask _convertModelToDbTask(model.DailyTask modelTask,
+      {bool needsSync = true}) {
     // Normalize date to date-only format (required by database constraint)
-    final dateOnly = DateTime(modelTask.date.year, modelTask.date.month, modelTask.date.day);
-    
+    final dateOnly =
+        DateTime(modelTask.date.year, modelTask.date.month, modelTask.date.day);
+
     return DailyTask(
       userId: modelTask.userId ?? '',
       date: dateOnly,
@@ -422,7 +436,9 @@ class SupabaseService {
       deletedAt: modelTask.deletedAt,
       timezoneOffset: modelTask.timezoneOffset,
       needsSync: needsSync, // Allow control over sync flag
-      lastSyncAt: needsSync ? null : DateTime.now(), // Only set lastSyncAt if not needing sync
+      lastSyncAt: needsSync
+          ? null
+          : DateTime.now(), // Only set lastSyncAt if not needing sync
     );
   }
 

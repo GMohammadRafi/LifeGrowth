@@ -24,7 +24,7 @@ class DatabaseService {
     final service = DatabaseService.instance;
     // This will create the database connection
     final db = service.database;
-    
+
     // Ensure the database is properly initialized
     await db.customSelect('SELECT 1').get();
   }
@@ -104,12 +104,12 @@ class DatabaseService {
     final now = DateTime.now();
     final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
     final endOfWeek = startOfWeek.add(const Duration(days: 6));
-    
+
     // Get all tasks for user and filter by date range
     final allTasks = await getAllDailyTasksForUser(userId);
     return allTasks.where((task) {
       return task.date.isAfter(startOfWeek.subtract(const Duration(days: 1))) &&
-             task.date.isBefore(endOfWeek.add(const Duration(days: 1)));
+          task.date.isBefore(endOfWeek.add(const Duration(days: 1)));
     }).toList();
   }
 
@@ -118,12 +118,13 @@ class DatabaseService {
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
     final endOfMonth = DateTime(now.year, now.month + 1, 0);
-    
+
     // Get all tasks for user and filter by date range
     final allTasks = await getAllDailyTasksForUser(userId);
     return allTasks.where((task) {
-      return task.date.isAfter(startOfMonth.subtract(const Duration(days: 1))) &&
-             task.date.isBefore(endOfMonth.add(const Duration(days: 1)));
+      return task.date
+              .isAfter(startOfMonth.subtract(const Duration(days: 1))) &&
+          task.date.isBefore(endOfMonth.add(const Duration(days: 1)));
     }).toList();
   }
 }

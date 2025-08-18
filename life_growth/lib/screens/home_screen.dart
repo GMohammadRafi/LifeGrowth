@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
-import '../services/database_service.dart';
 import '../services/background_sync_manager.dart';
 import '../models/daily_task.dart' as model;
 import 'auth_screen.dart';
@@ -44,14 +43,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final today = DateTime.now();
       final userId = AuthService.userId!;
-      
+
       model.DailyTask? task = await SupabaseService.getDailyTask(
         userId: userId,
         date: today,
       );
-      
+
       // If no task exists for today, create an empty one
-      task ??= model.DailyTask.empty(date: today);
+      task ??= model.DailyTask.empty(date: today).copyWith(userId: userId);
 
       setState(() {
         _todayTask = task;
@@ -69,15 +68,21 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!AuthService.isAuthenticated) return;
 
     try {
-      final savedTask = await SupabaseService.upsertDailyTask(updatedTask);
+      // Ensure userId is set before upserting (important for persistence)
+      final taskWithUser = (updatedTask.userId == null)
+          ? updatedTask.copyWith(userId: AuthService.userId)
+          : updatedTask;
+
+      final savedTask = await SupabaseService.upsertDailyTask(taskWithUser);
       setState(() {
         _todayTask = savedTask;
       });
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Task updated (saved locally, will sync when online)'),
+            content:
+                Text('Task updated (saved locally, will sync when online)'),
             duration: Duration(seconds: 2),
           ),
         );
@@ -105,15 +110,15 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       // Use background sync manager for immediate sync
       await BackgroundSyncManager().scheduleImmediateSync();
-      
+
       // Also perform direct sync for immediate feedback
       await SupabaseService.syncAllPendingChanges(AuthService.userId!);
       await _loadTodayTask(); // Reload to get any updates
-      
+
       setState(() {
         _syncStatus = 'Sync completed successfully';
       });
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -127,7 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _syncStatus = 'Sync failed: $e';
       });
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -141,7 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _isSyncing = false;
       });
-      
+
       // Clear sync status after 3 seconds
       Future.delayed(const Duration(seconds: 3), () {
         if (mounted) {
@@ -212,7 +217,8 @@ class _HomeScreenState extends State<HomeScreen> {
             if (_syncStatus != null)
               Text(
                 _syncStatus!,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+                style: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.normal),
               ),
           ],
         ),
@@ -223,7 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: 'Refresh',
           ),
           IconButton(
-            icon: _isSyncing 
+            icon: _isSyncing
                 ? const SizedBox(
                     width: 20,
                     height: 20,
@@ -256,7 +262,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ],
-       ),
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
@@ -297,37 +303,48 @@ class _HomeScreenState extends State<HomeScreen> {
                               children: [
                                 Text(
                                   'Today - ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
-                                  style: Theme.of(context).textTheme.headlineSmall,
+                                  style:
+                                      Theme.of(context).textTheme.headlineSmall,
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   'Completed: ${_todayTask!.completedTasksCount}/10 tasks',
-                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    color: Theme.of(context).colorScheme.primary,
-                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.copyWith(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                      ),
                                 ),
                               ],
                             ),
                           ),
-                          
+
                           // Task list
                           _buildTaskTile(
                             title: 'Reading Book',
-                            completed: _todayTask!.isReadingBookEffectivelyCompleted,
-                            subtitle: _todayTask!.readingBookPages != null || _todayTask!.readingBookTime != null
+                            completed:
+                                _todayTask!.isReadingBookEffectivelyCompleted,
+                            subtitle: _todayTask!.readingBookPages != null ||
+                                    _todayTask!.readingBookTime != null
                                 ? '${_todayTask!.readingBookPages ?? 0} pages, ${_todayTask!.readingBookTime ?? 0} min'
                                 : null,
                             onToggle: () {
                               final updated = _todayTask!.copyWith(
-                                readingBookCompleted: !_todayTask!.readingBookCompleted,
+                                readingBookCompleted:
+                                    !_todayTask!.readingBookCompleted,
                               );
                               _updateTask(updated);
                             },
                           ),
-                          
+
                           _buildTaskTile(
-                            title: 'Stretch (${_todayTask!.stretchType ?? 'Not specified'})',
-                            completed: _todayTask!.isStretchEffectivelyCompleted,
+                            title:
+                                'Stretch (${_todayTask!.stretchType ?? 'Not specified'})',
+                            completed:
+                                _todayTask!.isStretchEffectivelyCompleted,
                             subtitle: _todayTask!.stretchMinutes != null
                                 ? '${_todayTask!.stretchMinutes} minutes'
                                 : null,
@@ -338,53 +355,63 @@ class _HomeScreenState extends State<HomeScreen> {
                               _updateTask(updated);
                             },
                           ),
-                          
+
                           _buildTaskTile(
                             title: 'Meditation',
-                            completed: _todayTask!.isMeditationEffectivelyCompleted,
+                            completed:
+                                _todayTask!.isMeditationEffectivelyCompleted,
                             subtitle: _todayTask!.meditationMinutes != null
                                 ? '${_todayTask!.meditationMinutes} minutes'
                                 : null,
                             onToggle: () {
                               final updated = _todayTask!.copyWith(
-                                meditationCompleted: !_todayTask!.meditationCompleted,
+                                meditationCompleted:
+                                    !_todayTask!.meditationCompleted,
                               );
                               _updateTask(updated);
                             },
                           ),
-                          
+
                           _buildTaskTile(
                             title: 'Reading Docs',
-                            completed: _todayTask!.isReadingDocsEffectivelyCompleted,
-                            subtitle: _todayTask!.readingDocsPages != null || _todayTask!.readingDocsTime != null
+                            completed:
+                                _todayTask!.isReadingDocsEffectivelyCompleted,
+                            subtitle: _todayTask!.readingDocsPages != null ||
+                                    _todayTask!.readingDocsTime != null
                                 ? '${_todayTask!.readingDocsPages ?? 0} pages, ${_todayTask!.readingDocsTime ?? 0} min'
                                 : null,
                             onToggle: () {
                               final updated = _todayTask!.copyWith(
-                                readingDocsCompleted: !_todayTask!.readingDocsCompleted,
+                                readingDocsCompleted:
+                                    !_todayTask!.readingDocsCompleted,
                               );
                               _updateTask(updated);
                             },
                           ),
-                          
+
                           _buildTaskTile(
                             title: 'Learning New Technology',
-                            completed: _todayTask!.isLearningTechEffectivelyCompleted,
-                            subtitle: _todayTask!.learningTechName != null || _todayTask!.learningTechTime != null
+                            completed:
+                                _todayTask!.isLearningTechEffectivelyCompleted,
+                            subtitle: _todayTask!.learningTechName != null ||
+                                    _todayTask!.learningTechTime != null
                                 ? '${_todayTask!.learningTechName ?? 'Not specified'}, ${_todayTask!.learningTechTime ?? 0} min'
                                 : null,
                             onToggle: () {
                               final updated = _todayTask!.copyWith(
-                                learningTechCompleted: !_todayTask!.learningTechCompleted,
+                                learningTechCompleted:
+                                    !_todayTask!.learningTechCompleted,
                               );
                               _updateTask(updated);
                             },
                           ),
-                          
+
                           _buildTaskTile(
                             title: 'Walking',
-                            completed: _todayTask!.isWalkingEffectivelyCompleted,
-                            subtitle: _todayTask!.walkingSteps != null || _todayTask!.walkingTime != null
+                            completed:
+                                _todayTask!.isWalkingEffectivelyCompleted,
+                            subtitle: _todayTask!.walkingSteps != null ||
+                                    _todayTask!.walkingTime != null
                                 ? '${_todayTask!.walkingSteps ?? 0} steps, ${_todayTask!.walkingTime ?? 0} min'
                                 : null,
                             onToggle: () {
@@ -394,7 +421,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               _updateTask(updated);
                             },
                           ),
-                          
+
                           _buildTaskTile(
                             title: _todayTask!.avoidHabitLabel ?? 'Avoid X',
                             completed: _todayTask!.avoidHabitValue,
@@ -405,7 +432,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               _updateTask(updated);
                             },
                           ),
-                          
+
                           _buildTaskTile(
                             title: 'Avoid Sweets',
                             completed: _todayTask!.avoidSweetsValue,
@@ -416,7 +443,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               _updateTask(updated);
                             },
                           ),
-                          
+
                           _buildTaskTile(
                             title: 'Work Done Today',
                             completed: _todayTask!.workDoneValue,
@@ -427,21 +454,24 @@ class _HomeScreenState extends State<HomeScreen> {
                               _updateTask(updated);
                             },
                           ),
-                          
+
                           _buildTaskTile(
                             title: 'Movie or Series',
-                            completed: _todayTask!.isMovieSeriesEffectivelyCompleted,
-                            subtitle: _todayTask!.movieSeriesName != null || _todayTask!.movieSeriesDuration != null
+                            completed:
+                                _todayTask!.isMovieSeriesEffectivelyCompleted,
+                            subtitle: _todayTask!.movieSeriesName != null ||
+                                    _todayTask!.movieSeriesDuration != null
                                 ? '${_todayTask!.movieSeriesName ?? 'Not specified'}, ${_todayTask!.movieSeriesDuration ?? 0} min'
                                 : null,
                             onToggle: () {
                               final updated = _todayTask!.copyWith(
-                                movieSeriesCompleted: !_todayTask!.movieSeriesCompleted,
+                                movieSeriesCompleted:
+                                    !_todayTask!.movieSeriesCompleted,
                               );
                               _updateTask(updated);
                             },
                           ),
-                          
+
                           const SizedBox(height: 16),
                         ],
                       ),

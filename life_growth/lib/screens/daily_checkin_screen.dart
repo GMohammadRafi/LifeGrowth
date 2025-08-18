@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_material_pickers/flutter_material_pickers.dart';
 import '../models/daily_task.dart' as model;
 import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
@@ -64,33 +63,53 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
   }
 
   void _setupFormControllers() {
-    _readingBookPagesController.text = _currentTask.readingBookPages?.toString() ?? '';
-    _readingBookTimeController.text = _currentTask.readingBookTime?.toString() ?? '';
-    _stretchMinutesController.text = _currentTask.stretchMinutes?.toString() ?? '';
-    _meditationMinutesController.text = _currentTask.meditationMinutes?.toString() ?? '';
-    _readingDocsPagesController.text = _currentTask.readingDocsPages?.toString() ?? '';
-    _readingDocsTimeController.text = _currentTask.readingDocsTime?.toString() ?? '';
+    _readingBookPagesController.text =
+        _currentTask.readingBookPages?.toString() ?? '';
+    _readingBookTimeController.text =
+        _currentTask.readingBookTime?.toString() ?? '';
+    _stretchMinutesController.text =
+        _currentTask.stretchMinutes?.toString() ?? '';
+    _meditationMinutesController.text =
+        _currentTask.meditationMinutes?.toString() ?? '';
+    _readingDocsPagesController.text =
+        _currentTask.readingDocsPages?.toString() ?? '';
+    _readingDocsTimeController.text =
+        _currentTask.readingDocsTime?.toString() ?? '';
     _readingDocsNameController.text = _currentTask.readingDocsNameLink ?? '';
     _learningTechNameController.text = _currentTask.learningTechName ?? '';
     _learningTechSourceController.text = _currentTask.learningTechSource ?? '';
     _learningTechUrlController.text = _currentTask.learningTechUrl ?? '';
-    _learningTechTimeController.text = _currentTask.learningTechTime?.toString() ?? '';
+    _learningTechTimeController.text =
+        _currentTask.learningTechTime?.toString() ?? '';
     _walkingStepsController.text = _currentTask.walkingSteps?.toString() ?? '';
     _walkingTimeController.text = _currentTask.walkingTime?.toString() ?? '';
     _avoidHabitLabelController.text = _currentTask.avoidHabitLabel ?? '';
     _movieSeriesNameController.text = _currentTask.movieSeriesName ?? '';
-    _movieSeriesStartTimeController.text = _currentTask.movieSeriesStartTime ?? '';
+    _movieSeriesStartTimeController.text =
+        _currentTask.movieSeriesStartTime ?? '';
     _movieSeriesEndTimeController.text = _currentTask.movieSeriesEndTime ?? '';
     _notesController.text = _currentTask.notes ?? '';
 
     // Add listeners to track changes
     final controllers = [
-      _readingBookPagesController, _readingBookTimeController, _stretchMinutesController,
-      _meditationMinutesController, _readingDocsPagesController, _readingDocsTimeController,
-      _readingDocsNameController, _learningTechNameController, _learningTechSourceController,
-      _learningTechUrlController, _learningTechTimeController, _walkingStepsController,
-      _walkingTimeController, _avoidHabitLabelController, _movieSeriesNameController,
-      _movieSeriesStartTimeController, _movieSeriesEndTimeController, _notesController,
+      _readingBookPagesController,
+      _readingBookTimeController,
+      _stretchMinutesController,
+      _meditationMinutesController,
+      _readingDocsPagesController,
+      _readingDocsTimeController,
+      _readingDocsNameController,
+      _learningTechNameController,
+      _learningTechSourceController,
+      _learningTechUrlController,
+      _learningTechTimeController,
+      _walkingStepsController,
+      _walkingTimeController,
+      _avoidHabitLabelController,
+      _movieSeriesNameController,
+      _movieSeriesStartTimeController,
+      _movieSeriesEndTimeController,
+      _notesController,
     ];
 
     for (final controller in controllers) {
@@ -136,7 +155,9 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (!AuthService.isAuthenticated) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User not authenticated'), backgroundColor: Colors.red),
+        const SnackBar(
+            content: Text('User not authenticated'),
+            backgroundColor: Colors.red),
       );
       return;
     }
@@ -147,46 +168,63 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
       // Build updated task with form data
       final updatedTask = _currentTask.copyWith(
         userId: AuthService.userId,
-        readingBookPages: _readingBookPagesController.text.isNotEmpty 
-            ? int.tryParse(_readingBookPagesController.text) : null,
-        readingBookTime: _readingBookTimeController.text.isNotEmpty 
-            ? int.tryParse(_readingBookTimeController.text) : null,
-        stretchMinutes: _stretchMinutesController.text.isNotEmpty 
-            ? int.tryParse(_stretchMinutesController.text) : null,
-        meditationMinutes: _meditationMinutesController.text.isNotEmpty 
-            ? int.tryParse(_meditationMinutesController.text) : null,
-        readingDocsPages: _readingDocsPagesController.text.isNotEmpty 
-            ? int.tryParse(_readingDocsPagesController.text) : null,
-        readingDocsTime: _readingDocsTimeController.text.isNotEmpty 
-            ? int.tryParse(_readingDocsTimeController.text) : null,
-        readingDocsNameLink: _readingDocsNameController.text.isNotEmpty 
-            ? _readingDocsNameController.text : null,
-        learningTechName: _learningTechNameController.text.isNotEmpty 
-            ? _learningTechNameController.text : null,
-        learningTechSource: _learningTechSourceController.text.isNotEmpty 
-            ? _learningTechSourceController.text : null,
-        learningTechUrl: _learningTechUrlController.text.isNotEmpty 
-            ? _learningTechUrlController.text : null,
-        learningTechTime: _learningTechTimeController.text.isNotEmpty 
-            ? int.tryParse(_learningTechTimeController.text) : null,
-        walkingSteps: _walkingStepsController.text.isNotEmpty 
-            ? int.tryParse(_walkingStepsController.text) : null,
-        walkingTime: _walkingTimeController.text.isNotEmpty 
-            ? int.tryParse(_walkingTimeController.text) : null,
-        avoidHabitLabel: _avoidHabitLabelController.text.isNotEmpty 
-            ? _avoidHabitLabelController.text : null,
-        movieSeriesName: _movieSeriesNameController.text.isNotEmpty 
-            ? _movieSeriesNameController.text : null,
-        movieSeriesStartTime: _movieSeriesStartTimeController.text.isNotEmpty 
-            ? _movieSeriesStartTimeController.text : null,
-        movieSeriesEndTime: _movieSeriesEndTimeController.text.isNotEmpty 
-            ? _movieSeriesEndTimeController.text : null,
+        readingBookPages: _readingBookPagesController.text.isNotEmpty
+            ? int.tryParse(_readingBookPagesController.text)
+            : null,
+        readingBookTime: _readingBookTimeController.text.isNotEmpty
+            ? int.tryParse(_readingBookTimeController.text)
+            : null,
+        stretchMinutes: _stretchMinutesController.text.isNotEmpty
+            ? int.tryParse(_stretchMinutesController.text)
+            : null,
+        meditationMinutes: _meditationMinutesController.text.isNotEmpty
+            ? int.tryParse(_meditationMinutesController.text)
+            : null,
+        readingDocsPages: _readingDocsPagesController.text.isNotEmpty
+            ? int.tryParse(_readingDocsPagesController.text)
+            : null,
+        readingDocsTime: _readingDocsTimeController.text.isNotEmpty
+            ? int.tryParse(_readingDocsTimeController.text)
+            : null,
+        readingDocsNameLink: _readingDocsNameController.text.isNotEmpty
+            ? _readingDocsNameController.text
+            : null,
+        learningTechName: _learningTechNameController.text.isNotEmpty
+            ? _learningTechNameController.text
+            : null,
+        learningTechSource: _learningTechSourceController.text.isNotEmpty
+            ? _learningTechSourceController.text
+            : null,
+        learningTechUrl: _learningTechUrlController.text.isNotEmpty
+            ? _learningTechUrlController.text
+            : null,
+        learningTechTime: _learningTechTimeController.text.isNotEmpty
+            ? int.tryParse(_learningTechTimeController.text)
+            : null,
+        walkingSteps: _walkingStepsController.text.isNotEmpty
+            ? int.tryParse(_walkingStepsController.text)
+            : null,
+        walkingTime: _walkingTimeController.text.isNotEmpty
+            ? int.tryParse(_walkingTimeController.text)
+            : null,
+        avoidHabitLabel: _avoidHabitLabelController.text.isNotEmpty
+            ? _avoidHabitLabelController.text
+            : null,
+        movieSeriesName: _movieSeriesNameController.text.isNotEmpty
+            ? _movieSeriesNameController.text
+            : null,
+        movieSeriesStartTime: _movieSeriesStartTimeController.text.isNotEmpty
+            ? _movieSeriesStartTimeController.text
+            : null,
+        movieSeriesEndTime: _movieSeriesEndTimeController.text.isNotEmpty
+            ? _movieSeriesEndTimeController.text
+            : null,
         movieSeriesDuration: _calculateMovieDuration(),
         notes: _notesController.text.isNotEmpty ? _notesController.text : null,
       );
 
       await SupabaseService.upsertDailyTask(updatedTask);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -194,7 +232,8 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.of(context).pop(true); // Return true to indicate changes were saved
+        Navigator.of(context)
+            .pop(true); // Return true to indicate changes were saved
       }
     } catch (e) {
       if (mounted) {
@@ -215,21 +254,22 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
   int? _calculateMovieDuration() {
     final startTime = _movieSeriesStartTimeController.text;
     final endTime = _movieSeriesEndTimeController.text;
-    
+
     if (startTime.isEmpty || endTime.isEmpty) return null;
-    
+
     try {
       final startParts = startTime.split(':');
       final endParts = endTime.split(':');
-      
+
       if (startParts.length != 2 || endParts.length != 2) return null;
-      
-      final startMinutes = int.parse(startParts[0]) * 60 + int.parse(startParts[1]);
+
+      final startMinutes =
+          int.parse(startParts[0]) * 60 + int.parse(startParts[1]);
       final endMinutes = int.parse(endParts[0]) * 60 + int.parse(endParts[1]);
-      
+
       var duration = endMinutes - startMinutes;
       if (duration < 0) duration += 24 * 60; // Handle overnight durations
-      
+
       return duration;
     } catch (e) {
       return null;
@@ -241,9 +281,10 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
       context: context,
       initialTime: TimeOfDay.now(),
     );
-    
+
     if (time != null) {
-      final formattedTime = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+      final formattedTime =
+          '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
       controller.text = formattedTime;
       setState(() => _hasChanges = true);
     }
@@ -270,9 +311,9 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                 ),
               ],
             ),
@@ -337,7 +378,8 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
             context: context,
             builder: (context) => AlertDialog(
               title: const Text('Unsaved Changes'),
-              content: const Text('You have unsaved changes. Are you sure you want to leave?'),
+              content: const Text(
+                  'You have unsaved changes. Are you sure you want to leave?'),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
@@ -362,7 +404,8 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
               const Text('Daily Check-in'),
               Text(
                 '${widget.date.day}/${widget.date.month}/${widget.date.year}',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+                style: const TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.normal),
               ),
             ],
           ),
@@ -370,7 +413,7 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
             if (_hasChanges)
               TextButton(
                 onPressed: _isLoading ? null : _saveTask,
-                child: _isLoading 
+                child: _isLoading
                     ? const SizedBox(
                         width: 20,
                         height: 20,
@@ -404,7 +447,9 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
                           controller: _readingBookPagesController,
                           label: 'Pages',
                           keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -413,7 +458,9 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
                           controller: _readingBookTimeController,
                           label: 'Time (minutes)',
                           keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
                         ),
                       ),
                     ],
@@ -442,7 +489,8 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
                       isDense: true,
                     ),
                     items: ['Yoga', 'Home Workout', 'Gym', 'Other']
-                        .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                        .map((type) =>
+                            DropdownMenuItem(value: type, child: Text(type)))
                         .toList(),
                     onChanged: (value) => _updateTaskField(
                       value,
@@ -507,7 +555,9 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
                           controller: _readingDocsPagesController,
                           label: 'Pages',
                           keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -516,7 +566,9 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
                           controller: _readingDocsTimeController,
                           label: 'Time (minutes)',
                           keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
                         ),
                       ),
                     ],
@@ -534,7 +586,8 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
                     value: _currentTask.learningTechCompleted,
                     onChanged: (value) => _updateTaskField(
                       value,
-                      (val) => _currentTask.copyWith(learningTechCompleted: val),
+                      (val) =>
+                          _currentTask.copyWith(learningTechCompleted: val),
                     ),
                   ),
                   _buildTextField(
@@ -584,7 +637,9 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
                           controller: _walkingStepsController,
                           label: 'Steps',
                           keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -593,7 +648,9 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
                           controller: _walkingTimeController,
                           label: 'Time (minutes)',
                           keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
                         ),
                       ),
                     ],
@@ -667,7 +724,8 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
                           hint: 'HH:MM',
                           suffix: IconButton(
                             icon: const Icon(Icons.access_time),
-                            onPressed: () => _selectTime(_movieSeriesStartTimeController),
+                            onPressed: () =>
+                                _selectTime(_movieSeriesStartTimeController),
                           ),
                         ),
                       ),
@@ -679,7 +737,8 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
                           hint: 'HH:MM',
                           suffix: IconButton(
                             icon: const Icon(Icons.access_time),
-                            onPressed: () => _selectTime(_movieSeriesEndTimeController),
+                            onPressed: () =>
+                                _selectTime(_movieSeriesEndTimeController),
                           ),
                         ),
                       ),
@@ -709,7 +768,7 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
         floatingActionButton: _hasChanges
             ? FloatingActionButton.extended(
                 onPressed: _isLoading ? null : _saveTask,
-                icon: _isLoading 
+                icon: _isLoading
                     ? const SizedBox(
                         width: 20,
                         height: 20,

@@ -1,15 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:workmanager/workmanager.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'sync_service.dart';
 import 'notification_service.dart';
 import 'background_task_handler.dart' as bg_handler;
 
 class BackgroundSyncManager {
   static const String _syncTaskName = 'life_growth_sync';
   static const String _periodicSyncTaskName = 'life_growth_periodic_sync';
-  
-  static final BackgroundSyncManager _instance = BackgroundSyncManager._internal();
+
+  static final BackgroundSyncManager _instance =
+      BackgroundSyncManager._internal();
   factory BackgroundSyncManager() => _instance;
   BackgroundSyncManager._internal();
 
@@ -25,12 +24,13 @@ class BackgroundSyncManager {
 
       // Initialize WorkManager
       await Workmanager().initialize(
-        bg_handler.callbackDispatcher, // Use the callback dispatcher from background_task_handler.dart
+        bg_handler
+            .callbackDispatcher, // Use the callback dispatcher from background_task_handler.dart
         isInDebugMode: kDebugMode,
       );
 
       _isInitialized = true;
-      
+
       if (kDebugMode) {
         print('BackgroundSyncManager initialized successfully');
       }
@@ -113,7 +113,7 @@ class BackgroundSyncManager {
   Future<void> cancelAllSyncTasks() async {
     try {
       await Workmanager().cancelAll();
-      
+
       if (kDebugMode) {
         print('All sync tasks cancelled');
       }
@@ -127,7 +127,7 @@ class BackgroundSyncManager {
   Future<void> cancelPeriodicSync() async {
     try {
       await Workmanager().cancelByUniqueName(_periodicSyncTaskName);
-      
+
       if (kDebugMode) {
         print('Periodic sync cancelled');
       }

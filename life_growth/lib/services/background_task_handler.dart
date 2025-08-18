@@ -65,20 +65,19 @@ void callbackDispatcher() {
       if (kDebugMode) {
         print('Background task failed: $task, error: $e');
       }
-      
+
       // Show error notification
       try {
         final notificationService = NotificationService();
         await notificationService.initialize();
         await notificationService.showSyncErrorNotification(
-          'Background sync failed: ${e.toString()}'
-        );
+            'Background sync failed: ${e.toString()}');
       } catch (notificationError) {
         if (kDebugMode) {
           print('Failed to show error notification: $notificationError');
         }
       }
-      
+
       return Future.value(false);
     }
   });
@@ -96,16 +95,16 @@ Future<void> _performBackgroundSync(
 
     // Initialize sync service for background tasks
     final syncService = SyncService.background();
-    
+
     // Perform synchronization
     final result = await syncService.performFullSync(userId);
-    
+
     if (result.hasConflicts) {
       // Show conflict notification
       await notificationService.showConflictResolvedNotification(
         result.conflictMessages.length,
       );
-      
+
       if (kDebugMode) {
         print('Background sync completed with conflicts');
       }
@@ -114,7 +113,7 @@ Future<void> _performBackgroundSync(
       await notificationService.showSyncErrorNotification(
         'Some data failed to sync. Please check your connection.',
       );
-      
+
       if (kDebugMode) {
         print('Background sync completed with errors');
       }
@@ -123,21 +122,22 @@ Future<void> _performBackgroundSync(
       if (result.syncedItemsCount > 0) {
         await notificationService.showSyncSuccessNotification();
       }
-      
+
       if (kDebugMode) {
-        print('Background sync completed successfully. Synced ${result.syncedItemsCount} items');
+        print(
+            'Background sync completed successfully. Synced ${result.syncedItemsCount} items');
       }
     }
   } catch (e) {
     if (kDebugMode) {
       print('Background sync failed: $e');
     }
-    
+
     // Show error notification
     await notificationService.showSyncErrorNotification(
       'Background sync failed: ${e.toString()}',
     );
-    
+
     rethrow;
   }
 }

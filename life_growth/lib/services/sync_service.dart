@@ -15,7 +15,7 @@ class SyncService {
   static const String _syncTaskName = 'background_sync';
   static const String _syncChannelId = 'sync_notifications';
   static const String _syncChannelName = 'Sync Notifications';
-  
+
   final AppDatabase? _database;
   final AuthService? _authService;
   final FlutterLocalNotificationsPlugin? _notificationsPlugin;
@@ -24,12 +24,15 @@ class SyncService {
     AppDatabase? database,
     AuthService? authService,
     FlutterLocalNotificationsPlugin? notificationsPlugin,
-  }) : _database = database,
-       _authService = authService,
-       _notificationsPlugin = notificationsPlugin;
-       
+  })  : _database = database,
+        _authService = authService,
+        _notificationsPlugin = notificationsPlugin;
+
   /// Default constructor for background tasks
-  SyncService.background() : _database = null, _authService = null, _notificationsPlugin = null;
+  SyncService.background()
+      : _database = null,
+        _authService = null,
+        _notificationsPlugin = null;
 
   /// Initialize the sync service
   Future<void> initialize() async {
@@ -39,20 +42,21 @@ class SyncService {
 
   /// Initialize local notifications
   Future<void> _initializeNotifications() async {
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
     );
-    
+
     const initSettings = InitializationSettings(
       android: androidSettings,
       iOS: iosSettings,
     );
-    
+
     await _notificationsPlugin?.initialize(initSettings);
-    
+
     // Create notification channel for Android
     const androidChannel = AndroidNotificationChannel(
       _syncChannelId,
@@ -60,9 +64,10 @@ class SyncService {
       description: 'Notifications for data synchronization',
       importance: Importance.low,
     );
-    
+
     await _notificationsPlugin
-        ?.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(androidChannel);
   }
 
@@ -105,7 +110,7 @@ class SyncService {
 
       final supabase = Supabase.instance.client;
       final userId = supabase.auth.currentUser?.id;
-      
+
       if (userId == null) {
         return SyncResult(
           hasErrors: true,
@@ -133,7 +138,7 @@ class SyncService {
       }
 
       final supabase = Supabase.instance.client;
-      
+
       if (supabase.auth.currentUser?.id != userId) {
         throw Exception('User authentication mismatch');
       }
@@ -241,7 +246,7 @@ class SyncService {
       if (kDebugMode) {
         print('Full sync failed: $e');
       }
-      
+
       return SyncResult(
         hasConflicts: false,
         hasErrors: true,
@@ -261,7 +266,7 @@ class SyncService {
 
       // Get local habits that need syncing
       final localHabits = await _database?.getHabitsToSync(userId) ?? [];
-      
+
       for (final habit in localHabits) {
         try {
           // Convert to JSON for Supabase
@@ -275,12 +280,12 @@ class SyncService {
             'created_at': habit.createdAt.toIso8601String(),
             'updated_at': habit.updatedAt.toIso8601String(),
           };
-          
+
           // Upload to Supabase
           await supabase.from('habits').upsert(habitJson);
-          
+
           // Mark as synced locally
-        await _database?.markHabitAsSynced(habit.id);
+          await _database?.markHabitAsSynced(habit.id);
           synced++;
         } catch (e) {
           if (kDebugMode) {
@@ -288,20 +293,20 @@ class SyncService {
           }
         }
       }
-      
+
       // Download from Supabase and update local database
       final remoteHabits = await supabase
           .from('habits')
           .select()
           .eq('user_id', userId)
           .order('updated_at', ascending: false);
-      
+
       for (final habitData in remoteHabits) {
         final habitId = habitData['id'] as String;
         final localHabit = await _database?.getHabit(habitId);
         final remoteUpdatedAt = DateTime.parse(habitData['updated_at']);
-        
-        if (localHabit == null || 
+
+        if (localHabit == null ||
             remoteUpdatedAt.isAfter(localHabit.updatedAt)) {
           // Remote is newer or doesn't exist locally
           final habitCompanion = HabitsCompanion(
@@ -321,8 +326,8 @@ class SyncService {
           );
           await _database?.upsertHabit(habitCompanion);
           synced++;
-        } else if (localHabit.updatedAt.isAfter(remoteUpdatedAt) && 
-                   localHabit.needsSync) {
+        } else if (localHabit.updatedAt.isAfter(remoteUpdatedAt) &&
+            localHabit.needsSync) {
           // Local is newer, upload to remote
           final habitJson = {
             'id': localHabit.id,
@@ -366,8 +371,9 @@ class SyncService {
       int conflicts = 0;
 
       // Get local check-ins that need syncing
-      final localCheckins = await _database?.getDailyCheckinsToSync(userId) ?? [];
-      
+      final localCheckins =
+          await _database?.getDailyCheckinsToSync(userId) ?? [];
+
       for (final checkin in localCheckins) {
         try {
           // Convert to JSON for Supabase
@@ -382,12 +388,12 @@ class SyncService {
             'created_at': checkin.createdAt.toIso8601String(),
             'updated_at': checkin.updatedAt.toIso8601String(),
           };
-          
+
           // Upload to Supabase
           await supabase.from('daily_checkins').upsert(checkinJson);
-          
+
           // Mark as synced locally
-        await _database?.markDailyCheckinAsSynced(checkin.id);
+          await _database?.markDailyCheckinAsSynced(checkin.id);
           synced++;
         } catch (e) {
           if (kDebugMode) {
@@ -395,20 +401,20 @@ class SyncService {
           }
         }
       }
-      
+
       // Download from Supabase and update local database
       final remoteCheckins = await supabase
           .from('daily_checkins')
           .select()
           .eq('user_id', userId)
           .order('updated_at', ascending: false);
-      
+
       for (final checkinData in remoteCheckins) {
         final checkinId = checkinData['id'] as String;
         final localCheckin = await _database?.getDailyCheckin(checkinId);
         final remoteUpdatedAt = DateTime.parse(checkinData['updated_at']);
-        
-        if (localCheckin == null || 
+
+        if (localCheckin == null ||
             remoteUpdatedAt.isAfter(localCheckin.updatedAt)) {
           // Remote is newer or doesn't exist locally
           final checkinCompanion = DailyCheckinsCompanion(
@@ -426,8 +432,8 @@ class SyncService {
           );
           await _database?.upsertDailyCheckin(checkinCompanion);
           synced++;
-        } else if (localCheckin.updatedAt.isAfter(remoteUpdatedAt) && 
-                   localCheckin.needsSync) {
+        } else if (localCheckin.updatedAt.isAfter(remoteUpdatedAt) &&
+            localCheckin.needsSync) {
           // Local is newer, upload to remote
           final checkinJson = {
             'id': localCheckin.id,
@@ -451,7 +457,8 @@ class SyncService {
         hasErrors: false,
         syncedItemsCount: synced,
         errorMessages: [],
-        conflictMessages: conflicts > 0 ? ['Daily check-ins: $conflicts conflicts'] : [],
+        conflictMessages:
+            conflicts > 0 ? ['Daily check-ins: $conflicts conflicts'] : [],
       );
     } catch (e) {
       return SyncResult(
@@ -473,7 +480,7 @@ class SyncService {
 
       // Get local goals that need syncing
       final localGoals = await _database?.getGoalsToSync(userId) ?? [];
-      
+
       for (final goal in localGoals) {
         try {
           // Convert to JSON for Supabase
@@ -488,12 +495,12 @@ class SyncService {
             'created_at': goal.createdAt.toIso8601String(),
             'updated_at': goal.updatedAt.toIso8601String(),
           };
-          
+
           // Upload to Supabase
           await supabase.from('goals').upsert(goalJson);
-          
+
           // Mark as synced locally
-        await _database?.markGoalAsSynced(goal.id);
+          await _database?.markGoalAsSynced(goal.id);
           synced++;
         } catch (e) {
           if (kDebugMode) {
@@ -501,21 +508,20 @@ class SyncService {
           }
         }
       }
-      
+
       // Download from Supabase and update local database
       final remoteGoals = await supabase
           .from('goals')
           .select()
           .eq('user_id', userId)
           .order('updated_at', ascending: false);
-      
+
       for (final goalData in remoteGoals) {
         final goalId = goalData['id'] as String;
         final localGoal = await _database?.getGoal(goalId);
         final remoteUpdatedAt = DateTime.parse(goalData['updated_at']);
-        
-        if (localGoal == null || 
-            remoteUpdatedAt.isAfter(localGoal.updatedAt)) {
+
+        if (localGoal == null || remoteUpdatedAt.isAfter(localGoal.updatedAt)) {
           // Remote is newer or doesn't exist locally
           final goalCompanion = GoalsCompanion(
             id: Value(goalData['id']),
@@ -535,8 +541,8 @@ class SyncService {
           );
           await _database?.upsertGoal(goalCompanion);
           synced++;
-        } else if (localGoal.updatedAt.isAfter(remoteUpdatedAt) && 
-                   localGoal.needsSync) {
+        } else if (localGoal.updatedAt.isAfter(remoteUpdatedAt) &&
+            localGoal.needsSync) {
           // Local is newer, upload to remote
           final goalJson = {
             'id': localGoal.id,
@@ -581,8 +587,9 @@ class SyncService {
       int conflicts = 0;
 
       // Get local journal entries that need syncing
-      final localEntries = await _database?.getJournalEntriesToSync(userId) ?? [];
-      
+      final localEntries =
+          await _database?.getJournalEntriesToSync(userId) ?? [];
+
       for (final entry in localEntries) {
         try {
           // Convert to JSON for Supabase
@@ -596,12 +603,12 @@ class SyncService {
             'created_at': entry.createdAt.toIso8601String(),
             'updated_at': entry.updatedAt.toIso8601String(),
           };
-          
+
           // Upload to Supabase
           await supabase.from('journal_entries').upsert(entryJson);
-          
+
           // Mark as synced locally
-        await _database?.markJournalEntryAsSynced(entry.id);
+          await _database?.markJournalEntryAsSynced(entry.id);
           synced++;
         } catch (e) {
           if (kDebugMode) {
@@ -609,20 +616,20 @@ class SyncService {
           }
         }
       }
-      
+
       // Download from Supabase and update local database
       final remoteEntries = await supabase
           .from('journal_entries')
           .select()
           .eq('user_id', userId)
           .order('updated_at', ascending: false);
-      
+
       for (final entryData in remoteEntries) {
         final entryId = entryData['id'] as String;
         final localEntry = await _database?.getJournalEntry(entryId);
         final remoteUpdatedAt = DateTime.parse(entryData['updated_at']);
-        
-        if (localEntry == null || 
+
+        if (localEntry == null ||
             remoteUpdatedAt.isAfter(localEntry.updatedAt)) {
           // Remote is newer or doesn't exist locally
           final entryCompanion = JournalEntriesCompanion(
@@ -639,8 +646,8 @@ class SyncService {
           );
           await _database?.upsertJournalEntry(entryCompanion);
           synced++;
-        } else if (localEntry.updatedAt.isAfter(remoteUpdatedAt) && 
-                   localEntry.needsSync) {
+        } else if (localEntry.updatedAt.isAfter(remoteUpdatedAt) &&
+            localEntry.needsSync) {
           // Local is newer, upload to remote
           final entryJson = {
             'id': localEntry.id,
@@ -663,7 +670,8 @@ class SyncService {
         hasErrors: false,
         syncedItemsCount: synced,
         errorMessages: [],
-        conflictMessages: conflicts > 0 ? ['Journal entries: $conflicts conflicts'] : [],
+        conflictMessages:
+            conflicts > 0 ? ['Journal entries: $conflicts conflicts'] : [],
       );
     } catch (e) {
       return SyncResult(
@@ -686,23 +694,23 @@ class SyncService {
       priority: Priority.low,
       icon: '@mipmap/ic_launcher',
     );
-    
+
     const iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: false,
     );
-    
+
     const details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
-    
+
     String message = 'Synced ${result.syncedItemsCount} items';
     if (result.conflictMessages.isNotEmpty) {
       message += ', resolved ${result.conflictMessages.length} conflicts';
     }
-    
+
     await _notificationsPlugin?.show(
       0,
       'Life Growth Sync',
@@ -719,7 +727,7 @@ void callbackDispatcher() {
       // Initialize services for background task
       // Note: This is a simplified version - in a real app, you'd need to
       // properly initialize all dependencies in the background context
-      
+
       switch (task) {
         case 'background_sync':
           // Perform background sync
@@ -727,7 +735,7 @@ void callbackDispatcher() {
           print('Background sync task executed');
           break;
       }
-      
+
       return Future.value(true);
     } catch (e) {
       print('Background task failed: $e');
