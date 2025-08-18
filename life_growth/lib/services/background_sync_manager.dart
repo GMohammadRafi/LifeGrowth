@@ -218,4 +218,76 @@ class BackgroundSyncManager {
   }
 
   bool get isInitialized => _isInitialized;
+
+  /// Start background sync when app goes to background
+  Future<void> startBackgroundSync() async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+
+    try {
+      // Only start background sync if user is authenticated
+      if (!AuthService.isAuthenticated) {
+        if (kDebugMode) {
+          print('User not authenticated, skipping background sync start');
+        }
+        return;
+      }
+
+      // Schedule periodic sync for background operation
+      await schedulePeriodicSync();
+      
+      if (kDebugMode) {
+        print('Background sync started successfully');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to start background sync: $e');
+      }
+    }
+  }
+
+  /// Stop background sync when app comes to foreground
+  Future<void> stopBackgroundSync() async {
+    try {
+      // Cancel periodic sync tasks
+      await cancelPeriodicSync();
+      
+      if (kDebugMode) {
+        print('Background sync stopped successfully');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to stop background sync: $e');
+      }
+    }
+  }
+
+  /// Perform immediate sync when app comes to foreground
+  Future<void> performSync() async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+
+    try {
+      // Only perform sync if user is authenticated
+      if (!AuthService.isAuthenticated) {
+        if (kDebugMode) {
+          print('User not authenticated, skipping sync');
+        }
+        return;
+      }
+
+      // Perform immediate sync
+      await scheduleImmediateSync();
+      
+      if (kDebugMode) {
+        print('Immediate sync performed successfully');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to perform sync: $e');
+      }
+    }
+  }
 }

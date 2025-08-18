@@ -166,12 +166,15 @@ class AuthWrapper extends StatefulWidget {
   State<AuthWrapper> createState() => _AuthWrapperState();
 }
 
-class _AuthWrapperState extends State<AuthWrapper> {
+class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
   bool _isCheckingBiometric = false;
 
   @override
   void initState() {
     super.initState();
+    // Add app lifecycle observer
+    WidgetsBinding.instance.addObserver(this);
+    
     // Listen to auth state changes
     Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       if (mounted) {
@@ -181,6 +184,68 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
     // Check for biometric authentication on app start
     _checkBiometricOnStart();
+  }
+
+  @override
+  void dispose() {
+    // Remove app lifecycle observer
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    // Only manage background sync on mobile platforms
+    if (!kIsWeb) {
+      switch (state) {
+        case AppLifecycleState.paused:
+        case AppLifecycleState.detached:
+          // App is going to background
+          _handleAppBackground();
+          break;
+        case AppLifecycleState.resumed:
+          // App is coming to foreground
+          _handleAppForeground();
+          break;
+        case AppLifecycleState.inactive:
+          // App is inactive (e.g., during a phone call)
+          break;
+        case AppLifecycleState.hidden:
+          // App is hidden
+          break;
+      }
+    }
+  }
+
+  Future<void> _handleAppBackground() async {
+    try {
+      // Start background sync when app goes to background
+      await BackgroundSyncManager().startBackgroundSync();
+      if (kDebugMode) {
+        print('Background sync started - app went to background');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to start background sync: $e');
+      }
+    }
+  }
+
+  Future<void> _handleAppForeground() async {
+    try {
+      // Stop background sync and perform immediate sync when app comes to foreground
+      await BackgroundSyncManager().stopBackgroundSync();
+      await BackgroundSyncManager().performSync();
+      if (kDebugMode) {
+        print('Background sync stopped and immediate sync performed - app came to foreground');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to handle app foreground: $e');
+      }
+    }
   }
 
   Future<void> _checkBiometricOnStart() async {

@@ -83,13 +83,7 @@ class _AuthScreenState extends State<AuthScreen> {
           password: _passwordController.text,
         );
 
-        // Schedule background sync after successful login (non-blocking)
-        BackgroundSyncManager().schedulePeriodicSync().catchError((e) {
-          // Log error but don't prevent navigation
-          if (kDebugMode) {
-            print('Failed to schedule background sync: $e');
-          }
-        });
+        // Background sync will be managed by app lifecycle
 
         if (mounted) {
           Navigator.of(context).pushReplacement(
@@ -123,13 +117,7 @@ class _AuthScreenState extends State<AuthScreen> {
     try {
       await AuthService.signInWithGoogle();
       
-      // Schedule background sync after successful login (non-blocking)
-      BackgroundSyncManager().schedulePeriodicSync().catchError((e) {
-        // Log error but don't prevent navigation
-        if (kDebugMode) {
-          print('Failed to schedule background sync: $e');
-        }
-      });
+      // Background sync will be managed by app lifecycle
       
       // Navigation will be handled by auth state listener
     } on AuthException catch (e) {
@@ -158,13 +146,7 @@ class _AuthScreenState extends State<AuthScreen> {
     try {
       await AuthService.signInWithGitHub();
       
-      // Schedule background sync after successful login (non-blocking)
-      BackgroundSyncManager().schedulePeriodicSync().catchError((e) {
-        // Log error but don't prevent navigation
-        if (kDebugMode) {
-          print('Failed to schedule background sync: $e');
-        }
-      });
+      // Background sync will be managed by app lifecycle
       
       // Navigation will be handled by auth state listener
     } on AuthException catch (e) {
@@ -198,13 +180,7 @@ class _AuthScreenState extends State<AuthScreen> {
       if (didAuthenticate && mounted) {
         // Check if user is already signed in after biometric auth
         if (AuthService.isAuthenticated) {
-          // Schedule background sync after successful biometric login (non-blocking)
-          BackgroundSyncManager().schedulePeriodicSync().catchError((e) {
-            // Log error but don't prevent navigation
-            if (kDebugMode) {
-              print('Failed to schedule background sync: $e');
-            }
-          });
+          // Background sync will be managed by app lifecycle
           
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => const HomeScreen()),

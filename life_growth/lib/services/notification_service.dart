@@ -146,11 +146,42 @@ class NotificationService {
   }
 
   Future<void> showSyncErrorNotification(String error) async {
+    // Create a more user-friendly error message
+    String userFriendlyMessage = getUserFriendlyErrorMessage(error);
+    
     await showSyncNotification(
       title: 'Sync Failed',
-      body: 'Failed to sync data: $error',
+      body: userFriendlyMessage,
       payload: 'sync_error',
     );
+  }
+
+  // Helper method to convert technical errors to user-friendly messages
+  String getUserFriendlyErrorMessage(String error) {
+    final errorLower = error.toLowerCase();
+    
+    if (errorLower.contains('failed host lookup') ||
+        errorLower.contains('no address associated with hostname') ||
+        errorLower.contains('socketexception') ||
+        errorLower.contains('network is unreachable')) {
+      return 'Unable to connect to server. Please check your internet connection and try again later.';
+    }
+    
+    if (errorLower.contains('timeout')) {
+      return 'Connection timed out. Please check your internet connection and try again.';
+    }
+    
+    if (errorLower.contains('connection refused')) {
+      return 'Server is temporarily unavailable. Please try again later.';
+    }
+    
+    if (errorLower.contains('unable to connect to server')) {
+      return error; // This is already user-friendly from our retry logic
+    }
+    
+    // For other errors, show a generic message but log the actual error
+    print('Unhandled sync error: $error');
+    return 'Sync failed. Your data is saved locally and will sync when connection is restored.';
   }
 
   Future<void> showConflictResolvedNotification(int conflictsResolved) async {

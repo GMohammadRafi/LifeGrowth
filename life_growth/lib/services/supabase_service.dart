@@ -3,6 +3,7 @@ import '../models/daily_task.dart' as model;
 import '../database/database.dart';
 import 'database_service.dart';
 import 'auth_service.dart';
+import 'dart:io';
 
 class SupabaseService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -347,34 +348,94 @@ class SupabaseService {
       throw ArgumentError('userId cannot be empty');
     }
     
-    try {
-      // Get all tasks that need syncing
-      final tasksToSync = await DatabaseService.instance.getTasksToSync();
+    await _performSyncWithRetry(userId, maxRetries: 3);
+  }
 
-      for (final task in tasksToSync) {
-        await _syncTaskToSupabase(task);
-      }
+  // Helper method to perform sync with retry logic and better error handling
+  static Future<void> _performSyncWithRetry(String userId, {int maxRetries = 3}) async {
+    int retryCount = 0;
+    
+    while (retryCount < maxRetries) {
+      try {
+        // Get all tasks that need syncing
+        final tasksToSync = await DatabaseService.instance.getTasksToSync();
 
-      // Pull latest changes from Supabase
-      final lastSyncTime =
-          DateTime.now().subtract(Duration(days: 30)); // Sync last 30 days
-      final remoteTasks =
-          await getTasksModifiedAfter(userId: userId, timestamp: lastSyncTime);
+        for (final task in tasksToSync) {
+          await _syncTaskToSupabase(task);
+        }
 
-      // Update local database with remote changes
-      for (final remoteTask in remoteTasks) {
-        final localTask = await DatabaseService.instance
-            .getDailyTask(userId, remoteTask.date);
-        if (localTask == null ||
-            remoteTask.updatedAt.isAfter(localTask.updatedAt)) {
-          // Mark remote task as not needing sync and upsert
-          final dbTask = remoteTask.copyWith(needsSync: false);
-          await DatabaseService.instance.upsertDailyTask(dbTask);
+        // Pull latest changes from Supabase
+        final lastSyncTime =
+            DateTime.now().subtract(Duration(days: 30)); // Sync last 30 days
+        final remoteTasks =
+            await getTasksModifiedAfter(userId: userId, timestamp: lastSyncTime);
+
+        // Update local database with remote changes
+        for (final remoteTask in remoteTasks) {
+          final localTask = await DatabaseService.instance
+              .getDailyTask(userId, remoteTask.date);
+          if (localTask == null ||
+              remoteTask.updatedAt.isAfter(localTask.updatedAt)) {
+            // Mark remote task as not needing sync and upsert
+            final dbTask = remoteTask.copyWith(needsSync: false);
+            await DatabaseService.instance.upsertDailyTask(dbTask);
+          }
+        }
+        
+        // If we reach here, sync was successful
+        return;
+        
+      } catch (e) {
+        retryCount++;
+        print('Sync attempt $retryCount failed: $e');
+        
+        // Check if it's a network-related error
+        if (isNetworkError(e)) {
+          if (retryCount < maxRetries) {
+            // Check network connectivity before retrying
+            final hasConnection = await _hasNetworkConnection();
+            if (!hasConnection) {
+              print('No network connection available, skipping retry');
+              throw Exception('No internet connection. Please check your network settings and try again.');
+            }
+            
+            // Wait before retrying (exponential backoff)
+            final delaySeconds = retryCount * 2;
+            print('Retrying sync in $delaySeconds seconds...');
+            await Future.delayed(Duration(seconds: delaySeconds));
+            continue;
+          } else {
+            // Max retries reached, throw a user-friendly error
+            throw Exception('Unable to connect to server. Please check your internet connection and try again later.');
+          }
+        } else {
+          // Non-network error, don't retry
+          print('Non-network sync error: $e');
+          rethrow;
         }
       }
-    } catch (e) {
-      print('Sync error: $e');
-      rethrow;
+    }
+  }
+
+  // Helper method to identify network-related errors
+  static bool isNetworkError(dynamic error) {
+    final errorString = error.toString().toLowerCase();
+    return errorString.contains('socketexception') ||
+           errorString.contains('clientexception') ||
+           errorString.contains('failed host lookup') ||
+           errorString.contains('network is unreachable') ||
+           errorString.contains('connection refused') ||
+           errorString.contains('timeout') ||
+           errorString.contains('no address associated with hostname');
+  }
+
+  // Helper method to check network connectivity
+  static Future<bool> _hasNetworkConnection() async {
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } on SocketException catch (_) {
+      return false;
     }
   }
 
@@ -387,18 +448,28 @@ class SupabaseService {
       throw ArgumentError('userId cannot be empty');
     }
     
-    final response = await _client
-        .from('daily_tasks')
-        .select()
-        .eq('user_id', userId)
-        .gte('updated_at', timestamp.toIso8601String())
-        .order('updated_at', ascending: true);
+    try {
+      final response = await _client
+          .from('daily_tasks')
+          .select()
+          .eq('user_id', userId)
+          .gte('updated_at', timestamp.toIso8601String())
+          .order('updated_at', ascending: true);
 
-    return response
-        .map<DailyTask>((json) => _convertModelToDbTask(
-            model.DailyTask.fromJson(json),
-            needsSync: false))
-        .toList();
+      return response
+          .map<DailyTask>((json) => _convertModelToDbTask(
+              model.DailyTask.fromJson(json),
+              needsSync: false))
+          .toList();
+    } catch (e) {
+      if (isNetworkError(e)) {
+        print('Network error in getTasksModifiedAfter: $e');
+        // Return empty list on network error to allow offline operation
+        return [];
+      } else {
+        rethrow;
+      }
+    }
   }
 
   static Future<List<DailyTask>> syncTasks(List<DailyTask> localTasks) async {
