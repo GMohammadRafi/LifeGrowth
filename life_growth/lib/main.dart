@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
 import 'services/database_service.dart';
 import 'services/background_sync_manager.dart';
+import 'services/theme_service.dart';
+import 'providers/theme_provider.dart';
 import 'screens/auth_screen.dart';
 import 'screens/home_screen.dart';
 
@@ -44,7 +47,12 @@ void main() async {
     }
   }
 
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => ThemeProvider(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -52,14 +60,27 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Life Growth',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-        useMaterial3: true,
-      ),
-      home: const AuthWrapper(),
-      debugShowCheckedModeBanner: false,
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        return MaterialApp(
+          title: 'Life Growth',
+          theme: ThemeService.lightTheme,
+          darkTheme: ThemeService.darkTheme,
+          themeMode: themeProvider.themeMode,
+          home: const AuthWrapper(),
+          debugShowCheckedModeBanner: false,
+          // Accessibility improvements
+          builder: (context, child) {
+            return MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                // Ensure text scaling doesn't break layout
+                textScaleFactor: MediaQuery.of(context).textScaleFactor.clamp(0.8, 1.4),
+              ),
+              child: child!,
+            );
+          },
+        );
+      },
     );
   }
 }

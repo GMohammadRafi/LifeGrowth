@@ -377,19 +377,24 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: TextFormField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: label,
-          hintText: hint,
-          border: const OutlineInputBorder(),
-          suffixIcon: suffix,
-          isDense: true,
+      child: Semantics(
+        label: label,
+        hint: hint ?? 'Enter $label',
+        textField: true,
+        child: TextFormField(
+          controller: controller,
+          decoration: InputDecoration(
+            labelText: label,
+            hintText: hint,
+            border: const OutlineInputBorder(),
+            suffixIcon: suffix,
+            isDense: true,
+          ),
+          keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
+          validator: validator,
+          maxLines: maxLines,
         ),
-        keyboardType: keyboardType,
-        inputFormatters: inputFormatters,
-        validator: validator,
-        maxLines: maxLines,
       ),
     );
   }
@@ -400,12 +405,17 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
     required ValueChanged<bool> onChanged,
     String? subtitle,
   }) {
-    return CheckboxListTile(
-      title: Text(title),
-      subtitle: subtitle != null ? Text(subtitle) : null,
-      value: value,
-      onChanged: (val) => onChanged(val ?? false),
-      contentPadding: EdgeInsets.zero,
+    return Semantics(
+      label: title,
+      hint: subtitle ?? (value ? 'Currently checked' : 'Currently unchecked'),
+      checked: value,
+      child: CheckboxListTile(
+        title: Text(title),
+        subtitle: subtitle != null ? Text(subtitle) : null,
+        value: value,
+        onChanged: (val) => onChanged(val ?? false),
+        contentPadding: EdgeInsets.zero,
+      ),
     );
   }
   
@@ -500,20 +510,24 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
             (val) => _currentTask.copyWith(stretchCompleted: val),
           ),
         ),
-        DropdownButtonFormField<String>(
-          value: _currentTask.stretchType,
-          decoration: const InputDecoration(
-            labelText: 'Type',
-            border: OutlineInputBorder(),
-            isDense: true,
-          ),
-          items: ['Yoga', 'Home Workout', 'Gym', 'Other']
-              .map((type) =>
-                  DropdownMenuItem(value: type, child: Text(type)))
-              .toList(),
-          onChanged: (value) => _updateTaskField(
-            value,
-            (val) => _currentTask.copyWith(stretchType: val),
+        Semantics(
+          label: 'Exercise type',
+          hint: 'Select the type of exercise or stretch activity',
+          child: DropdownButtonFormField<String>(
+            value: _currentTask.stretchType,
+            decoration: const InputDecoration(
+              labelText: 'Type',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            items: ['Yoga', 'Home Workout', 'Gym', 'Other']
+                .map((type) =>
+                    DropdownMenuItem(value: type, child: Text(type)))
+                .toList(),
+            onChanged: (value) => _updateTaskField(
+              value,
+              (val) => _currentTask.copyWith(stretchType: val),
+            ),
           ),
         ),
         const SizedBox(height: 8),
@@ -701,9 +715,14 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
                 controller: _movieSeriesStartTimeController,
                 label: 'Start time',
                 hint: 'HH:MM',
-                suffix: IconButton(
-                  icon: const Icon(Icons.access_time),
-                  onPressed: () => _selectTime(_movieSeriesStartTimeController),
+                suffix: Semantics(
+                  label: 'Select start time',
+                  hint: 'Open time picker to select movie start time',
+                  button: true,
+                  child: IconButton(
+                    icon: const Icon(Icons.access_time),
+                    onPressed: () => _selectTime(_movieSeriesStartTimeController),
+                  ),
                 ),
               ),
             ),
@@ -713,9 +732,14 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
                 controller: _movieSeriesEndTimeController,
                 label: 'End time',
                 hint: 'HH:MM',
-                suffix: IconButton(
-                  icon: const Icon(Icons.access_time),
-                  onPressed: () => _selectTime(_movieSeriesEndTimeController),
+                suffix: Semantics(
+                  label: 'Select end time',
+                  hint: 'Open time picker to select movie end time',
+                  button: true,
+                  child: IconButton(
+                    icon: const Icon(Icons.access_time),
+                    onPressed: () => _selectTime(_movieSeriesEndTimeController),
+                  ),
                 ),
               ),
             ),
@@ -766,20 +790,25 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
             ],
           ),
           actions: [
-            IconButton(
-              icon: const Icon(Icons.settings),
-              onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const PersonalizationScreen(),
-                  ),
-                );
-                if (result == true) {
-                  // Reload personalization settings
-                  await _loadPersonalizationSettings();
-                }
-              },
+            Semantics(
+              label: 'Personalization settings',
+              hint: 'Open personalization settings to customize your tasks',
+              button: true,
+              child: IconButton(
+                icon: const Icon(Icons.settings),
+                onPressed: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PersonalizationScreen(),
+                    ),
+                  );
+                  if (result == true) {
+                    // Reload personalization settings
+                    await _loadPersonalizationSettings();
+                  }
+                },
+              ),
             ),
             if (_hasChanges)
               TextButton(
@@ -823,16 +852,21 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
           ),
         ),
         floatingActionButton: _hasChanges
-            ? FloatingActionButton.extended(
-                onPressed: _isLoading ? null : _saveTask,
-                icon: _isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.save),
-                label: const Text('Save'),
+            ? Semantics(
+                label: 'Save changes',
+                hint: _isLoading ? 'Saving your daily check-in data' : 'Save your daily check-in data',
+                button: true,
+                child: FloatingActionButton.extended(
+                  onPressed: _isLoading ? null : _saveTask,
+                  icon: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save),
+                  label: const Text('Save'),
+                ),
               )
             : null,
       ),

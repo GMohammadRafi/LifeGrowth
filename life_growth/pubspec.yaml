@@ -54,6 +54,9 @@ dependencies:
   # Biometric authentication
   local_auth: ^2.1.8
   
+  # State management
+  provider: ^6.1.1
+  
   # Background sync and notifications
   workmanager: ^0.9.0
   flutter_local_notifications: ^17.2.2

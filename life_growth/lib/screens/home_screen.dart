@@ -10,6 +10,7 @@ import 'daily_checkin_screen.dart';
 import 'history_screen.dart';
 import 'analytics_screen.dart';
 import 'personalization_screen.dart';
+import 'accessibility_settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -207,21 +208,32 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: ListTile(
-        leading: Checkbox(
-          value: completed,
-          onChanged: (_) => onToggle(),
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            decoration: completed ? TextDecoration.lineThrough : null,
-            color: completed ? Colors.grey : null,
+      child: Semantics(
+        label: '$title task',
+        hint: completed ? 'Task completed. Tap to mark as incomplete' : 'Task not completed. Tap to mark as complete',
+        button: true,
+        checked: completed,
+        child: ListTile(
+          leading: Semantics(
+            label: 'Task completion checkbox',
+            hint: completed ? 'Mark task as incomplete' : 'Mark task as complete',
+            checked: completed,
+            child: Checkbox(
+              value: completed,
+              onChanged: (_) => onToggle(),
+            ),
           ),
+          title: Text(
+            title,
+            style: TextStyle(
+              decoration: completed ? TextDecoration.lineThrough : null,
+              color: completed ? Colors.grey : null,
+            ),
+          ),
+          subtitle: subtitle != null ? Text(subtitle) : null,
+          trailing: trailing,
+          onTap: onToggle,
         ),
-        subtitle: subtitle != null ? Text(subtitle) : null,
-        trailing: trailing,
-        onTap: onToggle,
       ),
     );
   }
@@ -243,26 +255,40 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadTodayTask,
-            tooltip: 'Refresh',
+          Semantics(
+            label: 'Refresh',
+            hint: 'Refresh today\'s task data',
+            button: true,
+            child: IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _loadTodayTask,
+              tooltip: 'Refresh',
+            ),
           ),
-          IconButton(
-            icon: _isSyncing
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : const Icon(Icons.sync),
-            onPressed: _isSyncing ? null : _syncData,
-            tooltip: 'Sync Data',
+          Semantics(
+            label: 'Sync Data',
+            hint: _isSyncing ? 'Syncing data with server' : 'Sync your data with the server',
+            button: true,
+            child: IconButton(
+              icon: _isSyncing
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Icon(Icons.sync),
+              onPressed: _isSyncing ? null : _syncData,
+              tooltip: 'Sync Data',
+            ),
           ),
-          PopupMenuButton<String>(
+          Semantics(
+            label: 'Menu',
+            hint: 'Open menu with options for history, analytics, settings, and sign out',
+            button: true,
+            child: PopupMenuButton<String>(
             onSelected: (value) async {
               if (value == 'history') {
                 Navigator.of(context).push(
@@ -285,52 +311,94 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (result == true) {
                   await _initializePersonalization();
                 }
+              } else if (value == 'accessibility') {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const AccessibilitySettingsScreen(),
+                  ),
+                );
               } else if (value == 'signout') {
                 _signOut();
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'history',
-                child: Row(
-                  children: [
-                    Icon(Icons.history),
-                    SizedBox(width: 8),
-                    Text('History'),
-                  ],
+                child: Semantics(
+                  label: 'History',
+                  hint: 'View your task history',
+                  button: true,
+                  child: const Row(
+                    children: [
+                      Icon(Icons.history),
+                      SizedBox(width: 8),
+                      Text('History'),
+                    ],
+                  ),
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'analytics',
-                child: Row(
-                  children: [
-                    Icon(Icons.analytics),
-                    SizedBox(width: 8),
-                    Text('Analytics'),
-                  ],
+                child: Semantics(
+                  label: 'Analytics',
+                  hint: 'View your task analytics and statistics',
+                  button: true,
+                  child: const Row(
+                    children: [
+                      Icon(Icons.analytics),
+                      SizedBox(width: 8),
+                      Text('Analytics'),
+                    ],
+                  ),
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'personalization',
-                child: Row(
-                  children: [
-                    Icon(Icons.settings),
-                    SizedBox(width: 8),
-                    Text('Personalization'),
-                  ],
+                child: Semantics(
+                  label: 'Personalization',
+                  hint: 'Customize your task preferences and settings',
+                  button: true,
+                  child: const Row(
+                    children: [
+                      Icon(Icons.tune),
+                      SizedBox(width: 8),
+                      Text('Personalization'),
+                    ],
+                  ),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'accessibility',
+                child: Semantics(
+                  label: 'Accessibility',
+                  hint: 'Configure accessibility settings and theme preferences',
+                  button: true,
+                  child: const Row(
+                    children: [
+                      Icon(Icons.accessibility),
+                      SizedBox(width: 8),
+                      Text('Accessibility'),
+                    ],
+                  ),
                 ),
               ),
               PopupMenuItem(
                 value: 'signout',
-                child: Row(
-                  children: [
-                    const Icon(Icons.logout),
-                    const SizedBox(width: 8),
-                    Text('Sign Out (${AuthService.userEmail ?? 'Unknown'})'),
-                  ],
+                child: Semantics(
+                  label: 'Sign Out',
+                  hint: 'Sign out from your account: ${AuthService.userEmail ?? 'Unknown'}',
+                  button: true,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.logout),
+                      const SizedBox(width: 8),
+                      Text('Sign Out (${AuthService.userEmail ?? 'Unknown'})'),
+                    ],
+                  ),
                 ),
               ),
             ],
+            ),
           ),
         ],
       ),
@@ -402,23 +470,28 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
       floatingActionButton: _todayTask == null
           ? null
-          : FloatingActionButton.extended(
-              onPressed: () async {
-                if (!AuthService.isAuthenticated) return;
-                final saved = await Navigator.of(context).push<bool>(
-                  MaterialPageRoute(
-                    builder: (context) => DailyCheckinScreen(
-                      existingTask: _todayTask,
-                      date: DateTime.now(),
+          : Semantics(
+              label: 'Daily Check-in',
+              hint: 'Open daily check-in form to track your tasks',
+              button: true,
+              child: FloatingActionButton.extended(
+                onPressed: () async {
+                  if (!AuthService.isAuthenticated) return;
+                  final saved = await Navigator.of(context).push<bool>(
+                    MaterialPageRoute(
+                      builder: (context) => DailyCheckinScreen(
+                        existingTask: _todayTask,
+                        date: DateTime.now(),
+                      ),
                     ),
-                  ),
-                );
-                if (saved == true) {
-                  _loadTodayTask();
-                }
-              },
-              icon: const Icon(Icons.edit),
-              label: const Text('Daily Check-in'),
+                  );
+                  if (saved == true) {
+                    _loadTodayTask();
+                  }
+                },
+                icon: const Icon(Icons.edit),
+                label: const Text('Daily Check-in'),
+              ),
             ),
     );
   }
