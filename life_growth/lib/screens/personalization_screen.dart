@@ -122,22 +122,57 @@ class _PersonalizationScreenState extends State<PersonalizationScreen> {
       _dailyReminderEnabled = enabled;
     });
     
+    if (enabled) {
+      // Check and request permissions first
+      final hasPermission = await _notificationService.requestPermissions();
+      final notificationsEnabled = await _notificationService.areNotificationsEnabled();
+      
+      if (!hasPermission || !notificationsEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                !hasPermission 
+                    ? 'Notification permission is required for reminders. Please enable in app settings.'
+                    : 'Notifications are disabled. Please enable in device settings.',
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'Settings',
+                onPressed: () {
+                  // This would ideally open app settings, but that requires additional packages
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please enable notifications in your device settings > Apps > Life Growth > Notifications'),
+                      duration: Duration(seconds: 8),
+                    ),
+                  );
+                },
+              ),
+            ),
+          );
+        }
+        // Still set the reminder even if permissions are not granted
+        // The user might grant them later
+      }
+    }
+    
     await _notificationService.setDailyReminder(
       enabled: enabled,
       time: _dailyReminderTime,
     );
     
     if (enabled && mounted) {
-      // Request notification permissions if enabling
-      final hasPermission = await _notificationService.requestPermissions();
-      if (!hasPermission && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Notification permission is required for reminders'),
-            backgroundColor: Colors.orange,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Daily reminder set for ${_dailyReminderTime.format(context)}. Check debug logs for scheduling details.',
           ),
-        );
-      }
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
   }
 

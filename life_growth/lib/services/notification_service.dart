@@ -171,6 +171,10 @@ class NotificationService {
     final bool? grantedAndroid =
         await androidImplementation?.requestNotificationsPermission();
 
+    if (kDebugMode) {
+      print('Android notification permission granted: $grantedAndroid');
+    }
+
     bool? grantedIOS;
     if (!kIsWeb && (Platform.isIOS || Platform.isMacOS)) {
       // iOS/macOS permission handling would go here
@@ -178,7 +182,28 @@ class NotificationService {
       grantedIOS = true;
     }
 
-    return grantedAndroid ?? grantedIOS ?? false;
+    final result = grantedAndroid ?? grantedIOS ?? false;
+    if (kDebugMode) {
+      print('Final permission result: $result');
+    }
+
+    return result;
+  }
+
+  Future<bool> areNotificationsEnabled() async {
+    if (kIsWeb) return true;
+
+    final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+        _flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+
+    final bool? enabled = await androidImplementation?.areNotificationsEnabled();
+    
+    if (kDebugMode) {
+      print('Notifications enabled status: $enabled');
+    }
+    
+    return enabled ?? false;
   }
 
   Future<void> cancelAllNotifications() async {
@@ -190,14 +215,24 @@ class NotificationService {
     required bool enabled,
     required TimeOfDay time,
   }) async {
+    if (kDebugMode) {
+      print('Setting daily reminder: enabled=$enabled, time=${time.hour}:${time.minute}');
+    }
+    
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_dailyReminderKey, enabled);
     await prefs.setString(_dailyReminderTimeKey, '${time.hour}:${time.minute}');
     
     if (enabled) {
       await _scheduleDailyReminder(time);
+      if (kDebugMode) {
+        print('Daily reminder scheduled successfully');
+      }
     } else {
       await _flutterLocalNotificationsPlugin.cancel(_dailyReminderId);
+      if (kDebugMode) {
+        print('Daily reminder cancelled');
+      }
     }
   }
 
@@ -223,9 +258,21 @@ class NotificationService {
       time.minute,
     );
 
+    if (kDebugMode) {
+      print('Current time: $now');
+      print('Initial scheduled date: $scheduledDate');
+    }
+
     // If the time has already passed today, schedule for tomorrow
     if (scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
+      if (kDebugMode) {
+        print('Time has passed today, scheduling for tomorrow: $scheduledDate');
+      }
+    } else {
+      if (kDebugMode) {
+        print('Scheduling for today: $scheduledDate');
+      }
     }
 
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
@@ -261,12 +308,20 @@ class NotificationService {
       macOS: iOSPlatformChannelSpecifics,
     );
 
+    final tzDateTime = tz.TZDateTime.from(scheduledDate, tz.local);
+    
+    if (kDebugMode) {
+      print('Scheduling notification for: $tzDateTime');
+      print('Timezone: ${tz.local.name}');
+      print('Current timezone offset: ${tz.local.currentTimeZone.offset}');
+    }
+
     try {
       await _flutterLocalNotificationsPlugin.zonedSchedule(
         _dailyReminderId,
         'Daily Check-in Reminder',
         'Time for your daily reflection and goal tracking!',
-        tz.TZDateTime.from(scheduledDate, tz.local),
+        tzDateTime,
         platformChannelSpecifics,
         payload: 'daily_reminder',
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -274,14 +329,26 @@ class NotificationService {
             UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.time,
       );
+      
+      if (kDebugMode) {
+        print('Daily reminder scheduled successfully with exactAllowWhileIdle mode');
+      }
     } catch (e) {
+      if (kDebugMode) {
+        print('Error scheduling with exactAllowWhileIdle: $e');
+      }
+      
       // If exact alarms are not permitted, fall back to inexact scheduling
       if (e.toString().contains('exact_alarms_not_permitted')) {
+        if (kDebugMode) {
+          print('Falling back to alarmClock mode');
+        }
+        
         await _flutterLocalNotificationsPlugin.zonedSchedule(
           _dailyReminderId,
           'Daily Check-in Reminder',
           'Time for your daily reflection and goal tracking!',
-          tz.TZDateTime.from(scheduledDate, tz.local),
+          tzDateTime,
           platformChannelSpecifics,
           payload: 'daily_reminder',
           androidScheduleMode: AndroidScheduleMode.alarmClock,
@@ -289,7 +356,14 @@ class NotificationService {
               UILocalNotificationDateInterpretation.absoluteTime,
           matchDateTimeComponents: DateTimeComponents.time,
         );
+        
+        if (kDebugMode) {
+          print('Daily reminder scheduled successfully with alarmClock mode');
+        }
       } else {
+        if (kDebugMode) {
+          print('Rethrowing error: $e');
+        }
         rethrow;
       }
     }

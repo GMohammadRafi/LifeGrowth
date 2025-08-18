@@ -58,6 +58,9 @@ class BackgroundSyncManager {
 
     try {
       if (_isWorkManagerSupported()) {
+        // Add a small delay to ensure WorkManager is fully ready
+        await Future.delayed(const Duration(milliseconds: 500));
+        
         // Cancel any existing periodic sync
         await Workmanager().cancelByUniqueName(_periodicSyncTaskName);
 
@@ -88,9 +91,10 @@ class BackgroundSyncManager {
       if (kDebugMode) {
         print('Failed to schedule periodic sync: $e');
       }
-      await NotificationService().showSyncErrorNotification(
-        'Failed to schedule background sync: $e',
-      );
+      // Don't show notification for initialization errors to avoid user confusion
+      // await NotificationService().showSyncErrorNotification(
+      //   'Failed to schedule background sync: $e',
+      // );
     }
   }
 

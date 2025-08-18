@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+// import 'package:flutter_native_timezone/flutter_native_timezone.dart'; // Removed due to AGP compatibility
 import 'services/auth_service.dart';
 import 'services/database_service.dart';
 import 'services/background_sync_manager.dart';
@@ -38,7 +39,59 @@ void main() async {
 
   // Initialize timezone data
   tz.initializeTimeZones();
-  tz.setLocalLocation(tz.getLocation('UTC')); // Default to UTC, will be updated based on device timezone
+  
+  // Set device's local timezone using system default
+  try {
+    // Get the system's timezone offset
+    final now = DateTime.now();
+    final offset = now.timeZoneOffset;
+    
+    // Try to find a matching timezone location
+    // Common timezone mappings based on offset
+    String timeZoneName = 'UTC';
+    
+    // Map common offsets to timezone names
+    final offsetHours = offset.inHours;
+    switch (offsetHours) {
+      case -8: timeZoneName = 'America/Los_Angeles'; break;
+      case -7: timeZoneName = 'America/Denver'; break;
+      case -6: timeZoneName = 'America/Chicago'; break;
+      case -5: timeZoneName = 'America/New_York'; break;
+      case 0: timeZoneName = 'UTC'; break;
+      case 1: timeZoneName = 'Europe/London'; break;
+      case 2: timeZoneName = 'Europe/Berlin'; break;
+      case 3: timeZoneName = 'Europe/Moscow'; break;
+      case 5: timeZoneName = 'Asia/Karachi'; break;
+      case 8: timeZoneName = 'Asia/Shanghai'; break;
+      case 9: timeZoneName = 'Asia/Tokyo'; break;
+      default: 
+        // For other offsets, try to use a generic UTC offset
+        if (offsetHours > 0) {
+          timeZoneName = 'Etc/GMT-$offsetHours';
+        } else if (offsetHours < 0) {
+          timeZoneName = 'Etc/GMT+${-offsetHours}';
+        }
+    }
+    
+    try {
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+      if (kDebugMode) {
+        print('Timezone set to: $timeZoneName (offset: ${offset.inHours}h)');
+      }
+    } catch (e) {
+      // If the timezone name is not found, fallback to UTC
+      tz.setLocalLocation(tz.getLocation('UTC'));
+      if (kDebugMode) {
+        print('Timezone $timeZoneName not found, using UTC. Offset was: ${offset.inHours}h');
+      }
+    }
+  } catch (e) {
+    // Fallback to UTC if timezone detection fails
+    tz.setLocalLocation(tz.getLocation('UTC'));
+    if (kDebugMode) {
+      print('Failed to detect timezone, using UTC: $e');
+    }
+  }
 
   // Initialize notification service (only on mobile platforms)
   if (!kIsWeb) {
