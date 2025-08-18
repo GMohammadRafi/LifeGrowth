@@ -6,12 +6,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:drift/drift.dart';
 import '../database/database.dart';
-import '../models/habit.dart' as models;
-import '../models/daily_checkin.dart';
-import '../models/goal.dart' as models;
-import '../models/journal_entry.dart';
+
 import '../database/tables.dart';
 import 'auth_service.dart';
+import 'background_task_handler.dart';
 
 class SyncService {
   static const String _syncTaskName = 'background_sync';
@@ -21,7 +19,7 @@ class SyncService {
   final AppDatabase? _database;
   final AuthService? _authService;
   final FlutterLocalNotificationsPlugin? _notificationsPlugin;
-  
+
   SyncService({
     AppDatabase? database,
     AuthService? authService,
@@ -99,10 +97,9 @@ class SyncService {
     try {
       if (!await AuthService.hasValidSession()) {
         return SyncResult(
-          success: false,
-          message: 'User not authenticated',
-          syncedItems: 0,
-          conflicts: 0,
+          hasErrors: true,
+          syncedItemsCount: 0,
+          errorMessages: ['User not authenticated'],
         );
       }
 
@@ -111,55 +108,18 @@ class SyncService {
       
       if (userId == null) {
         return SyncResult(
-          success: false,
-          message: 'User ID not available',
-          syncedItems: 0,
-          conflicts: 0,
+          hasErrors: true,
+          syncedItemsCount: 0,
+          errorMessages: ['User ID not available'],
         );
       }
 
-      int totalSynced = 0;
-      int totalConflicts = 0;
-
-      // Sync habits
-      final habitResult = await _syncHabits(userId);
-      totalSynced += habitResult.syncedItems;
-      totalConflicts += habitResult.conflicts;
-
-      // Sync daily check-ins
-      final checkinResult = await _syncDailyCheckins(userId);
-      totalSynced += checkinResult.syncedItems;
-      totalConflicts += checkinResult.conflicts;
-
-      // Sync goals
-      final goalResult = await _syncGoals(userId);
-      totalSynced += goalResult.syncedItems;
-      totalConflicts += goalResult.conflicts;
-
-      // Sync journal entries
-      final journalResult = await _syncJournalEntries(userId);
-      totalSynced += journalResult.syncedItems;
-      totalConflicts += journalResult.conflicts;
-
-      final result = SyncResult(
-        success: true,
-        message: 'Sync completed successfully',
-        syncedItems: totalSynced,
-        conflicts: totalConflicts,
-      );
-
-      // Show notification if there were updates
-      if (totalSynced > 0) {
-        await _showSyncNotification(result);
-      }
-
-      return result;
+      return await performFullSync(userId);
     } catch (e) {
       return SyncResult(
-        success: false,
-        message: 'Sync failed: ${e.toString()}',
-        syncedItems: 0,
-        conflicts: 0,
+        hasErrors: true,
+        syncedItemsCount: 0,
+        errorMessages: ['Sync failed: ${e.toString()}'],
       );
     }
   }
@@ -187,10 +147,14 @@ class SyncService {
       // Sync habits
       try {
         final habitResult = await _syncHabits(userId);
-        totalSynced += habitResult.syncedItems;
-        totalConflicts += habitResult.conflicts;
-        if (habitResult.conflicts > 0) {
-          conflictMessages.add('Habits: ${habitResult.conflicts} conflicts');
+        totalSynced += habitResult.syncedItemsCount;
+        if (habitResult.hasConflicts) {
+          totalConflicts += habitResult.conflictMessages.length;
+          conflictMessages.addAll(habitResult.conflictMessages);
+        }
+        if (habitResult.hasErrors) {
+          hasErrors = true;
+          errorMessages.addAll(habitResult.errorMessages);
         }
       } catch (e) {
         hasErrors = true;
@@ -203,10 +167,14 @@ class SyncService {
       // Sync daily check-ins
       try {
         final checkinResult = await _syncDailyCheckins(userId);
-        totalSynced += checkinResult.syncedItems;
-        totalConflicts += checkinResult.conflicts;
-        if (checkinResult.conflicts > 0) {
-          conflictMessages.add('Check-ins: ${checkinResult.conflicts} conflicts');
+        totalSynced += checkinResult.syncedItemsCount;
+        if (checkinResult.hasConflicts) {
+          totalConflicts += checkinResult.conflictMessages.length;
+          conflictMessages.addAll(checkinResult.conflictMessages);
+        }
+        if (checkinResult.hasErrors) {
+          hasErrors = true;
+          errorMessages.addAll(checkinResult.errorMessages);
         }
       } catch (e) {
         hasErrors = true;
@@ -219,10 +187,14 @@ class SyncService {
       // Sync goals
       try {
         final goalResult = await _syncGoals(userId);
-        totalSynced += goalResult.syncedItems;
-        totalConflicts += goalResult.conflicts;
-        if (goalResult.conflicts > 0) {
-          conflictMessages.add('Goals: ${goalResult.conflicts} conflicts');
+        totalSynced += goalResult.syncedItemsCount;
+        if (goalResult.hasConflicts) {
+          totalConflicts += goalResult.conflictMessages.length;
+          conflictMessages.addAll(goalResult.conflictMessages);
+        }
+        if (goalResult.hasErrors) {
+          hasErrors = true;
+          errorMessages.addAll(goalResult.errorMessages);
         }
       } catch (e) {
         hasErrors = true;
@@ -235,10 +207,14 @@ class SyncService {
       // Sync journal entries
       try {
         final journalResult = await _syncJournalEntries(userId);
-        totalSynced += journalResult.syncedItems;
-        totalConflicts += journalResult.conflicts;
-        if (journalResult.conflicts > 0) {
-          conflictMessages.add('Journal: ${journalResult.conflicts} conflicts');
+        totalSynced += journalResult.syncedItemsCount;
+        if (journalResult.hasConflicts) {
+          totalConflicts += journalResult.conflictMessages.length;
+          conflictMessages.addAll(journalResult.conflictMessages);
+        }
+        if (journalResult.hasErrors) {
+          hasErrors = true;
+          errorMessages.addAll(journalResult.errorMessages);
         }
       } catch (e) {
         hasErrors = true;
@@ -249,10 +225,6 @@ class SyncService {
       }
 
       final result = SyncResult(
-        success: !hasErrors,
-        message: hasErrors ? 'Sync completed with errors' : 'Sync completed successfully',
-        syncedItems: totalSynced,
-        conflicts: totalConflicts,
         hasConflicts: totalConflicts > 0,
         hasErrors: hasErrors,
         syncedItemsCount: totalSynced,
@@ -271,10 +243,6 @@ class SyncService {
       }
       
       return SyncResult(
-        success: false,
-        message: 'Full sync failed: ${e.toString()}',
-        syncedItems: 0,
-        conflicts: 0,
         hasConflicts: false,
         hasErrors: true,
         syncedItemsCount: 0,
@@ -312,7 +280,7 @@ class SyncService {
           await supabase.from('habits').upsert(habitJson);
           
           // Mark as synced locally
-          await _database?.markHabitAsSynced(habit.id);
+        await _database?.markHabitAsSynced(habit.id);
           synced++;
         } catch (e) {
           if (kDebugMode) {
@@ -373,17 +341,19 @@ class SyncService {
       }
 
       return SyncResult(
-        success: true,
-        message: 'Habits synced',
-        syncedItems: synced,
-        conflicts: conflicts,
+        hasConflicts: conflicts > 0,
+        hasErrors: false,
+        syncedItemsCount: synced,
+        errorMessages: [],
+        conflictMessages: conflicts > 0 ? ['Habits: $conflicts conflicts'] : [],
       );
     } catch (e) {
       return SyncResult(
-        success: false,
-        message: 'Habit sync failed: ${e.toString()}',
-        syncedItems: 0,
-        conflicts: 0,
+        hasConflicts: false,
+        hasErrors: true,
+        syncedItemsCount: 0,
+        errorMessages: ['Habit sync failed: ${e.toString()}'],
+        conflictMessages: [],
       );
     }
   }
@@ -417,7 +387,7 @@ class SyncService {
           await supabase.from('daily_checkins').upsert(checkinJson);
           
           // Mark as synced locally
-          await _database?.markDailyCheckinAsSynced(checkin.id);
+        await _database?.markDailyCheckinAsSynced(checkin.id);
           synced++;
         } catch (e) {
           if (kDebugMode) {
@@ -477,17 +447,19 @@ class SyncService {
       }
 
       return SyncResult(
-        success: true,
-        message: 'Daily check-ins synced',
-        syncedItems: synced,
-        conflicts: conflicts,
+        hasConflicts: conflicts > 0,
+        hasErrors: false,
+        syncedItemsCount: synced,
+        errorMessages: [],
+        conflictMessages: conflicts > 0 ? ['Daily check-ins: $conflicts conflicts'] : [],
       );
     } catch (e) {
       return SyncResult(
-        success: false,
-        message: 'Daily check-in sync failed: ${e.toString()}',
-        syncedItems: 0,
-        conflicts: 0,
+        hasConflicts: false,
+        hasErrors: true,
+        syncedItemsCount: 0,
+        errorMessages: ['Daily check-in sync failed: ${e.toString()}'],
+        conflictMessages: [],
       );
     }
   }
@@ -521,7 +493,7 @@ class SyncService {
           await supabase.from('goals').upsert(goalJson);
           
           // Mark as synced locally
-          await _database?.markGoalAsSynced(goal.id);
+        await _database?.markGoalAsSynced(goal.id);
           synced++;
         } catch (e) {
           if (kDebugMode) {
@@ -584,17 +556,19 @@ class SyncService {
       }
 
       return SyncResult(
-        success: true,
-        message: 'Goals synced',
-        syncedItems: synced,
-        conflicts: conflicts,
+        hasConflicts: conflicts > 0,
+        hasErrors: false,
+        syncedItemsCount: synced,
+        errorMessages: [],
+        conflictMessages: conflicts > 0 ? ['Goals: $conflicts conflicts'] : [],
       );
     } catch (e) {
       return SyncResult(
-        success: false,
-        message: 'Goal sync failed: ${e.toString()}',
-        syncedItems: 0,
-        conflicts: 0,
+        hasConflicts: false,
+        hasErrors: true,
+        syncedItemsCount: 0,
+        errorMessages: ['Goal sync failed: ${e.toString()}'],
+        conflictMessages: [],
       );
     }
   }
@@ -627,7 +601,7 @@ class SyncService {
           await supabase.from('journal_entries').upsert(entryJson);
           
           // Mark as synced locally
-          await _database?.markJournalEntryAsSynced(entry.id);
+        await _database?.markJournalEntryAsSynced(entry.id);
           synced++;
         } catch (e) {
           if (kDebugMode) {
@@ -685,17 +659,19 @@ class SyncService {
       }
 
       return SyncResult(
-        success: true,
-        message: 'Journal entries synced',
-        syncedItems: synced,
-        conflicts: conflicts,
+        hasConflicts: conflicts > 0,
+        hasErrors: false,
+        syncedItemsCount: synced,
+        errorMessages: [],
+        conflictMessages: conflicts > 0 ? ['Journal entries: $conflicts conflicts'] : [],
       );
     } catch (e) {
       return SyncResult(
-        success: false,
-        message: 'Journal entry sync failed: ${e.toString()}',
-        syncedItems: 0,
-        conflicts: 0,
+        hasConflicts: false,
+        hasErrors: true,
+        syncedItemsCount: 0,
+        errorMessages: ['Journal entry sync failed: ${e.toString()}'],
+        conflictMessages: [],
       );
     }
   }
@@ -722,9 +698,9 @@ class SyncService {
       iOS: iosDetails,
     );
     
-    String message = 'Synced ${result.syncedItems} items';
-    if (result.conflicts > 0) {
-      message += ', resolved ${result.conflicts} conflicts';
+    String message = 'Synced ${result.syncedItemsCount} items';
+    if (result.conflictMessages.isNotEmpty) {
+      message += ', resolved ${result.conflictMessages.length} conflicts';
     }
     
     await _notificationsPlugin?.show(
@@ -758,36 +734,4 @@ void callbackDispatcher() {
       return Future.value(false);
     }
   });
-}
-
-/// Sync result model
-class SyncResult {
-  final bool success;
-  final String message;
-  final int syncedItems;
-  final int conflicts;
-  final bool hasConflicts;
-  final bool hasErrors;
-  final int syncedItemsCount;
-  final List<String> errorMessages;
-  final List<String> conflictMessages;
-  
-  SyncResult({
-    required this.success,
-    required this.message,
-    required this.syncedItems,
-    required this.conflicts,
-    this.hasConflicts = false,
-    this.hasErrors = false,
-    int? syncedItemsCount,
-    this.errorMessages = const [],
-    this.conflictMessages = const [],
-  }) : syncedItemsCount = syncedItemsCount ?? syncedItems;
-  
-  bool get isSuccess => success && !hasConflicts && !hasErrors;
-  
-  @override
-  String toString() {
-    return 'SyncResult(success: $success, message: $message, syncedItems: $syncedItems, conflicts: $conflicts)';
-  }
 }
