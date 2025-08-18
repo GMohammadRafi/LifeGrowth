@@ -6,6 +6,7 @@ import '../models/daily_task.dart' as model;
 import 'auth_screen.dart';
 import 'daily_checkin_screen.dart';
 import 'history_screen.dart';
+import 'analytics_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -251,6 +252,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     builder: (context) => const HistoryScreen(),
                   ),
                 );
+              } else if (value == 'analytics') {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const AnalyticsScreen(),
+                  ),
+                );
               } else if (value == 'signout') {
                 _signOut();
               }
@@ -263,6 +270,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     Icon(Icons.history),
                     SizedBox(width: 8),
                     Text('History'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'analytics',
+                child: Row(
+                  children: [
+                    Icon(Icons.analytics),
+                    SizedBox(width: 8),
+                    Text('Analytics'),
                   ],
                 ),
               ),
