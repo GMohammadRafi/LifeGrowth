@@ -38,11 +38,11 @@ void callbackDispatcher() {
       }
 
       final userId = AuthService.userId;
-      if (userId == null) {
+      if (userId == null || userId.isEmpty) {
         if (kDebugMode) {
           print('No user ID available, skipping background sync');
         }
-        return Future.value(true);
+        return true;
       }
 
       // Initialize notification service

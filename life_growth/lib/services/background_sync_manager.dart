@@ -1,7 +1,11 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'dart:io';
 import 'package:workmanager/workmanager.dart';
 import 'notification_service.dart';
 import 'background_task_handler.dart' as bg_handler;
+import 'supabase_service.dart';
+import 'auth_service.dart';
 
 class BackgroundSyncManager {
   static const String _syncTaskName = 'life_growth_sync';
@@ -22,11 +26,17 @@ class BackgroundSyncManager {
       await NotificationService().initialize();
       await NotificationService().requestPermissions();
 
-      // Initialize WorkManager
-      await Workmanager().initialize(
-        bg_handler
-            .callbackDispatcher, // Use the callback dispatcher from background_task_handler.dart
-      );
+      // Initialize WorkManager only on supported platforms
+      if (_isWorkManagerSupported()) {
+        await Workmanager().initialize(
+          bg_handler
+              .callbackDispatcher, // Use the callback dispatcher from background_task_handler.dart
+        );
+      } else {
+        if (kDebugMode) {
+          print('WorkManager not supported on this platform, using alternative sync method');
+        }
+      }
 
       _isInitialized = true;
 
@@ -47,23 +57,29 @@ class BackgroundSyncManager {
     }
 
     try {
-      // Cancel any existing periodic sync
-      await Workmanager().cancelByUniqueName(_periodicSyncTaskName);
+      if (_isWorkManagerSupported()) {
+        // Cancel any existing periodic sync
+        await Workmanager().cancelByUniqueName(_periodicSyncTaskName);
 
-      // Schedule new periodic sync every 15 minutes
-      await Workmanager().registerPeriodicTask(
-        _periodicSyncTaskName,
-        _syncTaskName,
-        frequency: const Duration(minutes: 15),
-        constraints: Constraints(
-          networkType: NetworkType.connected,
-          requiresBatteryNotLow: true,
-        ),
-        inputData: {
-          'sync_type': 'periodic',
-          'timestamp': DateTime.now().millisecondsSinceEpoch,
-        },
-      );
+        // Schedule new periodic sync every 15 minutes
+        await Workmanager().registerPeriodicTask(
+          _periodicSyncTaskName,
+          _syncTaskName,
+          frequency: const Duration(minutes: 15),
+          constraints: Constraints(
+            networkType: NetworkType.connected,
+            requiresBatteryNotLow: true,
+          ),
+          inputData: {
+            'sync_type': 'periodic',
+            'timestamp': DateTime.now().millisecondsSinceEpoch,
+          },
+        );
+      } else {
+        if (kDebugMode) {
+          print('Periodic sync not available on this platform');
+        }
+      }
 
       if (kDebugMode) {
         print('Periodic sync scheduled successfully');
@@ -84,17 +100,22 @@ class BackgroundSyncManager {
     }
 
     try {
-      await Workmanager().registerOneOffTask(
-        'immediate_sync_${DateTime.now().millisecondsSinceEpoch}',
-        _syncTaskName,
-        constraints: Constraints(
-          networkType: NetworkType.connected,
-        ),
-        inputData: {
-          'sync_type': 'immediate',
-          'timestamp': DateTime.now().millisecondsSinceEpoch,
-        },
-      );
+      if (_isWorkManagerSupported()) {
+        await Workmanager().registerOneOffTask(
+          'immediate_sync_${DateTime.now().millisecondsSinceEpoch}',
+          _syncTaskName,
+          constraints: Constraints(
+            networkType: NetworkType.connected,
+          ),
+          inputData: {
+            'sync_type': 'immediate',
+            'timestamp': DateTime.now().millisecondsSinceEpoch,
+          },
+        );
+      } else {
+        // Perform immediate sync directly on unsupported platforms
+        await _performDirectSync();
+      }
 
       if (kDebugMode) {
         print('Immediate sync scheduled successfully');
@@ -111,7 +132,9 @@ class BackgroundSyncManager {
 
   Future<void> cancelAllSyncTasks() async {
     try {
-      await Workmanager().cancelAll();
+      if (_isWorkManagerSupported()) {
+        await Workmanager().cancelAll();
+      }
 
       if (kDebugMode) {
         print('All sync tasks cancelled');
@@ -125,7 +148,9 @@ class BackgroundSyncManager {
 
   Future<void> cancelPeriodicSync() async {
     try {
-      await Workmanager().cancelByUniqueName(_periodicSyncTaskName);
+      if (_isWorkManagerSupported()) {
+        await Workmanager().cancelByUniqueName(_periodicSyncTaskName);
+      }
 
       if (kDebugMode) {
         print('Periodic sync cancelled');
@@ -134,6 +159,47 @@ class BackgroundSyncManager {
       if (kDebugMode) {
         print('Failed to cancel periodic sync: $e');
       }
+    }
+  }
+
+  /// Check if WorkManager is supported on the current platform
+  bool _isWorkManagerSupported() {
+    // WorkManager is supported on Android and iOS, but not on Windows, macOS, Linux, or Web
+    return Platform.isAndroid || Platform.isIOS;
+  }
+
+  /// Perform direct sync for platforms that don't support WorkManager
+  Future<void> _performDirectSync() async {
+    try {
+      if (!AuthService.isAuthenticated) {
+        if (kDebugMode) {
+          print('User not authenticated, skipping sync');
+        }
+        return;
+      }
+
+      final userId = AuthService.userId;
+      if (userId == null || userId.isEmpty) {
+        if (kDebugMode) {
+          print('No user ID available, skipping sync');
+        }
+        return;
+      }
+
+      if (kDebugMode) {
+        print('Performing direct sync for user: $userId');
+      }
+
+      await SupabaseService.syncAllPendingChanges(userId);
+
+      if (kDebugMode) {
+        print('Direct sync completed successfully');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Direct sync failed: $e');
+      }
+      rethrow;
     }
   }
 

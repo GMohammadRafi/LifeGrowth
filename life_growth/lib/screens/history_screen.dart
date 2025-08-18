@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
-import '../models/daily_task.dart';
-import '../database/database.dart';
+import '../database/database.dart' show DailyTask;
+import '../models/daily_task.dart' as model;
 import '../services/auth_service.dart';
+import '../services/database_service.dart';
+import '../services/supabase_service.dart';
 import 'daily_checkin_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -41,8 +43,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final database = AppDatabase();
-      final tasks = await database.getAllDailyTasksForUser(
+      final tasks = await DatabaseService.instance.getAllDailyTasksForUser(
         AuthService.userId!,
         includeDeleted: _includeDeleted,
       );
@@ -82,10 +83,24 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return _tasksByDate[dateKey] ?? [];
   }
 
+  int _getCompletedTasksCount(DailyTask task) {
+    int count = 0;
+    if (task.readingBookCompleted) count++;
+    if (task.stretchCompleted) count++;
+    if (task.meditationCompleted) count++;
+    if (task.readingDocsCompleted) count++;
+    if (task.learningTechCompleted) count++;
+    if (task.walkingCompleted) count++;
+    if (task.avoidHabitValue) count++;
+    if (task.avoidSweetsValue) count++;
+    if (task.workDoneValue) count++;
+    if (task.movieSeriesCompleted) count++;
+    return count;
+  }
+
   Future<void> _softDeleteTask(DailyTask task) async {
     try {
-      final database = AppDatabase();
-      await database.softDeleteDailyTask(AuthService.userId!, task.date);
+      await DatabaseService.instance.softDeleteDailyTask(AuthService.userId!, task.date);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -114,8 +129,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Future<void> _restoreTask(DailyTask task) async {
     try {
-      final database = AppDatabase();
-      await database.restoreDailyTask(AuthService.userId!, task.date);
+      await DatabaseService.instance.restoreDailyTask(AuthService.userId!, task.date);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -149,20 +163,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget _buildTaskCard(DailyTask task) {
     final isDeleted = task.deletedAt != null;
     
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    return Opacity(
       opacity: isDeleted ? 0.6 : 1.0,
-      child: ListTile(
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: ListTile(
         leading: CircleAvatar(
           backgroundColor: isDeleted 
               ? Colors.grey 
-              : (task.completedTasksCount > 5 
-                  ? Colors.green 
-                  : task.completedTasksCount > 2 
-                      ? Colors.orange 
+              : (_getCompletedTasksCount(task) > 5 
+                                        ? Colors.green 
+                  : _getCompletedTasksCount(task) > 2 
+                       ? Colors.orange 
                       : Colors.red),
           child: Text(
-            '${task.completedTasksCount}',
+            '${_getCompletedTasksCount(task)}',
             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
         ),
@@ -176,7 +191,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Completed: ${task.completedTasksCount}/10 tasks'),
+            Text('Completed: ${_getCompletedTasksCount(task)}/10 tasks'),
             if (task.notes != null && task.notes!.isNotEmpty)
               Text(
                 task.notes!,
@@ -194,36 +209,38 @@ class _HistoryScreenState extends State<HistoryScreen> {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (!isDeleted) ..[
-              IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: () => _editTask(task),
-                tooltip: 'Edit',
-              ),
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: isDeleted ? null : () => _editTask(task),
+              tooltip: 'Edit',
+            ),
+            if (!isDeleted)
               IconButton(
                 icon: const Icon(Icons.delete),
                 onPressed: () => _confirmDelete(task),
                 tooltip: 'Delete',
-              ),
-            ] else ..[
+              )
+            else
               IconButton(
                 icon: const Icon(Icons.restore),
                 onPressed: () => _restoreTask(task),
                 tooltip: 'Restore',
               ),
-            ],
           ],
         ),
         onTap: isDeleted ? null : () => _editTask(task),
       ),
+    ),
     );
   }
 
   Future<void> _editTask(DailyTask task) async {
+    // Convert database DailyTask to model DailyTask for DailyCheckinScreen
+    final modelTask = SupabaseService.convertDbToModelTask(task);
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (context) => DailyCheckinScreen(
-          existingTask: task,
+          existingTask: modelTask,
           date: task.date,
         ),
       ),
@@ -330,7 +347,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   calendarBuilders: CalendarBuilders(
                     markerBuilder: (context, day, tasks) {
                       if (tasks.isNotEmpty) {
-                        final task = tasks.first;
+                        final task = tasks.first as DailyTask;
                         final isDeleted = task.deletedAt != null;
                         return Container(
                           margin: const EdgeInsets.only(top: 5),
@@ -342,15 +359,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               shape: BoxShape.circle,
                               color: isDeleted 
                                   ? Colors.grey 
-                                  : (task.completedTasksCount > 5 
+                                  : (_getCompletedTasksCount(task) > 5 
                                       ? Colors.green 
-                                      : task.completedTasksCount > 2 
+                                      : _getCompletedTasksCount(task) > 2 
                                           ? Colors.orange 
                                           : Colors.red),
                             ),
                             child: Center(
                               child: Text(
-                                '${task.completedTasksCount}',
+                                '${_getCompletedTasksCount(task)}',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,
@@ -392,10 +409,24 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               const SizedBox(height: 16),
                               ElevatedButton.icon(
                                 onPressed: () => _editTask(
-                                  DailyTask.empty(
+                                  DailyTask(
+                                    userId: AuthService.userId!,
                                     date: _selectedDay!,
+                                    readingBookCompleted: false,
+                                    stretchCompleted: false,
+                                    meditationCompleted: false,
+                                    readingDocsCompleted: false,
+                                    learningTechCompleted: false,
+                                    walkingCompleted: false,
+                                    avoidHabitValue: false,
+                                    avoidSweetsValue: false,
+                                    workDoneValue: false,
+                                    movieSeriesCompleted: false,
+                                    createdAt: DateTime.now(),
+                                    updatedAt: DateTime.now(),
                                     timezoneOffset: DateTime.now().timeZoneOffset.inMinutes,
-                                  ).copyWith(userId: AuthService.userId),
+                                    needsSync: true,
+                                  ),
                                 ),
                                 icon: const Icon(Icons.add),
                                 label: const Text('Create Task'),

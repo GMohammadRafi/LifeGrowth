@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/daily_task.dart' as model;
 import '../database/database.dart';
 import 'database_service.dart';
+import 'auth_service.dart';
 
 class SupabaseService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -74,7 +75,7 @@ class SupabaseService {
       print('Network error in getDailyTask: $e');
     }
 
-    return localTask != null ? _convertDbToModelTask(localTask) : null;
+    return localTask != null ? convertDbToModelTask(localTask) : null;
   }
 
   static Future<List<DailyTask>> getDailyTasks({
@@ -176,7 +177,13 @@ class SupabaseService {
 
   static Future<void> _syncTaskToSupabase(DailyTask task) async {
     try {
-      final modelTask = _convertDbToModelTask(task);
+      final modelTask = convertDbToModelTask(task);
+      
+      // Validate userId before proceeding
+      if (modelTask.userId == null || modelTask.userId!.isEmpty) {
+        throw Exception('Cannot sync task: userId is null or empty');
+      }
+      
       final taskJson = modelTask.toJson();
       taskJson['client_updated_at'] = DateTime.now().toIso8601String();
 
@@ -248,7 +255,7 @@ class SupabaseService {
       final localTask =
           await DatabaseService.instance.getDailyTask(userId, date);
       if (localTask != null) {
-        final modelTask = _convertDbToModelTask(localTask);
+        final modelTask = convertDbToModelTask(localTask);
         final syncedDbTask = _convertModelToDbTask(modelTask, needsSync: false);
         await DatabaseService.instance.upsertDailyTask(syncedDbTask);
       }
@@ -335,6 +342,11 @@ class SupabaseService {
 
   // Comprehensive sync method for offline support
   static Future<void> syncAllPendingChanges(String userId) async {
+    // Validate userId to prevent empty string UUID errors
+    if (userId.isEmpty) {
+      throw ArgumentError('userId cannot be empty');
+    }
+    
     try {
       // Get all tasks that need syncing
       final tasksToSync = await DatabaseService.instance.getTasksToSync();
@@ -370,6 +382,11 @@ class SupabaseService {
     required String userId,
     required DateTime timestamp,
   }) async {
+    // Validate userId to prevent empty string UUID errors
+    if (userId.isEmpty) {
+      throw ArgumentError('userId cannot be empty');
+    }
+    
     final response = await _client
         .from('daily_tasks')
         .select()
@@ -390,7 +407,7 @@ class SupabaseService {
     for (final task in localTasks) {
       try {
         // Convert database task to model task, sync it, then convert back
-        final modelTask = _convertDbToModelTask(task);
+        final modelTask = convertDbToModelTask(task);
         final syncedModelTask = await upsertDailyTask(modelTask);
         final syncedDbTask = _convertModelToDbTask(syncedModelTask);
         syncedTasks.add(syncedDbTask);
@@ -411,8 +428,14 @@ class SupabaseService {
     final dateOnly =
         DateTime(modelTask.date.year, modelTask.date.month, modelTask.date.day);
 
+    // Get current user ID, throw error if not authenticated
+    final currentUserId = AuthService.userId;
+    if (currentUserId == null) {
+      throw Exception('User not authenticated');
+    }
+
     return DailyTask(
-      userId: modelTask.userId ?? '',
+      userId: modelTask.userId ?? currentUserId,
       date: dateOnly,
       readingBookCompleted: modelTask.readingBookCompleted,
       readingBookPages: modelTask.readingBookPages,
@@ -456,9 +479,12 @@ class SupabaseService {
   }
 
   // Helper method to convert database DailyTask to model DailyTask
-  static model.DailyTask _convertDbToModelTask(DailyTask dbTask) {
+  static model.DailyTask convertDbToModelTask(DailyTask dbTask) {
+    // Validate userId - if empty or null, use current authenticated user
+    final validUserId = (dbTask.userId.isEmpty) ? AuthService.userId : dbTask.userId;
+    
     return model.DailyTask(
-      userId: dbTask.userId,
+      userId: validUserId,
       date: dbTask.date,
       readingBookCompleted: dbTask.readingBookCompleted,
       readingBookPages: dbTask.readingBookPages,

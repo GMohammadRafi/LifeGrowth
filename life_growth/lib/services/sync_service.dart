@@ -10,25 +10,22 @@ import '../database/database.dart';
 import '../database/tables.dart';
 import 'auth_service.dart';
 import 'background_task_handler.dart';
+import 'database_service.dart';
 
 class SyncService {
   static const String _syncTaskName = 'background_sync';
   static const String _syncChannelId = 'sync_notifications';
   static const String _syncChannelName = 'Sync Notifications';
 
-  final AppDatabase? _database;
   final FlutterLocalNotificationsPlugin? _notificationsPlugin;
 
   SyncService({
-    AppDatabase? database,
     FlutterLocalNotificationsPlugin? notificationsPlugin,
-  })  : _database = database,
-        _notificationsPlugin = notificationsPlugin;
+  })  : _notificationsPlugin = notificationsPlugin;
 
   /// Default constructor for background tasks
   SyncService.background()
-      : _database = null,
-        _notificationsPlugin = null;
+      : _notificationsPlugin = null;
 
   /// Initialize the sync service
   Future<void> initialize() async {
@@ -260,7 +257,7 @@ class SyncService {
       int conflicts = 0;
 
       // Get local habits that need syncing
-      final localHabits = await _database?.getHabitsToSync(userId) ?? [];
+      final localHabits = await DatabaseService.instance.database.getHabitsToSync(userId);
 
       for (final habit in localHabits) {
         try {
@@ -280,7 +277,7 @@ class SyncService {
           await supabase.from('habits').upsert(habitJson);
 
           // Mark as synced locally
-          await _database?.markHabitAsSynced(habit.id);
+          await DatabaseService.instance.database.markHabitAsSynced(habit.id);
           synced++;
         } catch (e) {
           if (kDebugMode) {
@@ -298,7 +295,7 @@ class SyncService {
 
       for (final habitData in remoteHabits) {
         final habitId = habitData['id'] as String;
-        final localHabit = await _database?.getHabit(habitId);
+        final localHabit = await DatabaseService.instance.database.getHabit(habitId);
         final remoteUpdatedAt = DateTime.parse(habitData['updated_at']);
 
         if (localHabit == null ||
@@ -319,7 +316,7 @@ class SyncService {
             needsSync: const Value(false),
             lastSyncAt: Value(DateTime.now()),
           );
-          await _database?.upsertHabit(habitCompanion);
+          await DatabaseService.instance.database.upsertHabit(habitCompanion);
           synced++;
         } else if (localHabit.updatedAt.isAfter(remoteUpdatedAt) &&
             localHabit.needsSync) {
@@ -335,7 +332,7 @@ class SyncService {
             'updated_at': localHabit.updatedAt.toIso8601String(),
           };
           await supabase.from('habits').upsert(habitJson);
-          await _database?.markHabitAsSynced(habitId);
+          await DatabaseService.instance.database.markHabitAsSynced(habitId);
           conflicts++;
         }
       }
@@ -367,7 +364,7 @@ class SyncService {
 
       // Get local check-ins that need syncing
       final localCheckins =
-          await _database?.getDailyCheckinsToSync(userId) ?? [];
+          await DatabaseService.instance.database.getDailyCheckinsToSync(userId);
 
       for (final checkin in localCheckins) {
         try {
@@ -388,7 +385,7 @@ class SyncService {
           await supabase.from('daily_checkins').upsert(checkinJson);
 
           // Mark as synced locally
-          await _database?.markDailyCheckinAsSynced(checkin.id);
+          await DatabaseService.instance.database.markDailyCheckinAsSynced(checkin.id);
           synced++;
         } catch (e) {
           if (kDebugMode) {
@@ -406,7 +403,7 @@ class SyncService {
 
       for (final checkinData in remoteCheckins) {
         final checkinId = checkinData['id'] as String;
-        final localCheckin = await _database?.getDailyCheckin(checkinId);
+        final localCheckin = await DatabaseService.instance.database.getDailyCheckin(checkinId);
         final remoteUpdatedAt = DateTime.parse(checkinData['updated_at']);
 
         if (localCheckin == null ||
@@ -425,7 +422,7 @@ class SyncService {
             needsSync: const Value(false),
             lastSyncAt: Value(DateTime.now()),
           );
-          await _database?.upsertDailyCheckin(checkinCompanion);
+          await DatabaseService.instance.database.upsertDailyCheckin(checkinCompanion);
           synced++;
         } else if (localCheckin.updatedAt.isAfter(remoteUpdatedAt) &&
             localCheckin.needsSync) {
@@ -442,7 +439,7 @@ class SyncService {
             'updated_at': localCheckin.updatedAt.toIso8601String(),
           };
           await supabase.from('daily_checkins').upsert(checkinJson);
-          await _database?.markDailyCheckinAsSynced(checkinId);
+          await DatabaseService.instance.database.markDailyCheckinAsSynced(checkinId);
           conflicts++;
         }
       }
@@ -474,7 +471,7 @@ class SyncService {
       int conflicts = 0;
 
       // Get local goals that need syncing
-      final localGoals = await _database?.getGoalsToSync(userId) ?? [];
+      final localGoals = await DatabaseService.instance.database.getGoalsToSync(userId);
 
       for (final goal in localGoals) {
         try {
@@ -495,7 +492,7 @@ class SyncService {
           await supabase.from('goals').upsert(goalJson);
 
           // Mark as synced locally
-          await _database?.markGoalAsSynced(goal.id);
+          await DatabaseService.instance.database.markGoalAsSynced(goal.id);
           synced++;
         } catch (e) {
           if (kDebugMode) {
@@ -513,7 +510,7 @@ class SyncService {
 
       for (final goalData in remoteGoals) {
         final goalId = goalData['id'] as String;
-        final localGoal = await _database?.getGoal(goalId);
+        final localGoal = await DatabaseService.instance.database.getGoal(goalId);
         final remoteUpdatedAt = DateTime.parse(goalData['updated_at']);
 
         if (localGoal == null || remoteUpdatedAt.isAfter(localGoal.updatedAt)) {
@@ -534,7 +531,7 @@ class SyncService {
             needsSync: const Value(false),
             lastSyncAt: Value(DateTime.now()),
           );
-          await _database?.upsertGoal(goalCompanion);
+          await DatabaseService.instance.database.upsertGoal(goalCompanion);
           synced++;
         } else if (localGoal.updatedAt.isAfter(remoteUpdatedAt) &&
             localGoal.needsSync) {
@@ -551,7 +548,7 @@ class SyncService {
             'updated_at': localGoal.updatedAt.toIso8601String(),
           };
           await supabase.from('goals').upsert(goalJson);
-          await _database?.markGoalAsSynced(goalId);
+          await DatabaseService.instance.database.markGoalAsSynced(goalId);
           conflicts++;
         }
       }
@@ -583,7 +580,7 @@ class SyncService {
 
       // Get local journal entries that need syncing
       final localEntries =
-          await _database?.getJournalEntriesToSync(userId) ?? [];
+          await DatabaseService.instance.database.getJournalEntriesToSync(userId);
 
       for (final entry in localEntries) {
         try {
@@ -603,7 +600,7 @@ class SyncService {
           await supabase.from('journal_entries').upsert(entryJson);
 
           // Mark as synced locally
-          await _database?.markJournalEntryAsSynced(entry.id);
+          await DatabaseService.instance.database.markJournalEntryAsSynced(entry.id);
           synced++;
         } catch (e) {
           if (kDebugMode) {
@@ -621,7 +618,7 @@ class SyncService {
 
       for (final entryData in remoteEntries) {
         final entryId = entryData['id'] as String;
-        final localEntry = await _database?.getJournalEntry(entryId);
+        final localEntry = await DatabaseService.instance.database.getJournalEntry(entryId);
         final remoteUpdatedAt = DateTime.parse(entryData['updated_at']);
 
         if (localEntry == null ||
@@ -639,7 +636,7 @@ class SyncService {
             needsSync: const Value(false),
             lastSyncAt: Value(DateTime.now()),
           );
-          await _database?.upsertJournalEntry(entryCompanion);
+          await DatabaseService.instance.database.upsertJournalEntry(entryCompanion);
           synced++;
         } else if (localEntry.updatedAt.isAfter(remoteUpdatedAt) &&
             localEntry.needsSync) {
@@ -655,7 +652,7 @@ class SyncService {
             'updated_at': localEntry.updatedAt.toIso8601String(),
           };
           await supabase.from('journal_entries').upsert(entryJson);
-          await _database?.markJournalEntryAsSynced(entryId);
+          await DatabaseService.instance.database.markJournalEntryAsSynced(entryId);
           conflicts++;
         }
       }
