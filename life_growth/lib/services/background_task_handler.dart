@@ -1,6 +1,7 @@
 import 'package:workmanager/workmanager.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'sync_service.dart';
 import 'notification_service.dart';
 import 'auth_service.dart';
@@ -15,12 +16,15 @@ void callbackDispatcher() {
     }
 
     try {
-      // Check if Supabase is initialized
+      // Initialize Supabase in background context if not already initialized
+      await _initializeSupabaseInBackground();
+
+      // Check if Supabase is now initialized
       try {
         Supabase.instance.client;
       } catch (e) {
         if (kDebugMode) {
-          print('Supabase not initialized in background task: $e');
+          print('Supabase initialization failed in background task: $e');
         }
         return true;
       }
@@ -47,6 +51,7 @@ void callbackDispatcher() {
 
       // Perform sync based on task type
       switch (task) {
+        case 'life_growth_sync':
         case 'periodic_sync':
         case 'immediate_sync':
           await _performBackgroundSync(userId, notificationService);
@@ -81,6 +86,47 @@ void callbackDispatcher() {
       return Future.value(false);
     }
   });
+}
+
+/// Initialize Supabase in background context
+/// Background tasks run in isolated Dart isolates and need their own initialization
+Future<void> _initializeSupabaseInBackground() async {
+  try {
+    // Check if already initialized
+    try {
+      Supabase.instance.client;
+      return; // Already initialized
+    } catch (_) {
+      // Not initialized, proceed with initialization
+    }
+
+    // Load environment variables
+    await dotenv.load(fileName: ".env");
+
+    // Get Supabase configuration
+    final supabaseUrl = dotenv.env['SUPABASE_URL'];
+    final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
+
+    if (supabaseUrl != null && supabaseAnonKey != null) {
+      await Supabase.initialize(
+        url: supabaseUrl,
+        anonKey: supabaseAnonKey,
+      );
+
+      if (kDebugMode) {
+        print('Supabase initialized successfully in background context');
+      }
+    } else {
+      if (kDebugMode) {
+        print('Supabase configuration not found in environment variables');
+      }
+    }
+  } catch (e) {
+    if (kDebugMode) {
+      print('Failed to initialize Supabase in background context: $e');
+    }
+    // Don't rethrow - let the background task continue without Supabase
+  }
 }
 
 /// Performs the actual background synchronization

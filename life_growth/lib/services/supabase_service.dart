@@ -180,9 +180,22 @@ class SupabaseService {
       final taskJson = modelTask.toJson();
       taskJson['client_updated_at'] = DateTime.now().toIso8601String();
 
-      await _client
+      // ON CONFLICT over a partial unique index (deleted_at is null) is not supported.
+      // Find existing active row by (user_id, date, deleted_at is null) and upsert by primary key instead.
+      final dateOnly = modelTask.date.toIso8601String().split('T')[0];
+      final existingActive = await _client
           .from('daily_tasks')
-          .upsert(taskJson, onConflict: 'user_id,date');
+          .select('id')
+          .eq('user_id', modelTask.userId!)
+          .eq('date', dateOnly)
+          .isFilter('deleted_at', null)
+          .maybeSingle();
+
+      if (existingActive != null && existingActive['id'] != null) {
+        taskJson['id'] = existingActive['id'];
+      }
+
+      await _client.from('daily_tasks').upsert(taskJson);
 
       // Mark as synced in local database by updating with needsSync: false
       final syncedDbTask = _convertModelToDbTask(modelTask, needsSync: false);
