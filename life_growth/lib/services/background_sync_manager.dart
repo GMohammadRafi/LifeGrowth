@@ -32,6 +32,9 @@ class BackgroundSyncManager {
           bg_handler
               .callbackDispatcher, // Use the callback dispatcher from background_task_handler.dart
         );
+        
+        // Add a small delay to ensure WorkManager is fully initialized
+        await Future.delayed(const Duration(milliseconds: 300));
       } else {
         if (kDebugMode) {
           print('WorkManager not supported on this platform, using alternative sync method');
@@ -47,7 +50,8 @@ class BackgroundSyncManager {
       if (kDebugMode) {
         print('Failed to initialize BackgroundSyncManager: $e');
       }
-      rethrow;
+      // Don't rethrow to prevent app crashes during initialization
+      // rethrow;
     }
   }
 
@@ -105,6 +109,9 @@ class BackgroundSyncManager {
 
     try {
       if (_isWorkManagerSupported()) {
+        // Add a small delay to ensure WorkManager is fully ready
+        await Future.delayed(const Duration(milliseconds: 200));
+        
         await Workmanager().registerOneOffTask(
           'immediate_sync_${DateTime.now().millisecondsSinceEpoch}',
           _syncTaskName,
@@ -128,9 +135,12 @@ class BackgroundSyncManager {
       if (kDebugMode) {
         print('Failed to schedule immediate sync: $e');
       }
-      await NotificationService().showSyncErrorNotification(
-        'Failed to start sync: $e',
-      );
+      // Only show notification for immediate sync errors if it's not an initialization issue
+      if (_isInitialized) {
+        await NotificationService().showSyncErrorNotification(
+          'Failed to start sync: $e',
+        );
+      }
     }
   }
 

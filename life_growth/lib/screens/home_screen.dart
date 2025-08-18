@@ -50,18 +50,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadTodayTask() async {
     if (!AuthService.isAuthenticated) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'User not authenticated';
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'User not authenticated';
+        });
+      }
       return;
     }
 
     try {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = true;
+          _errorMessage = null;
+        });
+      }
 
       final today = DateTime.now();
       final userId = AuthService.userId!;
@@ -74,15 +78,19 @@ class _HomeScreenState extends State<HomeScreen> {
       // If no task exists for today, create an empty one
       task ??= model.DailyTask.empty(date: today).copyWith(userId: userId);
 
-      setState(() {
-        _todayTask = task;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _todayTask = task;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to load today\'s tasks: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load today\'s tasks: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -96,9 +104,11 @@ class _HomeScreenState extends State<HomeScreen> {
           : updatedTask;
 
       final savedTask = await SupabaseService.upsertDailyTask(taskWithUser);
-      setState(() {
-        _todayTask = savedTask;
-      });
+      if (mounted) {
+        setState(() {
+          _todayTask = savedTask;
+        });
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -124,10 +134,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _syncData() async {
     if (!AuthService.isAuthenticated) return;
 
-    setState(() {
-      _isSyncing = true;
-      _syncStatus = 'Syncing...';
-    });
+    if (mounted) {
+      setState(() {
+        _isSyncing = true;
+        _syncStatus = 'Syncing...';
+      });
+    }
 
     try {
       // Use background sync manager for immediate sync
@@ -137,9 +149,11 @@ class _HomeScreenState extends State<HomeScreen> {
       await SupabaseService.syncAllPendingChanges(AuthService.userId!);
       await _loadTodayTask(); // Reload to get any updates
 
-      setState(() {
-        _syncStatus = 'Sync completed successfully';
-      });
+      if (mounted) {
+        setState(() {
+          _syncStatus = 'Sync completed successfully';
+        });
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -151,9 +165,11 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     } catch (e) {
-      setState(() {
-        _syncStatus = 'Sync failed: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _syncStatus = 'Sync failed: $e';
+        });
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -165,9 +181,11 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     } finally {
-      setState(() {
-        _isSyncing = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isSyncing = false;
+        });
+      }
 
       // Clear sync status after 3 seconds
       Future.delayed(const Duration(seconds: 3), () {
@@ -699,5 +717,10 @@ class _HomeScreenState extends State<HomeScreen> {
       default:
         return null;
     }
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 }
