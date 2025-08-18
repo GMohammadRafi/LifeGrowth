@@ -66,6 +66,9 @@ dependencies:
   
   # Charts for analytics
   fl_chart: ^0.68.0
+  
+  # Shared preferences for local storage
+  shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_test:

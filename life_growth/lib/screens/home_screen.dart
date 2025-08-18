@@ -7,6 +7,7 @@ import 'auth_screen.dart';
 import 'daily_checkin_screen.dart';
 import 'history_screen.dart';
 import 'analytics_screen.dart';
+import 'personalization_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -258,6 +259,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     builder: (context) => const AnalyticsScreen(),
                   ),
                 );
+              } else if (value == 'personalization') {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const PersonalizationScreen(),
+                  ),
+                );
               } else if (value == 'signout') {
                 _signOut();
               }
@@ -280,6 +287,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     Icon(Icons.analytics),
                     SizedBox(width: 8),
                     Text('Analytics'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'personalization',
+                child: Row(
+                  children: [
+                    Icon(Icons.settings),
+                    SizedBox(width: 8),
+                    Text('Personalization'),
                   ],
                 ),
               ),

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/daily_task.dart' as model;
+import '../models/personalization_settings.dart';
 import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
+import '../services/personalization_service.dart';
+import 'personalization_screen.dart';
 
 class DailyCheckinScreen extends StatefulWidget {
   final model.DailyTask? existingTask;
@@ -23,6 +26,10 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
   late model.DailyTask _currentTask;
   bool _isLoading = false;
   bool _hasChanges = false;
+  
+  // Personalization
+  late PersonalizationService _personalizationService;
+  PersonalizationSettings _personalizationSettings = PersonalizationSettings.defaultSettings;
 
   // Form controllers
   final _readingBookPagesController = TextEditingController();
@@ -38,10 +45,11 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
   final _learningTechTimeController = TextEditingController();
   final _walkingStepsController = TextEditingController();
   final _walkingTimeController = TextEditingController();
-  final _avoidHabitLabelController = TextEditingController();
-  final _movieSeriesNameController = TextEditingController();
-  final _movieSeriesStartTimeController = TextEditingController();
-  final _movieSeriesEndTimeController = TextEditingController();
+   final _walkingMinutesController = TextEditingController();
+    final _avoidHabitLabelController = TextEditingController();
+    final _movieSeriesNameController = TextEditingController();
+    final _movieSeriesStartTimeController = TextEditingController();
+    final _movieSeriesEndTimeController = TextEditingController();
   final _notesController = TextEditingController();
 
   @override
@@ -49,6 +57,36 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
     super.initState();
     _initializeTask();
     _setupFormControllers();
+    _initializePersonalization();
+  }
+  
+  Future<void> _initializePersonalization() async {
+    _personalizationService = await PersonalizationService.getInstance();
+    _personalizationSettings = await _personalizationService.loadSettings();
+    
+    // Update avoid habit label if custom label exists
+    if (_personalizationSettings.avoidHabitLabel.isNotEmpty && 
+        _personalizationSettings.avoidHabitLabel != 'Avoid X') {
+      _avoidHabitLabelController.text = _personalizationSettings.avoidHabitLabel;
+    }
+    
+    if (mounted) {
+      setState(() {});
+    }
+  }
+  
+  Future<void> _loadPersonalizationSettings() async {
+    _personalizationSettings = await _personalizationService.loadSettings();
+    
+    // Update avoid habit label if custom label exists
+    if (_personalizationSettings.avoidHabitLabel.isNotEmpty && 
+        _personalizationSettings.avoidHabitLabel != 'Avoid X') {
+      _avoidHabitLabelController.text = _personalizationSettings.avoidHabitLabel;
+    }
+    
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _initializeTask() {
@@ -104,11 +142,12 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
       _learningTechUrlController,
       _learningTechTimeController,
       _walkingStepsController,
-      _walkingTimeController,
-      _avoidHabitLabelController,
-      _movieSeriesNameController,
-      _movieSeriesStartTimeController,
-      _movieSeriesEndTimeController,
+       _walkingTimeController,
+       _walkingMinutesController,
+       _avoidHabitLabelController,
+       _movieSeriesNameController,
+        _movieSeriesStartTimeController,
+        _movieSeriesEndTimeController,
       _notesController,
     ];
 
@@ -135,11 +174,12 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
     _learningTechUrlController.dispose();
     _learningTechTimeController.dispose();
     _walkingStepsController.dispose();
-    _walkingTimeController.dispose();
-    _avoidHabitLabelController.dispose();
-    _movieSeriesNameController.dispose();
-    _movieSeriesStartTimeController.dispose();
-    _movieSeriesEndTimeController.dispose();
+     _walkingTimeController.dispose();
+     _walkingMinutesController.dispose();
+     _avoidHabitLabelController.dispose();
+     _movieSeriesNameController.dispose();
+      _movieSeriesStartTimeController.dispose();
+      _movieSeriesEndTimeController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -368,6 +408,322 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
       contentPadding: EdgeInsets.zero,
     );
   }
+  
+  Widget? _buildTaskSection(String taskId) {
+    // Check if task should be visible
+    if (_personalizationSettings.hiddenTasks.contains(taskId)) {
+      return null;
+    }
+    
+    if (taskId == 'avoidSweets' && !_personalizationSettings.showAvoidSweets) {
+      return null;
+    }
+    
+    switch (taskId) {
+      case 'readingBook':
+        return _buildReadingBookSection();
+      case 'stretch':
+        return _buildStretchSection();
+      case 'meditation':
+        return _buildMeditationSection();
+      case 'readingDocs':
+        return _buildReadingDocsSection();
+      case 'learningTech':
+        return _buildLearningTechSection();
+      case 'walking':
+        return _buildWalkingSection();
+      case 'avoidHabit':
+        return _buildAvoidHabitSection();
+      case 'avoidSweets':
+        return _buildAvoidSweetsSection();
+      case 'workDone':
+        return _buildWorkDoneSection();
+      case 'movieSeries':
+        return _buildMovieSeriesSection();
+      default:
+        return null;
+    }
+  }
+  
+  Widget _buildReadingBookSection() {
+    return _buildSectionCard(
+      title: 'Reading Book',
+      icon: Icons.book,
+      children: [
+        _buildCheckboxField(
+          title: 'Mark as completed',
+          value: _currentTask.readingBookCompleted,
+          onChanged: (value) => _updateTaskField(
+            value,
+            (val) => _currentTask.copyWith(readingBookCompleted: val),
+          ),
+        ),
+        Row(
+          children: [
+            Expanded(
+              child: _buildTextField(
+                controller: _readingBookPagesController,
+                label: 'Pages',
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildTextField(
+                controller: _readingBookTimeController,
+                label: 'Time (minutes)',
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildStretchSection() {
+    return _buildSectionCard(
+      title: 'Stretch/Exercise',
+      icon: Icons.fitness_center,
+      children: [
+        _buildCheckboxField(
+          title: 'Mark as completed',
+          value: _currentTask.stretchCompleted,
+          onChanged: (value) => _updateTaskField(
+            value,
+            (val) => _currentTask.copyWith(stretchCompleted: val),
+          ),
+        ),
+        DropdownButtonFormField<String>(
+          value: _currentTask.stretchType,
+          decoration: const InputDecoration(
+            labelText: 'Type',
+            border: OutlineInputBorder(),
+            isDense: true,
+          ),
+          items: ['Yoga', 'Home Workout', 'Gym', 'Other']
+              .map((type) =>
+                  DropdownMenuItem(value: type, child: Text(type)))
+              .toList(),
+          onChanged: (value) => _updateTaskField(
+            value,
+            (val) => _currentTask.copyWith(stretchType: val),
+          ),
+        ),
+        const SizedBox(height: 8),
+        _buildTextField(
+          controller: _stretchMinutesController,
+          label: 'Duration (minutes)',
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildMeditationSection() {
+    return _buildSectionCard(
+      title: 'Meditation',
+      icon: Icons.self_improvement,
+      children: [
+        _buildCheckboxField(
+          title: 'Mark as completed',
+          value: _currentTask.meditationCompleted,
+          onChanged: (value) => _updateTaskField(
+            value,
+            (val) => _currentTask.copyWith(meditationCompleted: val),
+          ),
+        ),
+        _buildTextField(
+          controller: _meditationMinutesController,
+          label: 'Duration (minutes)',
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildReadingDocsSection() {
+    return _buildSectionCard(
+      title: 'Reading Docs',
+      icon: Icons.description,
+      children: [
+        _buildCheckboxField(
+          title: 'Mark as completed',
+          value: _currentTask.readingDocsCompleted,
+          onChanged: (value) => _updateTaskField(
+            value,
+            (val) => _currentTask.copyWith(readingDocsCompleted: val),
+          ),
+        ),
+        _buildTextField(
+          controller: _readingDocsTimeController,
+          label: 'Time (minutes)',
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildLearningTechSection() {
+    return _buildSectionCard(
+      title: 'Learning New Technology',
+      icon: Icons.computer,
+      children: [
+        _buildCheckboxField(
+          title: 'Mark as completed',
+          value: _currentTask.learningTechCompleted,
+          onChanged: (value) => _updateTaskField(
+            value,
+            (val) => _currentTask.copyWith(learningTechCompleted: val),
+          ),
+        ),
+        _buildTextField(
+          controller: _learningTechTimeController,
+          label: 'Time (minutes)',
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildWalkingSection() {
+    return _buildSectionCard(
+      title: 'Walking',
+      icon: Icons.directions_walk,
+      children: [
+        _buildCheckboxField(
+          title: 'Mark as completed',
+          value: _currentTask.walkingCompleted,
+          onChanged: (value) => _updateTaskField(
+            value,
+            (val) => _currentTask.copyWith(walkingCompleted: val),
+          ),
+        ),
+        _buildTextField(
+          controller: _walkingMinutesController,
+          label: 'Duration (minutes)',
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildAvoidHabitSection() {
+    return _buildSectionCard(
+      title: _personalizationSettings.avoidHabitLabel,
+      icon: Icons.block,
+      children: [
+        _buildTextField(
+          controller: _avoidHabitLabelController,
+          label: 'Habit to avoid',
+          hint: 'e.g. Social media, Smoking, etc.',
+        ),
+        const SizedBox(height: 8),
+        _buildCheckboxField(
+          title: 'Successfully avoided habit',
+          value: _currentTask.avoidHabitValue,
+          onChanged: (value) => _updateTaskField(
+            value,
+            (val) => _currentTask.copyWith(avoidHabitValue: val),
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildAvoidSweetsSection() {
+    return _buildSectionCard(
+      title: 'Avoid Sweets',
+      icon: Icons.no_food,
+      children: [
+        _buildCheckboxField(
+          title: 'Avoided sweets',
+          value: _currentTask.avoidSweetsValue,
+          onChanged: (value) => _updateTaskField(
+            value,
+            (val) => _currentTask.copyWith(avoidSweetsValue: val),
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildWorkDoneSection() {
+    return _buildSectionCard(
+      title: 'Work & Entertainment',
+      icon: Icons.work,
+      children: [
+        _buildCheckboxField(
+          title: 'Productive work done today',
+          value: _currentTask.workDoneValue,
+          onChanged: (value) => _updateTaskField(
+            value,
+            (val) => _currentTask.copyWith(workDoneValue: val),
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildMovieSeriesSection() {
+    return _buildSectionCard(
+      title: 'Movie/Series',
+      icon: Icons.movie,
+      children: [
+        _buildCheckboxField(
+          title: 'Watched movie/series',
+          value: _currentTask.movieSeriesCompleted,
+          onChanged: (value) => _updateTaskField(
+            value,
+            (val) => _currentTask.copyWith(movieSeriesCompleted: val),
+          ),
+        ),
+        _buildTextField(
+          controller: _movieSeriesNameController,
+          label: 'Movie/Series name',
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _buildTextField(
+                controller: _movieSeriesStartTimeController,
+                label: 'Start time',
+                hint: 'HH:MM',
+                suffix: IconButton(
+                  icon: const Icon(Icons.access_time),
+                  onPressed: () => _selectTime(_movieSeriesStartTimeController),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildTextField(
+                controller: _movieSeriesEndTimeController,
+                label: 'End time',
+                hint: 'HH:MM',
+                suffix: IconButton(
+                  icon: const Icon(Icons.access_time),
+                  onPressed: () => _selectTime(_movieSeriesEndTimeController),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -410,6 +766,21 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
             ],
           ),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PersonalizationScreen(),
+                  ),
+                );
+                if (result == true) {
+                  // Reload personalization settings
+                  await _loadPersonalizationSettings();
+                }
+              },
+            ),
             if (_hasChanges)
               TextButton(
                 onPressed: _isLoading ? null : _saveTask,
@@ -427,327 +798,13 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
           key: _formKey,
           child: ListView(
             children: [
-              // Reading Book Section
-              _buildSectionCard(
-                title: 'Reading Book',
-                icon: Icons.book,
-                children: [
-                  _buildCheckboxField(
-                    title: 'Mark as completed',
-                    value: _currentTask.readingBookCompleted,
-                    onChanged: (value) => _updateTaskField(
-                      value,
-                      (val) => _currentTask.copyWith(readingBookCompleted: val),
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(
-                          controller: _readingBookPagesController,
-                          label: 'Pages',
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildTextField(
-                          controller: _readingBookTimeController,
-                          label: 'Time (minutes)',
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+              // Dynamic task sections based on personalization settings
+              ..._personalizationSettings.visibleTasksInOrder
+                  .map((taskId) => _buildTaskSection(taskId))
+                  .where((widget) => widget != null)
+                  .cast<Widget>(),
 
-              // Stretch Section
-              _buildSectionCard(
-                title: 'Stretch/Exercise',
-                icon: Icons.fitness_center,
-                children: [
-                  _buildCheckboxField(
-                    title: 'Mark as completed',
-                    value: _currentTask.stretchCompleted,
-                    onChanged: (value) => _updateTaskField(
-                      value,
-                      (val) => _currentTask.copyWith(stretchCompleted: val),
-                    ),
-                  ),
-                  DropdownButtonFormField<String>(
-                    value: _currentTask.stretchType,
-                    decoration: const InputDecoration(
-                      labelText: 'Type',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    items: ['Yoga', 'Home Workout', 'Gym', 'Other']
-                        .map((type) =>
-                            DropdownMenuItem(value: type, child: Text(type)))
-                        .toList(),
-                    onChanged: (value) => _updateTaskField(
-                      value,
-                      (val) => _currentTask.copyWith(stretchType: val),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildTextField(
-                    controller: _stretchMinutesController,
-                    label: 'Duration (minutes)',
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  ),
-                ],
-              ),
-
-              // Meditation Section
-              _buildSectionCard(
-                title: 'Meditation',
-                icon: Icons.self_improvement,
-                children: [
-                  _buildCheckboxField(
-                    title: 'Mark as completed',
-                    value: _currentTask.meditationCompleted,
-                    onChanged: (value) => _updateTaskField(
-                      value,
-                      (val) => _currentTask.copyWith(meditationCompleted: val),
-                    ),
-                  ),
-                  _buildTextField(
-                    controller: _meditationMinutesController,
-                    label: 'Duration (minutes)',
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  ),
-                ],
-              ),
-
-              // Reading Docs Section
-              _buildSectionCard(
-                title: 'Reading Documentation',
-                icon: Icons.description,
-                children: [
-                  _buildCheckboxField(
-                    title: 'Mark as completed',
-                    value: _currentTask.readingDocsCompleted,
-                    onChanged: (value) => _updateTaskField(
-                      value,
-                      (val) => _currentTask.copyWith(readingDocsCompleted: val),
-                    ),
-                  ),
-                  _buildTextField(
-                    controller: _readingDocsNameController,
-                    label: 'Documentation Name/Link',
-                    hint: 'e.g. Flutter documentation, API docs',
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(
-                          controller: _readingDocsPagesController,
-                          label: 'Pages',
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildTextField(
-                          controller: _readingDocsTimeController,
-                          label: 'Time (minutes)',
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              // Learning Technology Section
-              _buildSectionCard(
-                title: 'Learning New Technology',
-                icon: Icons.school,
-                children: [
-                  _buildCheckboxField(
-                    title: 'Mark as completed',
-                    value: _currentTask.learningTechCompleted,
-                    onChanged: (value) => _updateTaskField(
-                      value,
-                      (val) =>
-                          _currentTask.copyWith(learningTechCompleted: val),
-                    ),
-                  ),
-                  _buildTextField(
-                    controller: _learningTechNameController,
-                    label: 'Technology/Topic',
-                    hint: 'e.g. React, Python, Machine Learning',
-                  ),
-                  const SizedBox(height: 8),
-                  _buildTextField(
-                    controller: _learningTechSourceController,
-                    label: 'Source',
-                    hint: 'e.g. YouTube, Udemy, Documentation',
-                  ),
-                  const SizedBox(height: 8),
-                  _buildTextField(
-                    controller: _learningTechUrlController,
-                    label: 'URL (optional)',
-                    hint: 'Link to course or resource',
-                  ),
-                  const SizedBox(height: 8),
-                  _buildTextField(
-                    controller: _learningTechTimeController,
-                    label: 'Time spent (minutes)',
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  ),
-                ],
-              ),
-
-              // Walking Section
-              _buildSectionCard(
-                title: 'Walking',
-                icon: Icons.directions_walk,
-                children: [
-                  _buildCheckboxField(
-                    title: 'Mark as completed',
-                    value: _currentTask.walkingCompleted,
-                    onChanged: (value) => _updateTaskField(
-                      value,
-                      (val) => _currentTask.copyWith(walkingCompleted: val),
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(
-                          controller: _walkingStepsController,
-                          label: 'Steps',
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildTextField(
-                          controller: _walkingTimeController,
-                          label: 'Time (minutes)',
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              // Habit Control Section
-              _buildSectionCard(
-                title: 'Habit Control',
-                icon: Icons.block,
-                children: [
-                  _buildTextField(
-                    controller: _avoidHabitLabelController,
-                    label: 'Habit to avoid',
-                    hint: 'e.g. Social media, Smoking, etc.',
-                  ),
-                  const SizedBox(height: 8),
-                  _buildCheckboxField(
-                    title: 'Successfully avoided habit',
-                    value: _currentTask.avoidHabitValue,
-                    onChanged: (value) => _updateTaskField(
-                      value,
-                      (val) => _currentTask.copyWith(avoidHabitValue: val),
-                    ),
-                  ),
-                  _buildCheckboxField(
-                    title: 'Avoided sweets',
-                    value: _currentTask.avoidSweetsValue,
-                    onChanged: (value) => _updateTaskField(
-                      value,
-                      (val) => _currentTask.copyWith(avoidSweetsValue: val),
-                    ),
-                  ),
-                ],
-              ),
-
-              // Work & Entertainment Section
-              _buildSectionCard(
-                title: 'Work & Entertainment',
-                icon: Icons.work,
-                children: [
-                  _buildCheckboxField(
-                    title: 'Productive work done today',
-                    value: _currentTask.workDoneValue,
-                    onChanged: (value) => _updateTaskField(
-                      value,
-                      (val) => _currentTask.copyWith(workDoneValue: val),
-                    ),
-                  ),
-                  const Divider(),
-                  _buildCheckboxField(
-                    title: 'Watched movie/series',
-                    value: _currentTask.movieSeriesCompleted,
-                    onChanged: (value) => _updateTaskField(
-                      value,
-                      (val) => _currentTask.copyWith(movieSeriesCompleted: val),
-                    ),
-                  ),
-                  _buildTextField(
-                    controller: _movieSeriesNameController,
-                    label: 'Movie/Series name',
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(
-                          controller: _movieSeriesStartTimeController,
-                          label: 'Start time',
-                          hint: 'HH:MM',
-                          suffix: IconButton(
-                            icon: const Icon(Icons.access_time),
-                            onPressed: () =>
-                                _selectTime(_movieSeriesStartTimeController),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildTextField(
-                          controller: _movieSeriesEndTimeController,
-                          label: 'End time',
-                          hint: 'HH:MM',
-                          suffix: IconButton(
-                            icon: const Icon(Icons.access_time),
-                            onPressed: () =>
-                                _selectTime(_movieSeriesEndTimeController),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              // Notes Section
+              // Notes Section (always visible)
               _buildSectionCard(
                 title: 'Notes',
                 icon: Icons.notes,
