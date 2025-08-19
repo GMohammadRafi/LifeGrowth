@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:provider/provider.dart';
 import '../models/daily_task.dart' as model;
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
 import '../services/supabase_service.dart';
+import '../providers/undo_provider.dart';
 import 'daily_checkin_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -100,6 +102,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Future<void> _softDeleteTask(model.DailyTask task) async {
     try {
+      // Record the delete action before actually deleting
+      final undoProvider = Provider.of<UndoProvider>(context, listen: false);
+      undoProvider.recordDelete(task);
+      
       await DatabaseService.instance
           .softDeleteDailyTask(AuthService.userId!, task.date);
 
@@ -109,7 +115,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
             content: const Text('Task deleted'),
             action: SnackBarAction(
               label: 'Undo',
-              onPressed: () => _restoreTask(task),
+              onPressed: () async {
+                final success = await undoProvider.undoLastAction();
+                if (success) {
+                  await _loadHistoryData();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Task restored')),
+                    );
+                  }
+                } else {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Failed to undo action'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
             ),
           ),
         );

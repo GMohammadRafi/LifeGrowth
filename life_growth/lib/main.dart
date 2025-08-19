@@ -13,6 +13,7 @@ import 'services/background_sync_manager.dart';
 import 'services/notification_service.dart';
 import 'services/theme_service.dart';
 import 'providers/theme_provider.dart';
+import 'providers/undo_provider.dart';
 import 'screens/auth_screen.dart';
 import 'screens/home_screen.dart';
 
@@ -144,8 +145,11 @@ void main() async {
   }
 
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => ThemeProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => ThemeProvider()),
+        ChangeNotifierProvider(create: (context) => UndoProvider()),
+      ],
       child: const MyApp(),
     ),
   );

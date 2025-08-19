@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
 import '../services/background_sync_manager.dart';
 import '../services/personalization_service.dart';
 import '../models/daily_task.dart' as model;
 import '../models/personalization_settings.dart';
+import '../providers/undo_provider.dart';
 import 'auth_screen.dart';
 import 'daily_checkin_screen.dart';
 import 'history_screen.dart';
@@ -99,6 +101,12 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!AuthService.isAuthenticated) return;
 
     try {
+      // Record the edit action for undo functionality
+       if (_todayTask != null && mounted) {
+         Provider.of<UndoProvider>(context, listen: false)
+             .recordEdit(_todayTask!, updatedTask);
+       }
+
       // Ensure userId is set before upserting (important for persistence)
       final taskWithUser = (updatedTask.userId == null)
           ? updatedTask.copyWith(userId: AuthService.userId)
@@ -275,6 +283,43 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
+          Consumer<UndoProvider>(
+            builder: (context, undoProvider, child) {
+              return Semantics(
+                label: 'Undo',
+                hint: undoProvider.canUndo 
+                    ? 'Undo last action: ${undoProvider.getUndoDescription()}'
+                    : 'No actions to undo',
+                button: true,
+                child: IconButton(
+                  icon: const Icon(Icons.undo),
+                  onPressed: undoProvider.canUndo ? () async {
+                    final success = await undoProvider.undoLastAction();
+                    if (success) {
+                      await _loadTodayTask();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Action undone')),
+                        );
+                      }
+                    } else {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Failed to undo action'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  } : null,
+                  tooltip: undoProvider.canUndo 
+                      ? 'Undo: ${undoProvider.getUndoDescription()}'
+                      : 'No actions to undo',
+                ),
+              );
+            },
+          ),
           Semantics(
             label: 'Refresh',
             hint: 'Refresh today\'s task data',
