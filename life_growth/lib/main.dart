@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 // import 'package:flutter_native_timezone/flutter_native_timezone.dart'; // Removed due to AGP compatibility
 import 'services/auth_service.dart';
 import 'services/database_service.dart';
@@ -23,8 +24,10 @@ import 'screens/home_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase
-  await Firebase.initializeApp();
+  // Initialize Firebase with proper configuration
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   // Load environment variables
   await dotenv.load(fileName: ".env");
