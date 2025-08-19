@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "390598981478",
+    "project_id": "gen-lang-client-0139538207",
+    "storage_bucket": "gen-lang-client-0139538207.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:390598981478:android:b4b595d5f9be18378c7aa7",
+        "android_client_info": {
+          "package_name": "app.lifegrowth"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB5KrdIjsNd51Icv4V85KH8eQFBNd2Ho0g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
