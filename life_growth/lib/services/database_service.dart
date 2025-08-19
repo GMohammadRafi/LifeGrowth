@@ -63,8 +63,9 @@ class DatabaseService {
   }
 
   /// Insert or update a daily task
-  Future<void> upsertDailyTask(DailyTask task) async {
-    await database.upsertDailyTask(task);
+  Future<void> upsertDailyTask(model.DailyTask task, {bool needsSync = true}) async {
+    final dbTask = _convertModelToDailyTask(task, needsSync: needsSync);
+    await database.upsertDailyTask(dbTask);
   }
 
   /// Delete a daily task (hard delete)
@@ -135,6 +136,50 @@ class DatabaseService {
               .isAfter(startOfMonth.subtract(const Duration(days: 1))) &&
           task.date.isBefore(endOfMonth.add(const Duration(days: 1)));
     }).toList();
+  }
+
+  /// Convert model DailyTask to database DailyTask
+  DailyTask _convertModelToDailyTask(model.DailyTask modelTask, {bool needsSync = true}) {
+    // Normalize date to date-only format (required by database constraint)
+    final dateOnly = DateTime(modelTask.date.year, modelTask.date.month, modelTask.date.day);
+
+    return DailyTask(
+      userId: modelTask.userId!,
+      date: dateOnly,
+      readingBookCompleted: modelTask.readingBookCompleted,
+      readingBookPages: modelTask.readingBookPages,
+      readingBookTime: modelTask.readingBookTime,
+      stretchCompleted: modelTask.stretchCompleted,
+      stretchMinutes: modelTask.stretchMinutes,
+      stretchType: modelTask.stretchType,
+      meditationCompleted: modelTask.meditationCompleted,
+      meditationMinutes: modelTask.meditationMinutes,
+      readingDocsCompleted: modelTask.readingDocsCompleted,
+      readingDocsPages: modelTask.readingDocsPages,
+      readingDocsTime: modelTask.readingDocsTime,
+      readingDocsNameLink: modelTask.readingDocsNameLink,
+      learningTechCompleted: modelTask.learningTechCompleted,
+      learningTechName: modelTask.learningTechName,
+      learningTechTime: modelTask.learningTechTime,
+      learningTechSource: modelTask.learningTechSource,
+      learningTechUrl: modelTask.learningTechUrl,
+      walkingCompleted: modelTask.walkingCompleted,
+      walkingSteps: modelTask.walkingSteps,
+      walkingTime: modelTask.walkingTime,
+      avoidHabitLabel: modelTask.avoidHabitLabel,
+      avoidHabitValue: modelTask.avoidHabitValue,
+      avoidSweetsValue: modelTask.avoidSweetsValue,
+      workDoneValue: modelTask.workDoneValue,
+      movieSeriesName: modelTask.movieSeriesName,
+      movieSeriesDuration: modelTask.movieSeriesDuration,
+      movieSeriesCompleted: modelTask.movieSeriesCompleted,
+      timezoneOffset: modelTask.timezoneOffset,
+      createdAt: modelTask.createdAt ?? DateTime.now(),
+      updatedAt: modelTask.updatedAt ?? DateTime.now(),
+      needsSync: needsSync,
+      lastSyncAt: needsSync ? null : DateTime.now(),
+      isDeleted: false,
+    );
   }
 
   /// Convert database DailyTask to model DailyTask

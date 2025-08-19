@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import '../models/daily_task.dart';
+import '../models/daily_task.dart' as model;
+import '../database/database.dart';
 import '../services/database_service.dart';
 import '../services/auth_service.dart';
 
 class UndoAction {
   final String id;
   final String type; // 'delete', 'edit', 'create'
-  final DailyTask? previousState;
-  final DailyTask? currentState;
+  final model.DailyTask? previousState;
+  final model.DailyTask? currentState;
   final DateTime timestamp;
   final String description;
 
@@ -24,7 +25,7 @@ class UndoAction {
 class UndoProvider extends ChangeNotifier {
   final List<UndoAction> _undoStack = [];
   final int _maxUndoActions = 10;
-  final DatabaseService _databaseService = DatabaseService();
+  final DatabaseService _databaseService = DatabaseService.instance;
 
   List<UndoAction> get undoStack => List.unmodifiable(_undoStack);
   bool get canUndo => _undoStack.isNotEmpty;
@@ -43,7 +44,7 @@ class UndoProvider extends ChangeNotifier {
   }
 
   /// Record a delete action
-  void recordDelete(DailyTask deletedTask) {
+  void recordDelete(model.DailyTask deletedTask) {
     final action = UndoAction(
       id: '${deletedTask.userId}_${deletedTask.date.millisecondsSinceEpoch}',
       type: 'delete',
@@ -55,7 +56,7 @@ class UndoProvider extends ChangeNotifier {
   }
 
   /// Record an edit action
-  void recordEdit(DailyTask previousTask, DailyTask updatedTask) {
+  void recordEdit(model.DailyTask previousTask, model.DailyTask updatedTask) {
     final action = UndoAction(
       id: '${updatedTask.userId}_${updatedTask.date.millisecondsSinceEpoch}',
       type: 'edit',
@@ -68,7 +69,7 @@ class UndoProvider extends ChangeNotifier {
   }
 
   /// Record a create action
-  void recordCreate(DailyTask createdTask) {
+  void recordCreate(model.DailyTask createdTask) {
     final action = UndoAction(
       id: '${createdTask.userId}_${createdTask.date.millisecondsSinceEpoch}',
       type: 'create',

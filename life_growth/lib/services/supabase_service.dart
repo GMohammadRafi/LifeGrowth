@@ -67,8 +67,7 @@ class SupabaseService {
             (remoteTask.updatedAt != null && localTask.updatedAt != null &&
                 remoteTask.updatedAt!.isAfter(localTask.updatedAt!))) {
           // Remote task is newer or doesn't exist locally, mark as not needing sync
-          final dbTask = _convertModelToDbTask(remoteTask, needsSync: false);
-          await DatabaseService.instance.upsertDailyTask(dbTask);
+          await DatabaseService.instance.upsertDailyTask(remoteTask);
           return remoteTask;
         }
       }
@@ -137,8 +136,7 @@ class SupabaseService {
             (remoteTask.updatedAt != null && localTask.updatedAt != null &&
                 remoteTask.updatedAt!.isAfter(localTask.updatedAt!))) {
           // Remote task is newer, mark as not needing sync
-          final dbTask = _convertModelToDbTask(remoteTask, needsSync: false);
-          await DatabaseService.instance.upsertDailyTask(dbTask);
+          await DatabaseService.instance.upsertDailyTask(remoteTask);
         }
       }
 
@@ -163,10 +161,9 @@ class SupabaseService {
   }
 
   static Future<model.DailyTask> upsertDailyTask(model.DailyTask task) async {
-    // Convert model to database entity and save to local database first
+    // Save to local database first
     // Mark as needing sync since this is a local update
-    final dbTask = _convertModelToDbTask(task, needsSync: true);
-    await DatabaseService.instance.upsertDailyTask(dbTask);
+    await DatabaseService.instance.upsertDailyTask(task);
 
     // Try to sync with Supabase in background
     _syncTaskToSupabase(task).catchError((e) {
@@ -210,8 +207,7 @@ class SupabaseService {
       await _client.from('daily_tasks').upsert(taskJson);
 
       // Mark as synced in local database by updating with needsSync: false
-      final syncedDbTask = _convertModelToDbTask(modelTask, needsSync: false);
-      await DatabaseService.instance.upsertDailyTask(syncedDbTask);
+      await DatabaseService.instance.upsertDailyTask(modelTask, needsSync: false);
     } catch (e) {
       // Sync failed, task will remain marked as needing sync
       rethrow;
@@ -261,8 +257,7 @@ class SupabaseService {
           await DatabaseService.instance.getDailyTask(userId, date);
       if (localTask != null) {
         final modelTask = convertDbToModelTask(localTask);
-        final syncedDbTask = _convertModelToDbTask(modelTask, needsSync: false);
-        await DatabaseService.instance.upsertDailyTask(syncedDbTask);
+        await DatabaseService.instance.upsertDailyTask(modelTask, needsSync: false);
       }
     } catch (e) {
       // Sync failed, task will remain marked as needing sync
@@ -397,8 +392,7 @@ class SupabaseService {
               (remoteTask.updatedAt != null && localTask.updatedAt != null &&
                remoteTask.updatedAt!.isAfter(localTask.updatedAt!))) {
             // Mark remote task as not needing sync and upsert
-            final dbTask = _convertModelToDbTask(remoteTask, needsSync: false);
-            await DatabaseService.instance.upsertDailyTask(dbTask);
+            await DatabaseService.instance.upsertDailyTask(remoteTask);
           }
         }
         
