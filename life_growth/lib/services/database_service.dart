@@ -178,7 +178,6 @@ class DatabaseService {
       updatedAt: modelTask.updatedAt ?? DateTime.now(),
       needsSync: needsSync,
       lastSyncAt: needsSync ? null : DateTime.now(),
-      isDeleted: false,
     );
   }
 

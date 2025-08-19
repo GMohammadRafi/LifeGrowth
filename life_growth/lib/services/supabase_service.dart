@@ -296,8 +296,7 @@ class SupabaseService {
       // Merge and update local database
       for (final remoteTask in remoteTasks) {
         // Convert remote task and mark as not needing sync
-        final dbTask = _convertModelToDbTask(remoteTask, needsSync: false);
-        await DatabaseService.instance.upsertDailyTask(dbTask);
+        await DatabaseService.instance.upsertDailyTask(remoteTask, needsSync: false);
       }
 
       // Return updated local tasks
