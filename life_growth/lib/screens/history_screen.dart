@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
-import '../database/database.dart' show DailyTask;
 import '../models/daily_task.dart' as model;
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
@@ -15,11 +14,11 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  late final ValueNotifier<List<DailyTask>> _selectedTasks;
+  late final ValueNotifier<List<model.DailyTask>> _selectedTasks;
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  Map<DateTime, List<DailyTask>> _tasksByDate = {};
+  Map<DateTime, List<model.DailyTask>> _tasksByDate = {};
   bool _isLoading = true;
   bool _includeDeleted = false;
 
@@ -49,9 +48,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
       );
 
       // Group tasks by date
-      final Map<DateTime, List<DailyTask>> tasksByDate = {};
+      final Map<DateTime, List<model.DailyTask>> tasksByDate = {};
       for (final task in tasks) {
-        final dateKey = DateTime(task.date.year, task.date.month, task.date.day);
+        final dateKey =
+            DateTime(task.date.year, task.date.month, task.date.day);
         if (tasksByDate[dateKey] == null) {
           tasksByDate[dateKey] = [];
         }
@@ -78,12 +78,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  List<DailyTask> _getTasksForDay(DateTime day) {
+  List<model.DailyTask> _getTasksForDay(DateTime day) {
     final dateKey = DateTime(day.year, day.month, day.day);
     return _tasksByDate[dateKey] ?? [];
   }
 
-  int _getCompletedTasksCount(DailyTask task) {
+  int _getCompletedTasksCount(model.DailyTask task) {
     int count = 0;
     if (task.readingBookCompleted) count++;
     if (task.stretchCompleted) count++;
@@ -98,10 +98,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return count;
   }
 
-  Future<void> _softDeleteTask(DailyTask task) async {
+  Future<void> _softDeleteTask(model.DailyTask task) async {
     try {
-      await DatabaseService.instance.softDeleteDailyTask(AuthService.userId!, task.date);
-      
+      await DatabaseService.instance
+          .softDeleteDailyTask(AuthService.userId!, task.date);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -113,7 +114,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
         );
       }
-      
+
       await _loadHistoryData();
     } catch (e) {
       if (mounted) {
@@ -127,16 +128,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  Future<void> _restoreTask(DailyTask task) async {
+  Future<void> _restoreTask(model.DailyTask task) async {
     try {
-      await DatabaseService.instance.restoreDailyTask(AuthService.userId!, task.date);
-      
+      await DatabaseService.instance
+          .restoreDailyTask(AuthService.userId!, task.date);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Task restored')),
         );
       }
-      
+
       await _loadHistoryData();
     } catch (e) {
       if (mounted) {
@@ -160,83 +162,84 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  Widget _buildTaskCard(DailyTask task) {
+  Widget _buildTaskCard(model.DailyTask task) {
     final isDeleted = task.deletedAt != null;
-    
+
     return Opacity(
       opacity: isDeleted ? 0.6 : 1.0,
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: isDeleted 
-              ? Colors.grey 
-              : (_getCompletedTasksCount(task) > 5 
-                                        ? Colors.green 
-                  : _getCompletedTasksCount(task) > 2 
-                       ? Colors.orange 
-                      : Colors.red),
-          child: Text(
-            '${_getCompletedTasksCount(task)}',
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-        ),
-        title: Text(
-          '${task.date.day}/${task.date.month}/${task.date.year}',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            decoration: isDeleted ? TextDecoration.lineThrough : null,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Completed: ${_getCompletedTasksCount(task)}/10 tasks'),
-            if (task.notes != null && task.notes!.isNotEmpty)
-              Text(
-                task.notes!,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontStyle: FontStyle.italic),
-              ),
-            if (isDeleted)
-              const Text(
-                'Deleted',
-                style: TextStyle(color: Colors.red, fontSize: 12),
-              ),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: isDeleted ? null : () => _editTask(task),
-              tooltip: 'Edit',
+          leading: CircleAvatar(
+            backgroundColor: isDeleted
+                ? Colors.grey
+                : (_getCompletedTasksCount(task) > 5
+                    ? Colors.green
+                    : _getCompletedTasksCount(task) > 2
+                        ? Colors.orange
+                        : Colors.red),
+            child: Text(
+              '${_getCompletedTasksCount(task)}',
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.bold),
             ),
-            if (!isDeleted)
+          ),
+          title: Text(
+            '${task.date.day}/${task.date.month}/${task.date.year}',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              decoration: isDeleted ? TextDecoration.lineThrough : null,
+            ),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Completed: ${_getCompletedTasksCount(task)}/10 tasks'),
+              if (task.notes != null && task.notes!.isNotEmpty)
+                Text(
+                  task.notes!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontStyle: FontStyle.italic),
+                ),
+              if (isDeleted)
+                const Text(
+                  'Deleted',
+                  style: TextStyle(color: Colors.red, fontSize: 12),
+                ),
+            ],
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
               IconButton(
-                icon: const Icon(Icons.delete),
-                onPressed: () => _confirmDelete(task),
-                tooltip: 'Delete',
-              )
-            else
-              IconButton(
-                icon: const Icon(Icons.restore),
-                onPressed: () => _restoreTask(task),
-                tooltip: 'Restore',
+                icon: const Icon(Icons.edit),
+                onPressed: isDeleted ? null : () => _editTask(task),
+                tooltip: 'Edit',
               ),
-          ],
+              if (!isDeleted)
+                IconButton(
+                  icon: const Icon(Icons.delete),
+                  onPressed: () => _confirmDelete(task),
+                  tooltip: 'Delete',
+                )
+              else
+                IconButton(
+                  icon: const Icon(Icons.restore),
+                  onPressed: () => _restoreTask(task),
+                  tooltip: 'Restore',
+                ),
+            ],
+          ),
+          onTap: isDeleted ? null : () => _editTask(task),
         ),
-        onTap: isDeleted ? null : () => _editTask(task),
       ),
-    ),
     );
   }
 
-  Future<void> _editTask(DailyTask task) async {
-    // Convert database DailyTask to model DailyTask for DailyCheckinScreen
-    final modelTask = SupabaseService.convertDbToModelTask(task);
+  Future<void> _editTask(model.DailyTask task) async {
+    // Task is already a model DailyTask
+    final modelTask = task;
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (context) => DailyCheckinScreen(
@@ -245,13 +248,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
       ),
     );
-    
+
     if (result == true) {
       await _loadHistoryData();
     }
   }
 
-  Future<void> _confirmDelete(DailyTask task) async {
+  Future<void> _confirmDelete(model.DailyTask task) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -272,7 +275,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ],
       ),
     );
-    
+
     if (confirmed == true) {
       await _softDeleteTask(task);
     }
@@ -285,7 +288,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
         title: const Text('History'),
         actions: [
           IconButton(
-            icon: Icon(_includeDeleted ? Icons.visibility_off : Icons.visibility),
+            icon:
+                Icon(_includeDeleted ? Icons.visibility_off : Icons.visibility),
             onPressed: () {
               setState(() {
                 _includeDeleted = !_includeDeleted;
@@ -306,7 +310,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           : Column(
               children: [
                 // Calendar
-                TableCalendar<DailyTask>(
+                TableCalendar<model.DailyTask>(
                   firstDay: DateTime.utc(2020, 1, 1),
                   lastDay: DateTime.utc(2030, 12, 31),
                   focusedDay: _focusedDay,
@@ -347,7 +351,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   calendarBuilders: CalendarBuilders(
                     markerBuilder: (context, day, tasks) {
                       if (tasks.isNotEmpty) {
-                        final task = tasks.first as DailyTask;
+                        final task = tasks.first;
                         final isDeleted = task.deletedAt != null;
                         return Container(
                           margin: const EdgeInsets.only(top: 5),
@@ -357,12 +361,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             height: 16,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: isDeleted 
-                                  ? Colors.grey 
-                                  : (_getCompletedTasksCount(task) > 5 
-                                      ? Colors.green 
-                                      : _getCompletedTasksCount(task) > 2 
-                                          ? Colors.orange 
+                              color: isDeleted
+                                  ? Colors.grey
+                                  : (_getCompletedTasksCount(task) > 5
+                                      ? Colors.green
+                                      : _getCompletedTasksCount(task) > 2
+                                          ? Colors.orange
                                           : Colors.red),
                             ),
                             child: Center(
@@ -385,7 +389,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 const Divider(),
                 // Selected day tasks
                 Expanded(
-                  child: ValueListenableBuilder<List<DailyTask>>(
+                  child: ValueListenableBuilder<List<model.DailyTask>>(
                     valueListenable: _selectedTasks,
                     builder: (context, tasks, _) {
                       if (tasks.isEmpty) {
@@ -409,7 +413,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               const SizedBox(height: 16),
                               ElevatedButton.icon(
                                 onPressed: () => _editTask(
-                                  DailyTask(
+                                  model.DailyTask(
                                     userId: AuthService.userId!,
                                     date: _selectedDay!,
                                     readingBookCompleted: false,
@@ -424,8 +428,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     movieSeriesCompleted: false,
                                     createdAt: DateTime.now(),
                                     updatedAt: DateTime.now(),
-                                    timezoneOffset: DateTime.now().timeZoneOffset.inMinutes,
-                                    needsSync: true,
+                                    timezoneOffset:
+                                        DateTime.now().timeZoneOffset.inMinutes,
                                   ),
                                 ),
                                 icon: const Icon(Icons.add),
@@ -435,7 +439,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           ),
                         );
                       }
-                      
+
                       return ListView.builder(
                         itemCount: tasks.length,
                         itemBuilder: (context, index) {

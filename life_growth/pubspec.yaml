@@ -74,6 +74,12 @@ dependencies:
   
   # Shared preferences for local storage
   shared_preferences: ^2.2.2
+  
+  # CSV export functionality
+  csv: ^6.0.0
+  
+  # File sharing functionality
+  share_plus: ^10.0.2
 
 dev_dependencies:
   flutter_test:

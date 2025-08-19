@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../services/database_service.dart';
 import '../services/auth_service.dart';
-import '../database/database.dart';
+import '../models/daily_task.dart' as model;
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -14,7 +14,7 @@ class AnalyticsScreen extends StatefulWidget {
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
   bool _isLoading = true;
   String? _errorMessage;
-  List<DailyTask> _allTasks = [];
+  List<model.DailyTask> _allTasks = [];
   
   // Analytics data
   int _totalTasks = 0;
@@ -78,7 +78,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     _calculateWeeklyCompletionData();
   }
 
-  bool _isTaskCompleted(DailyTask task) {
+  bool _isTaskCompleted(model.DailyTask task) {
     // Consider a task completed if at least 50% of activities are done
     int completedActivities = 0;
     int totalActivities = 10; // Total number of trackable activities
@@ -101,7 +101,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     if (_allTasks.isEmpty) return;
 
     // Sort tasks by date
-    final sortedTasks = List<DailyTask>.from(_allTasks)
+    final sortedTasks = List<model.DailyTask>.from(_allTasks)
       ..sort((a, b) => a.date.compareTo(b.date));
 
     int currentStreak = 0;

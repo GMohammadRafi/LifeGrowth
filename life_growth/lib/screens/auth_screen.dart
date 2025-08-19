@@ -1,10 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:local_auth/local_auth.dart';
 import '../services/auth_service.dart';
-import '../services/background_sync_manager.dart';
 import 'home_screen.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -116,9 +114,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       await AuthService.signInWithGoogle();
-      
+
       // Background sync will be managed by app lifecycle
-      
+
       // Navigation will be handled by auth state listener
     } on AuthException catch (e) {
       setState(() {
@@ -145,9 +143,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       await AuthService.signInWithGitHub();
-      
+
       // Background sync will be managed by app lifecycle
-      
+
       // Navigation will be handled by auth state listener
     } on AuthException catch (e) {
       setState(() {
@@ -181,7 +179,7 @@ class _AuthScreenState extends State<AuthScreen> {
         // Check if user is already signed in after biometric auth
         if (AuthService.isAuthenticated) {
           // Background sync will be managed by app lifecycle
-          
+
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => const HomeScreen()),
           );

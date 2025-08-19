@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:workmanager/workmanager.dart';
 import 'notification_service.dart';
@@ -32,12 +31,13 @@ class BackgroundSyncManager {
           bg_handler
               .callbackDispatcher, // Use the callback dispatcher from background_task_handler.dart
         );
-        
+
         // Add a small delay to ensure WorkManager is fully initialized
         await Future.delayed(const Duration(milliseconds: 300));
       } else {
         if (kDebugMode) {
-          print('WorkManager not supported on this platform, using alternative sync method');
+          print(
+              'WorkManager not supported on this platform, using alternative sync method');
         }
       }
 
@@ -64,7 +64,7 @@ class BackgroundSyncManager {
       if (_isWorkManagerSupported()) {
         // Add a small delay to ensure WorkManager is fully ready
         await Future.delayed(const Duration(milliseconds: 500));
-        
+
         // Cancel any existing periodic sync
         await Workmanager().cancelByUniqueName(_periodicSyncTaskName);
 
@@ -111,7 +111,7 @@ class BackgroundSyncManager {
       if (_isWorkManagerSupported()) {
         // Add a small delay to ensure WorkManager is fully ready
         await Future.delayed(const Duration(milliseconds: 200));
-        
+
         await Workmanager().registerOneOffTask(
           'immediate_sync_${DateTime.now().millisecondsSinceEpoch}',
           _syncTaskName,
@@ -236,7 +236,7 @@ class BackgroundSyncManager {
 
       // Schedule periodic sync for background operation
       await schedulePeriodicSync();
-      
+
       if (kDebugMode) {
         print('Background sync started successfully');
       }
@@ -252,7 +252,7 @@ class BackgroundSyncManager {
     try {
       // Cancel periodic sync tasks
       await cancelPeriodicSync();
-      
+
       if (kDebugMode) {
         print('Background sync stopped successfully');
       }
@@ -280,7 +280,7 @@ class BackgroundSyncManager {
 
       // Perform immediate sync
       await scheduleImmediateSync();
-      
+
       if (kDebugMode) {
         print('Immediate sync performed successfully');
       }

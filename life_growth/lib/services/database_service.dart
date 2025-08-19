@@ -1,4 +1,11 @@
 import '../database/database.dart';
+import '../models/daily_checkin.dart' as model;
+import '../models/daily_task.dart' as model;
+import '../models/habit.dart' as model;
+import '../models/habit.dart' show HabitFrequency;
+import '../models/goal.dart' as model;
+import '../models/goal.dart' show GoalCategory, GoalPriority;
+import '../models/journal_entry.dart' as model;
 
 /// Service class that provides access to the local SQLite database
 class DatabaseService {
@@ -44,14 +51,15 @@ class DatabaseService {
   }
 
   /// Get all daily tasks for a user
-  Future<List<DailyTask>> getAllDailyTasksForUser(
+  Future<List<model.DailyTask>> getAllDailyTasksForUser(
     String userId, {
     bool includeDeleted = false,
   }) async {
-    return await database.getAllDailyTasksForUser(
+    final dbTasks = await database.getAllDailyTasksForUser(
       userId,
       includeDeleted: includeDeleted,
     );
+    return dbTasks.map((dbTask) => _convertDailyTaskToModel(dbTask)).toList();
   }
 
   /// Insert or update a daily task
@@ -75,8 +83,9 @@ class DatabaseService {
   }
 
   /// Get tasks that need to be synced
-  Future<List<DailyTask>> getTasksToSync() async {
-    return await database.getTasksToSync();
+  Future<List<model.DailyTask>> getTasksToSync() async {
+    final dbTasks = await database.getTasksToSync();
+    return dbTasks.map((dbTask) => _convertDailyTaskToModel(dbTask)).toList();
   }
 
   /// Mark a task as synced
@@ -100,7 +109,7 @@ class DatabaseService {
   }
 
   /// Get the current week's tasks for a user
-  Future<List<DailyTask>> getCurrentWeekTasks(String userId) async {
+  Future<List<model.DailyTask>> getCurrentWeekTasks(String userId) async {
     final now = DateTime.now();
     final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
     final endOfWeek = startOfWeek.add(const Duration(days: 6));
@@ -114,7 +123,7 @@ class DatabaseService {
   }
 
   /// Get the current month's tasks for a user
-  Future<List<DailyTask>> getCurrentMonthTasks(String userId) async {
+  Future<List<model.DailyTask>> getCurrentMonthTasks(String userId) async {
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
     final endOfMonth = DateTime(now.year, now.month + 1, 0);
@@ -126,5 +135,188 @@ class DatabaseService {
               .isAfter(startOfMonth.subtract(const Duration(days: 1))) &&
           task.date.isBefore(endOfMonth.add(const Duration(days: 1)));
     }).toList();
+  }
+
+  /// Convert database DailyTask to model DailyTask
+  model.DailyTask _convertDailyTaskToModel(DailyTask dbTask) {
+    return model.DailyTask(
+      id: '${dbTask.userId}_${dbTask.date.millisecondsSinceEpoch}', // Generate composite ID
+      userId: dbTask.userId,
+      date: dbTask.date,
+      readingBookPages: dbTask.readingBookPages,
+      readingBookTime: dbTask.readingBookTime,
+      readingBookCompleted: dbTask.readingBookCompleted,
+      stretchType: dbTask.stretchType,
+      stretchMinutes: dbTask.stretchMinutes,
+      stretchCompleted: dbTask.stretchCompleted,
+      meditationMinutes: dbTask.meditationMinutes,
+      meditationCompleted: dbTask.meditationCompleted,
+      readingDocsNameLink: dbTask.readingDocsNameLink,
+      readingDocsPages: dbTask.readingDocsPages,
+      readingDocsTime: dbTask.readingDocsTime,
+      readingDocsCompleted: dbTask.readingDocsCompleted,
+      learningTechName: dbTask.learningTechName,
+      learningTechSource: dbTask.learningTechSource,
+      learningTechUrl: dbTask.learningTechUrl,
+      learningTechTime: dbTask.learningTechTime,
+      learningTechCompleted: dbTask.learningTechCompleted,
+      walkingSteps: dbTask.walkingSteps,
+      walkingTime: dbTask.walkingTime,
+      walkingCompleted: dbTask.walkingCompleted,
+      avoidHabitLabel: dbTask.avoidHabitLabel,
+      avoidHabitValue: dbTask.avoidHabitValue,
+      avoidSweetsValue: dbTask.avoidSweetsValue,
+      workDoneValue: dbTask.workDoneValue,
+      movieSeriesName: dbTask.movieSeriesName,
+      movieSeriesDuration: dbTask.movieSeriesDuration,
+      movieSeriesCompleted: dbTask.movieSeriesCompleted,
+      timezoneOffset: dbTask.timezoneOffset ?? 0,
+      createdAt: dbTask.createdAt,
+      updatedAt: dbTask.updatedAt,
+    );
+  }
+
+  // Methods for CSV export - get all data regardless of user
+  
+  /// Get all daily check-ins for export
+  Future<List<model.DailyCheckin>> getAllDailyCheckins() async {
+    return await database.customSelect(
+      'SELECT * FROM daily_checkins ORDER BY date DESC',
+    ).map((row) {
+      return model.DailyCheckin(
+        id: row.read<String>('id'),
+        date: DateTime.parse(row.read<String>('date')),
+        mood: row.read<int>('mood'),
+        energy: row.read<int>('energy'),
+        stress: row.read<int>('stress'),
+        notes: row.read<String?>('notes') ?? '',
+        createdAt: DateTime.parse(row.read<String>('created_at')),
+        updatedAt: DateTime.parse(row.read<String>('updated_at')),
+        needsSync: row.read<bool>('needs_sync'),
+        lastSyncAt: row.read<String?>('last_sync_at') != null 
+            ? DateTime.parse(row.read<String>('last_sync_at')) 
+            : null,
+      );
+    }).get();
+  }
+
+  /// Get all daily tasks for export
+  Future<List<model.DailyTask>> getAllDailyTasks() async {
+    final results = await database.customSelect(
+      'SELECT * FROM daily_tasks ORDER BY date DESC',
+    ).get();
+    
+    return results.map((row) {
+      return model.DailyTask(
+        id: row.read<String>('id'),
+        userId: row.read<String>('user_id'),
+        date: DateTime.parse(row.read<String>('date')),
+        readingBookPages: row.read<int?>('reading_book_pages'),
+        readingBookTime: row.read<int?>('reading_book_time'),
+        readingBookCompleted: row.read<bool>('reading_book_completed'),
+        stretchType: row.read<String?>('stretch_type'),
+        stretchMinutes: row.read<int?>('stretch_minutes'),
+        stretchCompleted: row.read<bool>('stretch_completed'),
+        meditationMinutes: row.read<int?>('meditation_minutes'),
+        meditationCompleted: row.read<bool>('meditation_completed'),
+        readingDocsNameLink: row.read<String?>('reading_docs_name_link'),
+        readingDocsPages: row.read<int?>('reading_docs_pages'),
+        readingDocsTime: row.read<int?>('reading_docs_time'),
+        readingDocsCompleted: row.read<bool>('reading_docs_completed'),
+        learningTechName: row.read<String?>('learning_tech_name'),
+        learningTechSource: row.read<String?>('learning_tech_source'),
+        learningTechUrl: row.read<String?>('learning_tech_url'),
+        learningTechTime: row.read<int?>('learning_tech_time'),
+        learningTechCompleted: row.read<bool>('learning_tech_completed'),
+        walkingSteps: row.read<int?>('walking_steps'),
+        walkingTime: row.read<int?>('walking_time'),
+        walkingCompleted: row.read<bool>('walking_completed'),
+        avoidHabitLabel: row.read<String?>('avoid_habit_name'),
+        avoidHabitValue: row.read<bool>('avoid_habit_completed'),
+        avoidSweetsValue: false, // Default value
+        workDoneValue: false, // Default value
+        movieSeriesName: row.read<String?>('movie_series_name'),
+        movieSeriesDuration: row.read<int?>('movie_series_time'),
+        movieSeriesCompleted: row.read<bool>('movie_series_completed'),
+        timezoneOffset: 0, // Default value
+        createdAt: DateTime.parse(row.read<String>('created_at')),
+        updatedAt: DateTime.parse(row.read<String>('updated_at')),
+      );
+    }).toList();
+  }
+
+  /// Get all habits for export
+  Future<List<model.Habit>> getAllHabits() async {
+    return await database.customSelect(
+      'SELECT * FROM habits ORDER BY created_at DESC',
+    ).map((row) {
+      return model.Habit(
+        id: row.read<String>('id'),
+        name: row.read<String>('name'),
+        description: row.read<String>('description'),
+        frequency: HabitFrequency.values.firstWhere(
+          (e) => e.name == row.read<String>('frequency'),
+        ),
+        isActive: row.read<bool>('is_active'),
+        createdAt: DateTime.parse(row.read<String>('created_at')),
+        updatedAt: DateTime.parse(row.read<String>('updated_at')),
+        needsSync: row.read<bool>('needs_sync'),
+        lastSyncAt: row.read<String?>('last_sync_at') != null 
+            ? DateTime.parse(row.read<String>('last_sync_at')) 
+            : null,
+      );
+    }).get();
+  }
+
+  /// Get all goals for export
+  Future<List<model.Goal>> getAllGoals() async {
+    return await database.customSelect(
+      'SELECT * FROM goals ORDER BY created_at DESC',
+    ).map((row) {
+      return model.Goal(
+        id: row.read<String>('id'),
+        title: row.read<String>('title'),
+        description: row.read<String>('description'),
+        category: GoalCategory.values.firstWhere(
+          (e) => e.name == row.read<String>('category'),
+        ),
+        priority: GoalPriority.values.firstWhere(
+          (e) => e.name == row.read<String>('priority'),
+        ),
+        targetDate: DateTime.parse(row.read<String>('target_date')),
+        isCompleted: row.read<bool>('is_completed'),
+        completedAt: row.read<String?>('completed_at') != null 
+            ? DateTime.parse(row.read<String>('completed_at')) 
+            : null,
+        progress: row.read<int>('progress'),
+        createdAt: DateTime.parse(row.read<String>('created_at')),
+        updatedAt: DateTime.parse(row.read<String>('updated_at')),
+        needsSync: row.read<bool>('needs_sync'),
+        lastSyncAt: row.read<String?>('last_sync_at') != null 
+            ? DateTime.parse(row.read<String>('last_sync_at')) 
+            : null,
+      );
+    }).get();
+  }
+
+  /// Get all journal entries for export
+  Future<List<model.JournalEntry>> getAllJournalEntries() async {
+    return await database.customSelect(
+      'SELECT * FROM journal_entries ORDER BY created_at DESC',
+    ).map((row) {
+      return model.JournalEntry(
+        id: row.read<String>('id'),
+        title: row.read<String>('title'),
+        content: row.read<String>('content'),
+        mood: row.read<int>('mood'),
+        tags: (row.read<String>('tags') ?? '').split(',').where((tag) => tag.isNotEmpty).toList(),
+        createdAt: DateTime.parse(row.read<String>('created_at')),
+        updatedAt: DateTime.parse(row.read<String>('updated_at')),
+        needsSync: row.read<bool>('needs_sync'),
+        lastSyncAt: row.read<String?>('last_sync_at') != null 
+            ? DateTime.parse(row.read<String>('last_sync_at')) 
+            : null,
+      );
+    }).get();
   }
 }

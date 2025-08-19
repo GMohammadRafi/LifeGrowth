@@ -31,8 +31,7 @@ class _TaskReminderScreenState extends State<TaskReminderScreen> {
         throw Exception('User not authenticated');
       }
       
-      final dbTasks = await DatabaseService.instance.getAllDailyTasksForUser(userId);
-      final tasks = dbTasks.map((dbTask) => SupabaseService.convertDbToModelTask(dbTask)).toList();
+      final tasks = await DatabaseService.instance.getAllDailyTasksForUser(userId);
       final reminders = await _notificationService.getPendingReminders();
       
       setState(() {
