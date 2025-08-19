@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
+import 'package:fluttertoast/fluttertoast.dart';
 import 'dart:io' show Platform;
 import 'dart:convert';
 
@@ -614,5 +615,138 @@ class NotificationService {
     }
 
     return reminders;
+  }
+
+  // Toast notification methods for sync and conflict notices
+  
+  // Show success toast
+  Future<void> showSuccessToast(String message) async {
+    try {
+      await Fluttertoast.showToast(
+        msg: message,
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 3,
+        backgroundColor: Colors.green,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('NotificationService: Failed to show success toast: $e');
+      }
+    }
+  }
+
+  // Show error toast
+  Future<void> showErrorToast(String message) async {
+    try {
+      await Fluttertoast.showToast(
+        msg: message,
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 5,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('NotificationService: Failed to show error toast: $e');
+      }
+    }
+  }
+
+  // Show warning toast
+  Future<void> showWarningToast(String message) async {
+    try {
+      await Fluttertoast.showToast(
+        msg: message,
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 4,
+        backgroundColor: Colors.orange,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('NotificationService: Failed to show warning toast: $e');
+      }
+    }
+  }
+
+  // Show info toast
+  Future<void> showInfoToast(String message) async {
+    try {
+      await Fluttertoast.showToast(
+        msg: message,
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 3,
+        backgroundColor: Colors.blue,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('NotificationService: Failed to show info toast: $e');
+      }
+    }
+  }
+
+  // Specific toast methods for sync operations
+  Future<void> showSyncStartToast() async {
+    await showInfoToast('Syncing data...');
+  }
+
+  Future<void> showSyncSuccessToast({int? itemsSync}) async {
+    final message = itemsSync != null 
+        ? 'Sync completed successfully ($itemsSync items)'
+        : 'Sync completed successfully';
+    await showSuccessToast(message);
+  }
+
+  Future<void> showSyncErrorToast(String errorMessage) async {
+    await showErrorToast('Sync failed: $errorMessage');
+  }
+
+  Future<void> showConflictNoticeToast(String conflictDetails) async {
+    await showWarningToast('Data conflict detected: $conflictDetails');
+  }
+
+  Future<void> showNetworkErrorToast() async {
+    await showErrorToast('Network error. Please check your connection.');
+  }
+
+  Future<void> showAuthErrorToast() async {
+    await showErrorToast('Authentication failed. Please sign in again.');
+  }
+
+  Future<void> showDataSavedToast() async {
+    await showSuccessToast('Data saved successfully');
+  }
+
+  Future<void> showDataSaveErrorToast() async {
+    await showErrorToast('Failed to save data');
+  }
+
+  Future<void> showTaskCompletedToast(String taskTitle) async {
+    await showSuccessToast('Task completed: $taskTitle');
+  }
+
+  Future<void> showTaskUncompletedToast(String taskTitle) async {
+    await showInfoToast('Task marked as incomplete: $taskTitle');
+  }
+
+  // Cancel all toasts
+  Future<void> cancelAllToasts() async {
+    try {
+      await Fluttertoast.cancel();
+    } catch (e) {
+      if (kDebugMode) {
+        print('NotificationService: Failed to cancel toasts: $e');
+      }
+    }
   }
 }

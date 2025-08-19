@@ -80,6 +80,15 @@ dependencies:
   
   # File sharing functionality
   share_plus: ^10.0.2
+  
+  # Telemetry and analytics
+  firebase_analytics: ^11.3.3
+  
+  # Error reporting
+  sentry_flutter: ^8.9.0
+  
+  # Toast notifications
+  fluttertoast: ^8.2.8
 
 dev_dependencies:
   flutter_test:

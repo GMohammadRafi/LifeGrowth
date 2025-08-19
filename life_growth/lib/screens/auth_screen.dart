@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:local_auth/local_auth.dart';
 import '../services/auth_service.dart';
+import '../services/telemetry_service.dart';
+import '../services/error_service.dart';
+import '../services/notification_service.dart';
 import 'home_screen.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -27,6 +30,11 @@ class _AuthScreenState extends State<AuthScreen> {
   void initState() {
     super.initState();
     _checkBiometricAvailability();
+    
+    // Track screen view for telemetry (fire and forget)
+    TelemetryService().trackScreenView('auth_screen').catchError((e) {
+      ErrorService().reportError(e, StackTrace.current, context: 'auth_screen_view');
+    });
   }
 
   @override
@@ -66,6 +74,17 @@ class _AuthScreenState extends State<AuthScreen> {
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
+        
+        // Track authentication event for telemetry
+        try {
+          await TelemetryService().trackAuthEvent(
+            eventType: 'sign_up',
+            method: 'email',
+          );
+          await NotificationService().showSuccessToast('Account created successfully!');
+        } catch (e) {
+          await ErrorService().reportError(e, StackTrace.current, context: 'email_auth');
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -80,6 +99,17 @@ class _AuthScreenState extends State<AuthScreen> {
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
+        
+        // Track authentication event for telemetry
+        try {
+          await TelemetryService().trackAuthEvent(
+            eventType: 'sign_in',
+            method: 'email',
+          );
+          await NotificationService().showSuccessToast('Signed in successfully!');
+        } catch (e) {
+          await ErrorService().reportError(e, StackTrace.current, context: 'email_auth');
+        }
 
         // Background sync will be managed by app lifecycle
 
@@ -90,10 +120,34 @@ class _AuthScreenState extends State<AuthScreen> {
         }
       }
     } on AuthException catch (e) {
+      // Track authentication error
+        try {
+          await ErrorService().reportError(e, StackTrace.current, context: 'auth_failed');
+          await TelemetryService().trackError(
+            errorType: 'auth_failed',
+            errorMessage: e.message ?? 'Authentication failed',
+          );
+          await NotificationService().showErrorToast('Authentication failed');
+        } catch (telemetryError) {
+          // Silently fail telemetry to avoid cascading errors
+        }
+      
       setState(() {
         _errorMessage = e.message;
       });
     } catch (e) {
+      // Track unexpected error
+        try {
+          await ErrorService().reportError(e, StackTrace.current, context: 'auth_unexpected_error');
+          await TelemetryService().trackError(
+            errorType: 'auth_unexpected_error',
+            errorMessage: e.toString(),
+          );
+          await NotificationService().showErrorToast('An unexpected error occurred');
+        } catch (telemetryError) {
+          // Silently fail telemetry to avoid cascading errors
+        }
+      
       setState(() {
         _errorMessage = 'An unexpected error occurred';
       });
@@ -114,6 +168,17 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       await AuthService.signInWithGoogle();
+      
+      // Track authentication event for telemetry
+      try {
+        await TelemetryService().trackAuthEvent(
+          eventType: 'sign_in',
+          method: 'google',
+        );
+        await NotificationService().showSuccessToast('Signed in with Google successfully!');
+      } catch (e) {
+        await ErrorService().reportError(e, StackTrace.current, context: 'google_auth');
+      }
 
       // Background sync will be managed by app lifecycle
 
@@ -143,6 +208,17 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       await AuthService.signInWithGitHub();
+      
+      // Track authentication event for telemetry
+      try {
+        await TelemetryService().trackAuthEvent(
+          eventType: 'sign_in',
+          method: 'github',
+        );
+        await NotificationService().showSuccessToast('Signed in with GitHub successfully!');
+      } catch (e) {
+        await ErrorService().reportError(e, StackTrace.current, context: 'github_auth');
+      }
 
       // Background sync will be managed by app lifecycle
 
@@ -178,6 +254,17 @@ class _AuthScreenState extends State<AuthScreen> {
       if (didAuthenticate && mounted) {
         // Check if user is already signed in after biometric auth
         if (AuthService.isAuthenticated) {
+          // Track authentication event for telemetry
+          try {
+            await TelemetryService().trackAuthEvent(
+              eventType: 'sign_in',
+              method: 'biometric',
+            );
+            await NotificationService().showSuccessToast('Biometric authentication successful!');
+          } catch (e) {
+            await ErrorService().reportError(e, StackTrace.current, context: 'biometric_auth');
+          }
+          
           // Background sync will be managed by app lifecycle
 
           Navigator.of(context).pushReplacement(

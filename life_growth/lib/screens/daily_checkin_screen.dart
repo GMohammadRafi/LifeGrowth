@@ -5,6 +5,9 @@ import '../models/personalization_settings.dart';
 import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
 import '../services/personalization_service.dart';
+import '../services/telemetry_service.dart';
+import '../services/error_service.dart';
+import '../services/notification_service.dart';
 import 'personalization_screen.dart';
 
 class DailyCheckinScreen extends StatefulWidget {
@@ -58,6 +61,13 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
     _initializeTask();
     _setupFormControllers();
     _initializePersonalization();
+    
+    // Track screen view for telemetry
+    try {
+      TelemetryService().trackScreenView('daily_checkin_screen');
+    } catch (e) {
+      ErrorService().reportError(e, StackTrace.current, context: 'daily_checkin_screen_view');
+    }
   }
   
   Future<void> _initializePersonalization() async {
@@ -185,10 +195,110 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
   }
 
   void _updateTaskField<T>(T value, model.DailyTask Function(T) updater) {
+    final oldTask = _currentTask;
     setState(() {
       _currentTask = updater(value);
       _hasChanges = true;
     });
+    
+    // Track task completion changes for telemetry
+    _trackTaskCompletionChanges(oldTask, _currentTask);
+  }
+  
+  void _trackTaskCompletionChanges(model.DailyTask oldTask, model.DailyTask newTask) {
+    try {
+      // Track reading book completion
+      if (oldTask.readingBookCompleted != newTask.readingBookCompleted) {
+        TelemetryService().trackTaskToggle(
+          taskId: 'reading_book',
+          isCompleted: newTask.readingBookCompleted,
+          category: 'daily_task',
+        );
+      }
+      
+      // Track stretch completion
+      if (oldTask.stretchCompleted != newTask.stretchCompleted) {
+        TelemetryService().trackTaskToggle(
+          taskId: 'stretch',
+          isCompleted: newTask.stretchCompleted,
+          category: 'daily_task',
+        );
+      }
+      
+      // Track meditation completion
+      if (oldTask.meditationCompleted != newTask.meditationCompleted) {
+        TelemetryService().trackTaskToggle(
+          taskId: 'meditation',
+          isCompleted: newTask.meditationCompleted,
+          category: 'daily_task',
+        );
+      }
+      
+      // Track reading docs completion
+      if (oldTask.readingDocsCompleted != newTask.readingDocsCompleted) {
+        TelemetryService().trackTaskToggle(
+          taskId: 'reading_docs',
+          isCompleted: newTask.readingDocsCompleted,
+          category: 'daily_task',
+        );
+      }
+      
+      // Track learning tech completion
+      if (oldTask.learningTechCompleted != newTask.learningTechCompleted) {
+        TelemetryService().trackTaskToggle(
+          taskId: 'learning_tech',
+          isCompleted: newTask.learningTechCompleted,
+          category: 'daily_task',
+        );
+      }
+      
+      // Track walking completion
+      if (oldTask.walkingCompleted != newTask.walkingCompleted) {
+        TelemetryService().trackTaskToggle(
+          taskId: 'walking',
+          isCompleted: newTask.walkingCompleted,
+          category: 'daily_task',
+        );
+      }
+      
+      // Track avoid habit value
+      if (oldTask.avoidHabitValue != newTask.avoidHabitValue) {
+        TelemetryService().trackTaskToggle(
+          taskId: 'avoid_habit',
+          isCompleted: newTask.avoidHabitValue,
+          category: 'daily_task',
+        );
+      }
+      
+      // Track avoid sweets value
+      if (oldTask.avoidSweetsValue != newTask.avoidSweetsValue) {
+        TelemetryService().trackTaskToggle(
+          taskId: 'avoid_sweets',
+          isCompleted: newTask.avoidSweetsValue,
+          category: 'daily_task',
+        );
+      }
+      
+      // Track work done value
+      if (oldTask.workDoneValue != newTask.workDoneValue) {
+        TelemetryService().trackTaskToggle(
+          taskId: 'work_done',
+          isCompleted: newTask.workDoneValue,
+          category: 'daily_task',
+        );
+      }
+      
+      // Track movie/series completion
+      if (oldTask.movieSeriesCompleted != newTask.movieSeriesCompleted) {
+        TelemetryService().trackTaskToggle(
+          taskId: 'movie_series',
+          isCompleted: newTask.movieSeriesCompleted,
+          category: 'daily_task',
+        );
+      }
+    } catch (e) {
+      ErrorService().reportError(e, StackTrace.current, context: 'task_completion_tracking');
+    }
   }
 
   Future<void> _saveTask() async {
@@ -264,6 +374,20 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
       );
 
       await SupabaseService.upsertDailyTask(updatedTask);
+      
+      // Track task detail edit for telemetry
+      try {
+        TelemetryService().trackTaskDetailEdit(
+          taskDate: updatedTask.date,
+          completedTasksCount: updatedTask.completedTasksCount,
+          hasNotes: updatedTask.notes?.isNotEmpty ?? false,
+        );
+        
+        // Show success toast
+        NotificationService().showSuccessToast('Daily check-in saved successfully!');
+      } catch (e) {
+        ErrorService().reportError(e, StackTrace.current, context: 'task_detail_edit_tracking');
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -276,6 +400,18 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
             .pop(true); // Return true to indicate changes were saved
       }
     } catch (e) {
+      // Track error for telemetry and error reporting
+      try {
+        ErrorService().reportError(e, StackTrace.current, context: 'daily_task_save_failed');
+        TelemetryService().trackError(
+          errorType: 'daily_task_save_failed',
+          errorMessage: e.toString(),
+        );
+        NotificationService().showErrorToast('Failed to save daily check-in');
+      } catch (telemetryError) {
+        // Silently fail telemetry to avoid cascading errors
+      }
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

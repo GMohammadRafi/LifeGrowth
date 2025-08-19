@@ -12,6 +12,8 @@ import 'services/database_service.dart';
 import 'services/background_sync_manager.dart';
 import 'services/notification_service.dart';
 import 'services/theme_service.dart';
+import 'services/telemetry_service.dart';
+import 'services/error_service.dart';
 import 'providers/theme_provider.dart';
 import 'providers/undo_provider.dart';
 import 'screens/auth_screen.dart';
@@ -127,6 +129,37 @@ void main() async {
       if (kDebugMode) {
         print('Failed to initialize notification service: $e');
       }
+    }
+  }
+
+  // Initialize telemetry service
+  try {
+    await TelemetryService().initialize();
+    if (kDebugMode) {
+      print('Telemetry service initialized successfully');
+    }
+  } catch (e) {
+    if (kDebugMode) {
+      print('Failed to initialize telemetry service: $e');
+    }
+  }
+
+  // Initialize error service
+  try {
+    final sentryDsn = dotenv.env['SENTRY_DSN'];
+    if (sentryDsn != null && sentryDsn.isNotEmpty) {
+      await ErrorService().initialize(sentryDsn);
+      if (kDebugMode) {
+        print('Error service initialized successfully');
+      }
+    } else {
+      if (kDebugMode) {
+        print('Sentry DSN not found in environment variables');
+      }
+    }
+  } catch (e) {
+    if (kDebugMode) {
+      print('Failed to initialize error service: $e');
     }
   }
 

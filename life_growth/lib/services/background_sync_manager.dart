@@ -5,6 +5,8 @@ import 'notification_service.dart';
 import 'background_task_handler.dart' as bg_handler;
 import 'supabase_service.dart';
 import 'auth_service.dart';
+import 'telemetry_service.dart';
+import 'error_service.dart';
 
 class BackgroundSyncManager {
   static const String _syncTaskName = 'life_growth_sync';
@@ -204,12 +206,32 @@ class BackgroundSyncManager {
         print('Performing direct sync for user: $userId');
       }
 
+      // Track sync start
+      await TelemetryService().trackSyncStart();
+      await NotificationService().showSyncStartToast();
+
       await SupabaseService.syncAllPendingChanges(userId);
+
+      // Track sync success
+      await TelemetryService().trackSyncFinish(success: true);
+      await NotificationService().showSyncSuccessToast();
 
       if (kDebugMode) {
         print('Direct sync completed successfully');
       }
     } catch (e) {
+      // Track sync failure
+      await TelemetryService().trackSyncFinish(
+        success: false,
+        errorMessage: e.toString(),
+      );
+      await ErrorService().reportError(
+        e,
+        StackTrace.current,
+        context: 'direct_sync',
+      );
+      await NotificationService().showSyncErrorToast(e.toString());
+
       if (kDebugMode) {
         print('Direct sync failed: $e');
       }
