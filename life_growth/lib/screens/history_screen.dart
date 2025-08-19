@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/daily_task.dart' as model;
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
+import '../services/supabase_service.dart';
 import '../services/telemetry_service.dart';
 import '../providers/undo_provider.dart';
 import 'daily_checkin_screen.dart';
@@ -30,7 +31,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     // Track screen view
     TelemetryService().trackScreenView('history_screen');
     _selectedDay = DateTime.now();
-    _selectedTasks = ValueNotifier(_getTasksForDay(_selectedDay!));
+    _selectedTasks = ValueNotifier(_getTasksForDayCalendar(_selectedDay!));
     _loadHistoryData();
   }
 
@@ -68,7 +69,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       });
 
       // Update selected tasks
-      _selectedTasks.value = _getTasksForDay(_selectedDay!);
+      _selectedTasks.value = _getTasksForDayCalendar(_selectedDay!);
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
@@ -85,6 +86,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
   List<model.DailyTask> _getTasksForDay(DateTime day) {
     final dateKey = DateTime(day.year, day.month, day.day);
     return _tasksByDate[dateKey] ?? [];
+  }
+
+  List<model.DailyTask> _getTasksForDayCalendar(DateTime day) {
+    final dateKey = DateTime(day.year, day.month, day.day);
+    final tasks = _tasksByDate[dateKey] ?? [];
+    
+    // Filter deleted tasks based on _includeDeleted setting
+    if (_includeDeleted) {
+      return tasks; // Show all tasks including deleted ones
+    } else {
+      return tasks.where((task) => task.deletedAt == null).toList(); // Only show non-deleted tasks
+    }
   }
 
   int _getCompletedTasksCount(model.DailyTask task) {
@@ -108,22 +121,40 @@ class _HistoryScreenState extends State<HistoryScreen> {
       final undoProvider = Provider.of<UndoProvider>(context, listen: false);
       undoProvider.recordDelete(task);
       
-      await DatabaseService.instance
-          .softDeleteDailyTask(AuthService.userId!, task.date);
+      // Use SupabaseService for proper sync to Supabase
+      await SupabaseService.softDeleteDailyTask(
+        userId: AuthService.userId!,
+        date: task.date,
+      );
+
+      // Update UI immediately
+      await _loadHistoryData();
+      _selectedTasks.value = _getTasksForDayCalendar(_selectedDay!);
 
       if (mounted) {
+        // Clear any existing snackbars first
+        ScaffoldMessenger.of(context).clearSnackBars();
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Task deleted'),
+            duration: const Duration(seconds: 4),
             action: SnackBarAction(
               label: 'Undo',
               onPressed: () async {
+                // Clear the current snackbar
+                ScaffoldMessenger.of(context).clearSnackBars();
+                
                 final success = await undoProvider.undoLastAction();
                 if (success) {
                   await _loadHistoryData();
+                  _selectedTasks.value = _getTasksForDayCalendar(_selectedDay!);
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Task restored')),
+                      const SnackBar(
+                        content: Text('Task restored'),
+                        duration: Duration(seconds: 2),
+                      ),
                     );
                   }
                 } else {
@@ -132,6 +163,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       const SnackBar(
                         content: Text('Failed to undo action'),
                         backgroundColor: Colors.red,
+                        duration: Duration(seconds: 3),
                       ),
                     );
                   }
@@ -141,14 +173,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
         );
       }
-
-      await _loadHistoryData();
     } catch (e) {
+      // Reload data to ensure UI is consistent
+      await _loadHistoryData();
+      _selectedTasks.value = _getTasksForDayCalendar(_selectedDay!);
+      
       if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to delete task: $e'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -157,22 +193,33 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Future<void> _restoreTask(model.DailyTask task) async {
     try {
-      await DatabaseService.instance
-          .restoreDailyTask(AuthService.userId!, task.date);
+      // Use SupabaseService for proper sync to Supabase
+      await SupabaseService.restoreDailyTask(
+        userId: AuthService.userId!,
+        date: task.date,
+      );
+
+      // Update UI immediately
+      await _loadHistoryData();
+      _selectedTasks.value = _getTasksForDayCalendar(_selectedDay!);
 
       if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Task restored')),
+          const SnackBar(
+            content: Text('Task restored'),
+            duration: Duration(seconds: 2),
+          ),
         );
       }
-
-      await _loadHistoryData();
     } catch (e) {
       if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to restore task: $e'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -185,7 +232,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         _selectedDay = selectedDay;
         _focusedDay = focusedDay;
       });
-      _selectedTasks.value = _getTasksForDay(selectedDay);
+      _selectedTasks.value = _getTasksForDayCalendar(selectedDay);
     }
   }
 
@@ -205,11 +252,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     : _getCompletedTasksCount(task) > 2
                         ? Colors.orange
                         : Colors.red),
-            child: Text(
-              '${_getCompletedTasksCount(task)}',
-              style: const TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.bold),
-            ),
+            child: isDeleted
+                ? const Icon(
+                    Icons.visibility_off,
+                    color: Colors.white,
+                    size: 18,
+                  )
+                : Text(
+                    '${_getCompletedTasksCount(task)}',
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
           ),
           title: Text(
             '${task.date.day}/${task.date.month}/${task.date.year}',
@@ -322,6 +375,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 _includeDeleted = !_includeDeleted;
               });
               _loadHistoryData();
+              _selectedTasks.value = _getTasksForDayCalendar(_selectedDay!);
             },
             tooltip: _includeDeleted ? 'Hide deleted' : 'Show deleted',
           ),
@@ -342,7 +396,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   lastDay: DateTime.utc(2030, 12, 31),
                   focusedDay: _focusedDay,
                   calendarFormat: _calendarFormat,
-                  eventLoader: _getTasksForDay,
+                  eventLoader: _getTasksForDayCalendar,
                   startingDayOfWeek: StartingDayOfWeek.monday,
                   calendarStyle: const CalendarStyle(
                     outsideDaysVisible: false,
@@ -379,32 +433,42 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     markerBuilder: (context, day, tasks) {
                       if (tasks.isNotEmpty) {
                         final task = tasks.first;
-                        final isDeleted = task.deletedAt != null;
-                        return Container(
-                          margin: const EdgeInsets.only(top: 5),
-                          alignment: Alignment.center,
+                        final hasDeleted = tasks.any((t) => t.deletedAt != null);
+                        return Positioned(
+                          bottom: 1,
+                          right: 1,
                           child: Container(
-                            width: 16,
-                            height: 16,
+                            width: 18,
+                            height: 18,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: isDeleted
+                              color: hasDeleted
                                   ? Colors.grey
                                   : (_getCompletedTasksCount(task) > 5
                                       ? Colors.green
                                       : _getCompletedTasksCount(task) > 2
                                           ? Colors.orange
                                           : Colors.red),
+                              border: Border.all(
+                                color: Colors.white,
+                                width: 1,
+                              ),
                             ),
                             child: Center(
-                              child: Text(
-                                '${_getCompletedTasksCount(task)}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                              child: hasDeleted
+                                  ? const Icon(
+                                      Icons.visibility_off,
+                                      color: Colors.white,
+                                      size: 10,
+                                    )
+                                  : Text(
+                                      '${_getCompletedTasksCount(task)}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                             ),
                           ),
                         );

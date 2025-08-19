@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/daily_task.dart' as model;
 import '../services/database_service.dart';
+import '../services/supabase_service.dart';
 
 class UndoAction {
   final String id;
@@ -87,28 +88,28 @@ class UndoProvider extends ChangeNotifier {
     try {
       switch (action.type) {
         case 'delete':
-          // Restore the deleted task
+          // Restore the deleted task using SupabaseService for proper sync
           if (action.previousState != null) {
-            await _databaseService.restoreDailyTask(
-              action.previousState!.userId!,
-              action.previousState!.date,
+            await SupabaseService.restoreDailyTask(
+              userId: action.previousState!.userId!,
+              date: action.previousState!.date,
             );
           }
           break;
           
         case 'edit':
-          // Restore the previous state
+          // Restore the previous state using SupabaseService for proper sync
           if (action.previousState != null) {
-            await _databaseService.upsertDailyTask(action.previousState!);
+            await SupabaseService.upsertDailyTask(action.previousState!);
           }
           break;
           
         case 'create':
-          // Delete the created task
+          // Delete the created task using SupabaseService for proper sync
           if (action.currentState != null) {
-            await _databaseService.softDeleteDailyTask(
-              action.currentState!.userId!,
-              action.currentState!.date,
+            await SupabaseService.softDeleteDailyTask(
+              userId: action.currentState!.userId!,
+              date: action.currentState!.date,
             );
           }
           break;
