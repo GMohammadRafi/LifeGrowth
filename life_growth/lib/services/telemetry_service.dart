@@ -244,4 +244,30 @@ class TelemetryService {
       }
     }
   }
+
+  // Generic event tracking method
+  Future<void> trackEvent(String eventName, [Map<String, dynamic>? parameters]) async {
+    try {
+      final eventParameters = <String, Object>{
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      };
+      
+      if (parameters != null) {
+        parameters.forEach((key, value) {
+          if (value != null) {
+            eventParameters[key] = value;
+          }
+        });
+      }
+      
+      await _analytics.logEvent(
+        name: eventName,
+        parameters: eventParameters,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('TelemetryService: Failed to track event "$eventName": $e');
+      }
+    }
+  }
 }

@@ -11,6 +11,7 @@ import '../database/tables.dart';
 import 'auth_service.dart';
 import 'background_task_handler.dart';
 import 'database_service.dart';
+import 'error_service.dart';
 
 class SyncService {
   static const String _syncTaskName = 'background_sync';
@@ -113,6 +114,12 @@ class SyncService {
 
       return await performFullSync(userId);
     } catch (e) {
+      // Report error to error service
+      ErrorService().reportException(e, StackTrace.current, {
+        'context': 'sync_service_perform_sync',
+        'user_authenticated': await AuthService.hasValidSession(),
+      });
+      
       return SyncResult(
         hasErrors: true,
         syncedItemsCount: 0,
@@ -179,6 +186,11 @@ class SyncService {
         if (kDebugMode) {
           print('Check-ins sync failed: $e');
         }
+        // Report error to error service
+        ErrorService().reportException(e, StackTrace.current, {
+          'context': 'sync_service_checkins_sync',
+          'user_id': userId,
+        });
       }
 
       // Sync goals
@@ -199,6 +211,11 @@ class SyncService {
         if (kDebugMode) {
           print('Goals sync failed: $e');
         }
+        // Report error to error service
+        ErrorService().reportException(e, StackTrace.current, {
+          'context': 'sync_service_goals_sync',
+          'user_id': userId,
+        });
       }
 
       // Sync journal entries
@@ -219,6 +236,11 @@ class SyncService {
         if (kDebugMode) {
           print('Journal sync failed: $e');
         }
+        // Report error to error service
+        ErrorService().reportException(e, StackTrace.current, {
+          'context': 'sync_service_journal_sync',
+          'user_id': userId,
+        });
       }
 
       final result = SyncResult(
@@ -238,6 +260,12 @@ class SyncService {
       if (kDebugMode) {
         print('Full sync failed: $e');
       }
+
+      // Report error to error service
+      ErrorService().reportException(e, StackTrace.current, {
+        'context': 'sync_service_perform_full_sync',
+        'user_id': userId,
+      });
 
       return SyncResult(
         hasConflicts: false,

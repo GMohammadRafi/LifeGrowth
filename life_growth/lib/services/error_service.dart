@@ -217,4 +217,21 @@ class ErrorService {
       return fallbackValue;
     }
   }
+
+  // Alias for reportError to maintain compatibility
+  Future<void> reportException(
+    dynamic exception,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? additionalData, {
+    String? context,
+    SentryLevel level = SentryLevel.error,
+  }) async {
+    await reportError(
+      exception,
+      stackTrace,
+      context: context,
+      additionalData: additionalData,
+      level: level,
+    );
+  }
 }

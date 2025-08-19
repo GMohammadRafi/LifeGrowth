@@ -125,7 +125,7 @@ class _AuthScreenState extends State<AuthScreen> {
           await ErrorService().reportError(e, StackTrace.current, context: 'auth_failed');
           await TelemetryService().trackError(
             errorType: 'auth_failed',
-            errorMessage: e.message ?? 'Authentication failed',
+            errorMessage: e.message,
           );
           await NotificationService().showErrorToast('Authentication failed');
         } catch (telemetryError) {

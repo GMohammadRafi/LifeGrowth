@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
 import '../services/background_sync_manager.dart';
 import '../services/personalization_service.dart';
+import '../services/telemetry_service.dart';
 import '../models/daily_task.dart' as model;
 import '../models/personalization_settings.dart';
 import '../providers/undo_provider.dart';
@@ -35,6 +36,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    // Track screen view
+    TelemetryService().trackScreenView('home_screen');
     _initializePersonalization();
     _loadTodayTask();
   }

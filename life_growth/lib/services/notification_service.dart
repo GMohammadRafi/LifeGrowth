@@ -6,6 +6,8 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:fluttertoast/fluttertoast.dart';
 import 'dart:io' show Platform;
 import 'dart:convert';
+import 'telemetry_service.dart';
+import 'error_service.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -90,18 +92,37 @@ class NotificationService {
       print('Notification tapped: ${response.payload}');
     }
 
-    // Handle different notification types
-    if (response.payload != null) {
-      final payload = response.payload!;
-      if (payload.startsWith('daily_reminder')) {
-        // Handle daily reminder tap - could navigate to daily check-in
-      } else if (payload.startsWith('task_reminder:')) {
-        // Handle task reminder tap - could navigate to specific task
-        final taskId = payload.split(':')[1];
-        if (kDebugMode) {
-          print('Task reminder tapped for task: $taskId');
+    try {
+      // Track notification interaction
+      TelemetryService().trackEvent('notification_tapped', {
+        'notification_id': response.id?.toString() ?? 'unknown',
+        'payload': response.payload ?? 'none',
+      });
+
+      // Handle different notification types
+      if (response.payload != null) {
+        final payload = response.payload!;
+        if (payload.startsWith('daily_reminder')) {
+          // Handle daily reminder tap - could navigate to daily check-in
+          TelemetryService().trackEvent('daily_reminder_notification_tapped');
+        } else if (payload.startsWith('task_reminder:')) {
+          // Handle task reminder tap - could navigate to specific task
+          final taskId = payload.split(':')[1];
+          TelemetryService().trackEvent('task_reminder_notification_tapped', {
+            'task_id': taskId,
+          });
+          if (kDebugMode) {
+            print('Task reminder tapped for task: $taskId');
+          }
         }
       }
+    } catch (e) {
+      // Report error to error service
+      ErrorService().reportException(e, StackTrace.current, {
+        'context': 'notification_service_on_notification_tapped',
+        'notification_id': response.id?.toString() ?? 'unknown',
+        'payload': response.payload ?? 'none',
+      });
     }
   }
 

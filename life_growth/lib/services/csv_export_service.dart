@@ -2,12 +2,9 @@ import 'dart:io';
 import 'package:csv/csv.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import '../models/daily_checkin.dart' as daily_checkin_model;
 import '../models/daily_task.dart' as daily_task_model;
-import '../models/habit.dart' as habit_model;
-import '../models/goal.dart' as goal_model;
-import '../models/journal_entry.dart' as journal_entry_model;
 import 'database_service.dart';
+import 'error_service.dart';
 
 class CsvExportService {
   static final CsvExportService _instance = CsvExportService._internal();
@@ -42,6 +39,10 @@ class CsvExportService {
         );
       }
     } catch (e) {
+      // Report error to error service
+      ErrorService().reportException(e, StackTrace.current, {
+        'context': 'csv_export_service_export_all_data',
+      });
       throw Exception('Failed to export data: $e');
     }
   }
@@ -80,6 +81,11 @@ class CsvExportService {
         subject: 'Life Growth $dataType Export',
       );
     } catch (e) {
+      // Report error to error service
+      ErrorService().reportException(e, StackTrace.current, {
+        'context': 'csv_export_service_export_data_type',
+        'data_type': dataType,
+      });
       throw Exception('Failed to export $dataType: $e');
     }
   }

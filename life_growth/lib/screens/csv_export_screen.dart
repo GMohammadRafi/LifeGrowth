@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/csv_export_service.dart';
+import '../services/telemetry_service.dart';
+import '../services/error_service.dart';
 
 class CsvExportScreen extends StatefulWidget {
   const CsvExportScreen({super.key});
@@ -11,6 +13,13 @@ class CsvExportScreen extends StatefulWidget {
 class _CsvExportScreenState extends State<CsvExportScreen> {
   final CsvExportService _exportService = CsvExportService();
   bool _isExporting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Track screen view
+    TelemetryService().trackScreenView('csv_export_screen');
+  }
 
   final List<Map<String, dynamic>> _exportOptions = [
     {
@@ -59,11 +68,22 @@ class _CsvExportScreenState extends State<CsvExportScreen> {
     });
 
     try {
+      // Track export action
+      TelemetryService().trackEvent('csv_export_started', {
+        'export_type': type,
+      });
+
       if (type == 'all') {
         await _exportService.exportAllData();
       } else {
         await _exportService.exportDataType(type);
       }
+
+      // Track successful export
+      TelemetryService().trackEvent('csv_export_completed', {
+        'export_type': type,
+        'success': true,
+      });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -79,6 +99,19 @@ class _CsvExportScreenState extends State<CsvExportScreen> {
         );
       }
     } catch (e) {
+      // Track export failure
+      TelemetryService().trackEvent('csv_export_completed', {
+        'export_type': type,
+        'success': false,
+        'error': e.toString(),
+      });
+
+      // Report error to error service
+      ErrorService().reportException(e, StackTrace.current, {
+        'context': 'csv_export_screen_export_data',
+        'export_type': type,
+      });
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

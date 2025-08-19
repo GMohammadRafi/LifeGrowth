@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../services/database_service.dart';
 import '../services/auth_service.dart';
+import '../services/telemetry_service.dart';
 import '../models/daily_task.dart' as model;
 
 class AnalyticsScreen extends StatefulWidget {
@@ -28,6 +29,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   @override
   void initState() {
     super.initState();
+    // Track screen view
+    TelemetryService().trackScreenView('analytics_screen');
     _loadAnalyticsData();
   }
 

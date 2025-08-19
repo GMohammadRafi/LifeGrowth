@@ -353,7 +353,7 @@ class DatabaseService {
         title: row.read<String>('title'),
         content: row.read<String>('content'),
         mood: row.read<int>('mood'),
-        tags: (row.read<String>('tags') ?? '').split(',').where((tag) => tag.isNotEmpty).toList(),
+        tags: row.read<String>('tags').split(',').where((tag) => tag.isNotEmpty).toList(),
         createdAt: DateTime.parse(row.read<String>('created_at')),
         updatedAt: DateTime.parse(row.read<String>('updated_at')),
         needsSync: row.read<bool>('needs_sync'),

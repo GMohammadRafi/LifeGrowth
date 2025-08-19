@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../services/notification_service.dart';
+import '../services/telemetry_service.dart';
 import '../models/daily_task.dart' as model;
 import '../services/database_service.dart';
 import '../services/auth_service.dart';
-import '../services/supabase_service.dart';
 
 class TaskReminderScreen extends StatefulWidget {
   const TaskReminderScreen({super.key});
@@ -21,6 +21,8 @@ class _TaskReminderScreenState extends State<TaskReminderScreen> {
   @override
   void initState() {
     super.initState();
+    // Track screen view
+    TelemetryService().trackScreenView('task_reminder_screen');
     _loadTasksAndReminders();
   }
 

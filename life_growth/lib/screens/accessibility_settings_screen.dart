@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
+import '../services/telemetry_service.dart';
 
 class AccessibilitySettingsScreen extends StatelessWidget {
   const AccessibilitySettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Track screen view
+    TelemetryService().trackScreenView('accessibility_settings_screen');
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text(

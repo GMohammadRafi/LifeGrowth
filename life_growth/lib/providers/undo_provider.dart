@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/daily_task.dart' as model;
-import '../database/database.dart';
 import '../services/database_service.dart';
-import '../services/auth_service.dart';
 
 class UndoAction {
   final String id;

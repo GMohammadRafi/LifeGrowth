@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/daily_task.dart' as model;
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
-import '../services/supabase_service.dart';
+import '../services/telemetry_service.dart';
 import '../providers/undo_provider.dart';
 import 'daily_checkin_screen.dart';
 
@@ -27,6 +27,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void initState() {
     super.initState();
+    // Track screen view
+    TelemetryService().trackScreenView('history_screen');
     _selectedDay = DateTime.now();
     _selectedTasks = ValueNotifier(_getTasksForDay(_selectedDay!));
     _loadHistoryData();

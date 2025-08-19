@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/personalization_settings.dart';
 import '../services/personalization_service.dart';
 import '../services/notification_service.dart';
+import '../services/telemetry_service.dart';
 
 class PersonalizationScreen extends StatefulWidget {
   const PersonalizationScreen({super.key});
@@ -22,6 +23,8 @@ class _PersonalizationScreenState extends State<PersonalizationScreen> {
   @override
   void initState() {
     super.initState();
+    // Track screen view
+    TelemetryService().trackScreenView('personalization_screen');
     _initializeService();
   }
 
