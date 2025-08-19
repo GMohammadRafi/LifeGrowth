@@ -19,13 +19,25 @@ class TelemetryService {
       // Set analytics collection enabled
       await _analytics.setAnalyticsCollectionEnabled(true);
       
+      // Send a test event to verify Firebase Analytics is working
+      await _analytics.logEvent(
+        name: 'app_initialized',
+        parameters: {
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+          'platform': 'flutter',
+        },
+      );
+      
       if (kDebugMode) {
-        print('TelemetryService: Firebase Analytics initialized');
+        print('TelemetryService: Firebase Analytics initialized successfully');
+        print('TelemetryService: Test event sent to verify analytics');
       }
     } catch (e) {
       if (kDebugMode) {
         print('TelemetryService: Failed to initialize Firebase Analytics: $e');
+        print('TelemetryService: Stack trace: ${StackTrace.current}');
       }
+      rethrow;
     }
   }
 
