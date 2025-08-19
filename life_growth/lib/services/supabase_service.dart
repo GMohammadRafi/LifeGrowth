@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/daily_task.dart' as model;
 import '../database/database.dart';
@@ -182,7 +183,10 @@ class SupabaseService {
       
       // Validate userId before proceeding
       if (modelTask.userId == null || modelTask.userId!.isEmpty) {
-        throw Exception('Cannot sync task: userId is null or empty');
+        if (kDebugMode) {
+          print('Skipping task sync: userId is null or empty for task on ${modelTask.date}');
+        }
+        return; // Skip this task instead of throwing an exception
       }
       
       final taskJson = modelTask.toJson();
@@ -348,6 +352,11 @@ class SupabaseService {
       throw ArgumentError('userId cannot be empty');
     }
     
+    // Additional check for authentication state
+    if (!AuthService.isAuthenticated) {
+      throw StateError('User is not authenticated');
+    }
+    
     await _performSyncWithRetry(userId, maxRetries: 3);
   }
 
@@ -361,7 +370,17 @@ class SupabaseService {
         final tasksToSync = await DatabaseService.instance.getTasksToSync();
 
         for (final task in tasksToSync) {
-          await _syncTaskToSupabase(task);
+          if (task.userId == null || task.userId!.isEmpty) {
+            print('Skipping task sync: userId is null or empty for task on ${task.date}');
+            continue; // Skip this task instead of throwing an exception
+          }
+          try {
+            await _syncTaskToSupabase(task);
+          } catch (e) {
+            print('Failed to sync task on ${task.date}: $e');
+            // Continue with other tasks instead of failing completely
+            continue;
+          }
         }
 
         // Pull latest changes from Supabase

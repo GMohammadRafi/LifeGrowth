@@ -195,7 +195,7 @@ class BackgroundSyncManager {
       final userId = AuthService.userId;
       if (userId == null || userId.isEmpty) {
         if (kDebugMode) {
-          print('No user ID available, skipping sync');
+          print('User ID not available or empty, skipping sync');
         }
         return;
       }
@@ -212,6 +212,13 @@ class BackgroundSyncManager {
     } catch (e) {
       if (kDebugMode) {
         print('Direct sync failed: $e');
+      }
+      // Don't rethrow for authentication-related errors on desktop
+      if (e.toString().contains('userId is null or empty')) {
+        if (kDebugMode) {
+          print('Skipping sync due to authentication issue');
+        }
+        return;
       }
       rethrow;
     }

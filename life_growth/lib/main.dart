@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -34,7 +35,28 @@ void main() async {
     await Supabase.initialize(
       url: supabaseUrl,
       anonKey: supabaseAnonKey,
+      authOptions: const FlutterAuthClientOptions(
+        authFlowType: AuthFlowType.pkce,
+      ),
     );
+    
+    // Wait for session recovery on desktop platforms
+    if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+      // Give Supabase time to restore the session
+      await Future.delayed(const Duration(milliseconds: 1000));
+      
+      // Try to refresh the session if it exists
+      try {
+        final session = Supabase.instance.client.auth.currentSession;
+        if (session != null) {
+          await Supabase.instance.client.auth.refreshSession();
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Session refresh failed: $e');
+        }
+      }
+    }
   }
 
   // Initialize timezone data
@@ -182,7 +204,18 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
       }
     });
 
-    // Check for biometric authentication on app start
+    // Check biometric on app start and wait for session restoration
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _waitForSessionRestoration();
+    });
+  }
+
+  Future<void> _waitForSessionRestoration() async {
+    // On desktop platforms, wait a bit longer for session restoration
+    if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+      await Future.delayed(const Duration(milliseconds: 2000));
+    }
+    
     _checkBiometricOnStart();
   }
 
