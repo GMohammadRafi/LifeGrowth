@@ -599,8 +599,46 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
 
-                          // Task list
-                          ..._buildPersonalizedTaskList(),
+                          // Incomplete Tasks Section
+                          if (_getIncompleteTaskWidgets().isNotEmpty) ...[
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              child: Text(
+                                'Today\'s Tasks',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                            ),
+                            ..._getIncompleteTaskWidgets(),
+                          ],
+                          
+                          // Completed Tasks Section
+                          if (_getCompletedTaskWidgets().isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.check_circle,
+                                    color: Colors.green,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Completed Tasks',
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            ..._getCompletedTaskWidgets(),
+                          ],
 
                           const SizedBox(height: 16),
                         ],
@@ -653,6 +691,81 @@ class _HomeScreenState extends State<HomeScreen> {
      }
 
     return taskWidgets;
+  }
+
+  List<Widget> _getIncompleteTaskWidgets() {
+    final allTaskWidgets = _personalizationSettings == null || _todayTask == null
+        ? _buildDefaultTaskList()
+        : _buildPersonalizedTaskList();
+    
+    final List<Widget> incompleteWidgets = [];
+    final taskOrder = _personalizationSettings?.taskOrder ?? [
+      'readingBook', 'stretch', 'meditation', 'readingDocs', 'learningTech',
+      'walking', 'avoidHabit', 'avoidSweets', 'workDone', 'movieSeries'
+    ];
+    
+    for (final taskType in taskOrder) {
+      if (_personalizationSettings?.hiddenTasks.contains(taskType) == true) continue;
+      
+      if (!_isTaskTypeCompleted(taskType)) {
+        final widget = _buildTaskTileForType(taskType);
+        if (widget != null) {
+          incompleteWidgets.add(widget);
+        }
+      }
+    }
+    
+    return incompleteWidgets;
+  }
+
+  List<Widget> _getCompletedTaskWidgets() {
+    final List<Widget> completedWidgets = [];
+    final taskOrder = _personalizationSettings?.taskOrder ?? [
+      'readingBook', 'stretch', 'meditation', 'readingDocs', 'learningTech',
+      'walking', 'avoidHabit', 'avoidSweets', 'workDone', 'movieSeries'
+    ];
+    
+    for (final taskType in taskOrder) {
+      if (_personalizationSettings?.hiddenTasks.contains(taskType) == true) continue;
+      
+      if (_isTaskTypeCompleted(taskType)) {
+        final widget = _buildTaskTileForType(taskType);
+        if (widget != null) {
+          completedWidgets.add(widget);
+        }
+      }
+    }
+    
+    return completedWidgets;
+  }
+
+  bool _isTaskTypeCompleted(String taskType) {
+    if (_todayTask == null) return false;
+    
+    switch (taskType) {
+      case 'readingBook':
+        return _todayTask!.isReadingBookEffectivelyCompleted;
+      case 'stretch':
+        return _todayTask!.isStretchEffectivelyCompleted;
+      case 'meditation':
+        return _todayTask!.isMeditationEffectivelyCompleted;
+      case 'readingDocs':
+        return _todayTask!.isReadingDocsEffectivelyCompleted;
+      case 'learningTech':
+        return _todayTask!.isLearningTechEffectivelyCompleted;
+      case 'walking':
+        return _todayTask!.isWalkingEffectivelyCompleted;
+      case 'avoidHabit':
+        return _todayTask!.avoidHabitValue;
+      case 'avoidSweets':
+        return _todayTask!.avoidSweetsValue;
+      case 'workDone':
+        return _todayTask!.workDoneValue;
+      case 'movieSeries':
+        return _todayTask!.isMovieSeriesEffectivelyCompleted;
+      default:
+        return false;
+    }
   }
 
   List<Widget> _buildDefaultTaskList() {
