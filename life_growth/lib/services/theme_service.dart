@@ -25,26 +25,48 @@ class ThemeService {
     return await _prefs?.setInt(_themeKey, themeMode.index) ?? false;
   }
 
-  // Light theme with accessibility considerations
+  // Light theme with warm earth tone color palette
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: Colors.green,
-        brightness: Brightness.light,
-      ).copyWith(
-        // Ensure high contrast ratios
-        primary: const Color(0xFF2E7D32), // Dark green for better contrast
-        onPrimary: Colors.white,
-        secondary: const Color(0xFF388E3C),
+      colorScheme: const ColorScheme.light(
+        // Primary: Warm orange for main actions
+        primary: Color(0xFFE2A95A),
+        onPrimary: Color(0xFF2D2D2D),
+        primaryContainer: Color(0xFFF2E9E0),
+        onPrimaryContainer: Color(0xFF2D2D2D),
+        
+        // Secondary: Olive green for secondary actions
+        secondary: Color(0xFF817C42),
         onSecondary: Colors.white,
-        surface: Colors.white,
-        onSurface: const Color(0xFF212121), // Dark text for contrast
-        background: const Color(0xFFFAFAFA),
-        onBackground: const Color(0xFF212121),
-        error: const Color(0xFFD32F2F),
+        secondaryContainer: Color(0xFFE8D4B9),
+        onSecondaryContainer: Color(0xFF2D2D2D),
+        
+        // Tertiary: Terracotta for accents
+        tertiary: Color(0xFFC15D3B),
+        onTertiary: Colors.white,
+        tertiaryContainer: Color(0xFFEBB99E),
+        onTertiaryContainer: Color(0xFF2D2D2D),
+        
+        // Surface and background: Light cream tones
+        surface: Color(0xFFF2E9E0),
+        onSurface: Color(0xFF2D2D2D),
+        surfaceVariant: Color(0xFFE8D4B9),
+        onSurfaceVariant: Color(0xFF2D2D2D),
+        
+        background: Color(0xFFFFFBF7),
+        onBackground: Color(0xFF2D2D2D),
+        
+        // Error colors
+        error: Color(0xFFD32F2F),
         onError: Colors.white,
+        errorContainer: Color(0xFFFFEBEE),
+        onErrorContainer: Color(0xFFD32F2F),
+        
+        // Outline and shadow
+        outline: Color(0xFF817C42),
+        shadow: Color(0xFF2D2D2D),
       ),
       // Ensure minimum tap target sizes
       materialTapTargetSize: MaterialTapTargetSize.padded,
@@ -112,26 +134,48 @@ class ThemeService {
     );
   }
 
-  // Dark theme with accessibility considerations
+  // Dark theme with warm earth tone color palette
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: Colors.green,
-        brightness: Brightness.dark,
-      ).copyWith(
-        // Ensure high contrast ratios for dark mode
-        primary: const Color(0xFF81C784), // Light green for dark background
-        onPrimary: const Color(0xFF1B5E20),
-        secondary: const Color(0xFFA5D6A7),
-        onSecondary: const Color(0xFF2E7D32),
-        surface: const Color(0xFF121212),
-        onSurface: const Color(0xFFE0E0E0), // Light text for contrast
-        background: const Color(0xFF121212),
-        onBackground: const Color(0xFFE0E0E0),
-        error: const Color(0xFFEF5350),
-        onError: const Color(0xFF000000),
+      colorScheme: const ColorScheme.dark(
+        // Primary: Muted warm orange for dark mode
+        primary: Color(0xFFE2A95A),
+        onPrimary: Color(0xFF1A1A1A),
+        primaryContainer: Color(0xFF817C42),
+        onPrimaryContainer: Color(0xFFE8D4B9),
+        
+        // Secondary: Darker olive green
+        secondary: Color(0xFF9A9456),
+        onSecondary: Color(0xFF1A1A1A),
+        secondaryContainer: Color(0xFF5A5632),
+        onSecondaryContainer: Color(0xFFE8D4B9),
+        
+        // Tertiary: Muted terracotta
+        tertiary: Color(0xFFD4735A),
+        onTertiary: Color(0xFF1A1A1A),
+        tertiaryContainer: Color(0xFF8B3E26),
+        onTertiaryContainer: Color(0xFFEBB99E),
+        
+        // Surface and background: Dark warm tones
+        surface: Color(0xFF1F1E1B),
+        onSurface: Color(0xFFE8D4B9),
+        surfaceVariant: Color(0xFF2A2823),
+        onSurfaceVariant: Color(0xFFE8D4B9),
+        
+        background: Color(0xFF1A1917),
+        onBackground: Color(0xFFE8D4B9),
+        
+        // Error colors
+        error: Color(0xFFEF5350),
+        onError: Color(0xFF1A1A1A),
+        errorContainer: Color(0xFF8B1538),
+        onErrorContainer: Color(0xFFFFEBEE),
+        
+        // Outline and shadow
+        outline: Color(0xFF817C42),
+        shadow: Color(0xFF000000),
       ),
       // Ensure minimum tap target sizes
       materialTapTargetSize: MaterialTapTargetSize.padded,

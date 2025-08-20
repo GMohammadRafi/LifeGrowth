@@ -648,7 +648,7 @@ class NotificationService {
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
         timeInSecForIosWeb: 3,
-        backgroundColor: Colors.green,
+        backgroundColor: const Color(0xFF817C42), // Olive green from palette
         textColor: Colors.white,
         fontSize: 16.0,
       );
@@ -667,7 +667,7 @@ class NotificationService {
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.BOTTOM,
         timeInSecForIosWeb: 5,
-        backgroundColor: Colors.red,
+        backgroundColor: const Color(0xFFC15D3B), // Terracotta from palette
         textColor: Colors.white,
         fontSize: 16.0,
       );
@@ -686,8 +686,8 @@ class NotificationService {
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
         timeInSecForIosWeb: 4,
-        backgroundColor: Colors.orange,
-        textColor: Colors.white,
+        backgroundColor: const Color(0xFFE2A95A), // Warm orange from palette
+        textColor: const Color(0xFF2D2D2D), // Dark text for better contrast
         fontSize: 16.0,
       );
     } catch (e) {
@@ -705,8 +705,8 @@ class NotificationService {
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
         timeInSecForIosWeb: 3,
-        backgroundColor: Colors.blue,
-        textColor: Colors.white,
+        backgroundColor: const Color(0xFFEBB99E), // Peach from palette
+        textColor: const Color(0xFF2D2D2D), // Dark text for better contrast
         fontSize: 16.0,
       );
     } catch (e) {
