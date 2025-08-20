@@ -174,6 +174,9 @@ class DatabaseService {
       movieSeriesDuration: modelTask.movieSeriesDuration,
       movieSeriesCompleted: modelTask.movieSeriesCompleted,
       timezoneOffset: modelTask.timezoneOffset,
+      // Map notes and deletedAt so soft-deleted state is preserved locally
+      notes: modelTask.notes,
+      deletedAt: modelTask.deletedAt,
       createdAt: modelTask.createdAt ?? DateTime.now(),
       updatedAt: modelTask.updatedAt ?? DateTime.now(),
       needsSync: needsSync,
@@ -215,6 +218,9 @@ class DatabaseService {
       movieSeriesDuration: dbTask.movieSeriesDuration,
       movieSeriesCompleted: dbTask.movieSeriesCompleted,
       timezoneOffset: dbTask.timezoneOffset ?? 0,
+      // Include notes and deletedAt from DB so UI can reflect deletion state
+      notes: dbTask.notes,
+      deletedAt: dbTask.deletedAt,
       createdAt: dbTask.createdAt,
       updatedAt: dbTask.updatedAt,
     );

@@ -292,20 +292,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              
+              if (!isDeleted)...[
               IconButton(
                 icon: const Icon(Icons.edit),
                 onPressed: isDeleted ? null : () => _editTask(task),
                 tooltip: 'Edit',
               ),
-              if (!isDeleted)
                 IconButton(
                   icon: const Icon(Icons.delete),
                   onPressed: () => _confirmDelete(task),
                   tooltip: 'Delete',
-                )
+                )]
               else
                 IconButton(
-                  icon: const Icon(Icons.restore),
+                  icon: const Icon(Icons.restore_rounded),
                   onPressed: () => _restoreTask(task),
                   tooltip: 'Restore',
                 ),

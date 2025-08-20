@@ -242,9 +242,27 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     
     // Listen to auth state changes
-    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
       if (mounted) {
         setState(() {});
+      }
+
+      // Trigger sync on sign-in and clear local DB on sign-out
+      try {
+        if (data.event == AuthChangeEvent.signedIn) {
+          // Perform an immediate sync after successful login
+          await BackgroundSyncManager().performSync();
+        } else if (data.event == AuthChangeEvent.signedOut) {
+          // Stop any background sync and clear local data upon logout
+          await BackgroundSyncManager().cancelAllSyncTasks();
+          if (!kIsWeb) {
+            await DatabaseService.instance.clearAllData();
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error handling auth state change: $e');
+        }
       }
     });
 
@@ -261,6 +279,17 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
     }
     
     _checkBiometricOnStart();
+
+    // If a session already exists (app relaunch), perform an immediate sync
+    if (AuthService.isAuthenticated) {
+      try {
+        await BackgroundSyncManager().performSync();
+      } catch (e) {
+        if (kDebugMode) {
+          print('Failed to perform initial sync after session restoration: $e');
+        }
+      }
+    }
   }
 
   @override
