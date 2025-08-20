@@ -94,6 +94,8 @@ class UndoProvider extends ChangeNotifier {
               userId: action.previousState!.userId!,
               date: action.previousState!.date,
             );
+            // Add a small delay to ensure database write is complete
+            await Future.delayed(const Duration(milliseconds: 100));
           }
           break;
           
@@ -101,6 +103,8 @@ class UndoProvider extends ChangeNotifier {
           // Restore the previous state using SupabaseService for proper sync
           if (action.previousState != null) {
             await SupabaseService.upsertDailyTask(action.previousState!);
+            // Add a small delay to ensure database write is complete
+            await Future.delayed(const Duration(milliseconds: 100));
           }
           break;
           
@@ -111,6 +115,8 @@ class UndoProvider extends ChangeNotifier {
               userId: action.currentState!.userId!,
               date: action.currentState!.date,
             );
+            // Add a small delay to ensure database write is complete
+            await Future.delayed(const Duration(milliseconds: 100));
           }
           break;
       }

@@ -67,7 +67,7 @@ class SupabaseService {
             (remoteTask.updatedAt != null && localTask.updatedAt != null &&
                 remoteTask.updatedAt!.isAfter(localTask.updatedAt!))) {
           // Remote task is newer or doesn't exist locally, mark as not needing sync
-          await DatabaseService.instance.upsertDailyTask(remoteTask);
+          await DatabaseService.instance.upsertDailyTask(remoteTask, needsSync: false);
           return remoteTask;
         }
       }
@@ -76,6 +76,7 @@ class SupabaseService {
       print('Network error in getDailyTask: $e');
     }
 
+    // Always return the latest local task data, including recently restored tasks
     return localTask != null ? convertDbToModelTask(localTask) : null;
   }
 

@@ -74,6 +74,7 @@ class AppDatabase extends _$AppDatabase {
         .write(DailyTasksCompanion(
       deletedAt: Value(DateTime.now()),
       updatedAt: Value(DateTime.now()),
+      needsSync: const Value(true),
     ));
   }
 
@@ -82,9 +83,10 @@ class AppDatabase extends _$AppDatabase {
 
     await (update(dailyTasks)
           ..where((t) => t.userId.equals(userId) & t.date.equals(dateOnly)))
-        .write(const DailyTasksCompanion(
-      deletedAt: Value(null),
-      updatedAt: Value.absent(),
+        .write(DailyTasksCompanion(
+      deletedAt: const Value(null),
+      updatedAt: Value(DateTime.now()),
+      needsSync: const Value(true),
     ));
   }
 
