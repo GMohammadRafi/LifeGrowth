@@ -147,6 +147,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 
                 final success = await undoProvider.undoLastAction();
                 if (success) {
+                  // Add a small delay to ensure database write is fully committed
+                  await Future.delayed(const Duration(milliseconds: 200));
                   await _loadHistoryData();
                   _selectedTasks.value = _getTasksForDayCalendar(_selectedDay!);
                   if (mounted) {

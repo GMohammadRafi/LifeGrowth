@@ -318,22 +318,13 @@ class _AuthScreenState extends State<AuthScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 40),
-                  // App Logo/Title
-                  Icon(
-                    Icons.trending_up,
-                    size: 80,
-                    color: Theme.of(context).colorScheme.primary,
+                  // App Logo
+                  Image.asset(
+                    'lib/assets/images/logo.png',
+                    height: 120,
+                    width: 120,
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    'Life Growth',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
                   Text(
                     'Track your daily habits and grow',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(

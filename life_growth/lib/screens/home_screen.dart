@@ -30,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   PersonalizationService? _personalizationService;
   PersonalizationSettings? _personalizationSettings;
   bool _isSyncing = false;
+  bool _isUndoing = false;
   String? _errorMessage;
   String? _syncStatus;
 
@@ -290,35 +291,62 @@ class _HomeScreenState extends State<HomeScreen> {
             builder: (context, undoProvider, child) {
               return Semantics(
                 label: 'Undo',
-                hint: undoProvider.canUndo 
-                    ? 'Undo last action: ${undoProvider.getUndoDescription()}'
-                    : 'No actions to undo',
+                hint: _isUndoing
+                    ? 'Undoing action, please wait'
+                    : undoProvider.canUndo 
+                        ? 'Undo last action: ${undoProvider.getUndoDescription()}'
+                        : 'No actions to undo',
                 button: true,
                 child: IconButton(
-                  icon: const Icon(Icons.undo),
-                  onPressed: undoProvider.canUndo ? () async {
-                    final success = await undoProvider.undoLastAction();
-                    if (success) {
-                      await _loadTodayTask();
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Action undone')),
-                        );
-                      }
-                    } else {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Failed to undo action'),
-                            backgroundColor: Colors.red,
+                  icon: _isUndoing 
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
-                        );
+                        )
+                      : const Icon(Icons.undo),
+                  onPressed: (undoProvider.canUndo && !_isUndoing) ? () async {
+                    setState(() {
+                      _isUndoing = true;
+                    });
+                    
+                    try {
+                      final success = await undoProvider.undoLastAction();
+                      if (success) {
+                        // Add a small delay to ensure database write is fully committed
+                        await Future.delayed(const Duration(milliseconds: 200));
+                        await _loadTodayTask();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Action undone')),
+                          );
+                        }
+                      } else {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Failed to undo action'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    } finally {
+                      if (mounted) {
+                        setState(() {
+                          _isUndoing = false;
+                        });
                       }
                     }
                   } : null,
-                  tooltip: undoProvider.canUndo 
-                      ? 'Undo: ${undoProvider.getUndoDescription()}'
-                      : 'No actions to undo',
+                  tooltip: _isUndoing
+                      ? 'Undoing action...'
+                      : undoProvider.canUndo 
+                          ? 'Undo: ${undoProvider.getUndoDescription()}'
+                          : 'No actions to undo',
                 ),
               );
             },
