@@ -103,38 +103,59 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   void _calculateStreaks() {
     if (_allTasks.isEmpty) return;
 
-    // Sort tasks by date
-    final sortedTasks = List<model.DailyTask>.from(_allTasks)
-      ..sort((a, b) => a.date.compareTo(b.date));
+    // Group tasks by date and check if each day is completed
+    final Map<DateTime, bool> dailyCompletions = {};
+    
+    for (final task in _allTasks) {
+      final dateKey = DateTime(task.date.year, task.date.month, task.date.day);
+      if (!dailyCompletions.containsKey(dateKey)) {
+        dailyCompletions[dateKey] = _isTaskCompleted(task);
+      } else {
+        // If multiple tasks for same day, consider day completed if any task is completed
+        dailyCompletions[dateKey] = dailyCompletions[dateKey]! || _isTaskCompleted(task);
+      }
+    }
+
+    // Sort dates
+    final sortedDates = dailyCompletions.keys.toList()
+      ..sort((a, b) => a.compareTo(b));
 
     int currentStreak = 0;
     int longestStreak = 0;
     int tempStreak = 0;
-    DateTime? lastDate;
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
 
-    for (final task in sortedTasks.reversed) {
-      if (_isTaskCompleted(task)) {
-        if (lastDate == null || 
-            task.date.difference(lastDate).inDays == -1 ||
-            task.date.difference(lastDate).inDays == 0) {
-          tempStreak++;
-          if (lastDate == null || task.date.difference(DateTime.now()).inDays >= -1) {
-            currentStreak = tempStreak;
-          }
-        } else {
-          tempStreak = 1;
-          if (task.date.difference(DateTime.now()).inDays >= -1) {
-            currentStreak = 1;
-          }
-        }
+    // Calculate longest streak
+    for (int i = 0; i < sortedDates.length; i++) {
+      final date = sortedDates[i];
+      final isCompleted = dailyCompletions[date]!;
+      
+      if (isCompleted) {
+        tempStreak++;
         longestStreak = longestStreak > tempStreak ? longestStreak : tempStreak;
       } else {
         tempStreak = 0;
-        if (task.date.difference(DateTime.now()).inDays >= -1) {
-          currentStreak = 0;
-        }
       }
-      lastDate = task.date;
+    }
+
+    // Calculate current streak (working backwards from today)
+    DateTime checkDate = today;
+    currentStreak = 0;
+    
+    // Check if today or yesterday has a completed task to start the streak
+    while (checkDate.isAfter(today.subtract(const Duration(days: 30)))) {
+      if (dailyCompletions.containsKey(checkDate) && dailyCompletions[checkDate]!) {
+        currentStreak++;
+        checkDate = checkDate.subtract(const Duration(days: 1));
+      } else {
+        // If this is the first day we're checking and it's not completed,
+        // check the previous day to see if we can start the streak there
+        if (currentStreak == 0 && checkDate == today) {
+          checkDate = checkDate.subtract(const Duration(days: 1));
+          continue;
+        }
+        break; // Streak is broken
+      }
     }
 
     _currentStreak = currentStreak;
@@ -171,12 +192,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   void _calculateWeeklyCompletionData() {
     final now = DateTime.now();
-    final weekAgo = now.subtract(const Duration(days: 7));
+    final startOfWeek = now.subtract(Duration(days: now.weekday - 1)); // Start from Monday
     
     _weeklyCompletionData = [];
     
     for (int i = 0; i < 7; i++) {
-      final date = weekAgo.add(Duration(days: i));
+      final date = startOfWeek.add(Duration(days: i));
       final tasksForDay = _allTasks.where((task) => 
         task.date.year == date.year &&
         task.date.month == date.month &&
@@ -185,8 +206,26 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       
       double completionPercentage = 0.0;
       if (tasksForDay.isNotEmpty) {
-        final completedCount = tasksForDay.where(_isTaskCompleted).length;
-        completionPercentage = (completedCount / tasksForDay.length) * 100;
+        // Calculate average completion rate across all tasks for that day
+        double totalCompletionRate = 0.0;
+        for (final task in tasksForDay) {
+          int completedActivities = 0;
+          int totalActivities = 10;
+          
+          if (task.readingBookCompleted) completedActivities++;
+          if (task.stretchCompleted) completedActivities++;
+          if (task.meditationCompleted) completedActivities++;
+          if (task.readingDocsCompleted) completedActivities++;
+          if (task.learningTechCompleted) completedActivities++;
+          if (task.walkingCompleted) completedActivities++;
+          if (task.avoidHabitValue) completedActivities++;
+          if (task.avoidSweetsValue) completedActivities++;
+          if (task.workDoneValue) completedActivities++;
+          if (task.movieSeriesCompleted) completedActivities++;
+          
+          totalCompletionRate += (completedActivities / totalActivities) * 100;
+        }
+        completionPercentage = totalCompletionRate / tasksForDay.length;
       }
       
       _weeklyCompletionData.add(FlSpot(i.toDouble(), completionPercentage));
@@ -444,6 +483,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: _taskCompletionCounts.entries.map((entry) {
+                // Calculate percentage based on how many times this activity was completed
+                // out of total possible times (total tasks)
                 final percentage = _totalTasks > 0 
                     ? (entry.value / _totalTasks) * 100 
                     : 0.0;
@@ -470,9 +511,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       ),
                       const SizedBox(width: 8),
                       SizedBox(
-                        width: 60,
+                        width: 80,
                         child: Text(
-                          '${entry.value}/${_totalTasks}',
+                          '${entry.value}/${_totalTasks} (${percentage.toStringAsFixed(1)}%)',
                           style: Theme.of(context).textTheme.bodySmall,
                           textAlign: TextAlign.end,
                         ),
