@@ -1,0 +1,116 @@
+### PRD — Life Growth v2 (Dynamic Tasks)
+
+#### 1. Purpose
+
+Life Growth v2 evolves the v1 fixed-task habit tracker into a **dynamic, user-configurable system**. Users can create, customize, and reorder tasks, while still enjoying the low-friction, offline-first experience. The system supports migration from the v1 fixed-schema model into a new flexible schema, ensuring existing users retain their history and streaks.
+
+#### 2. Scope
+
+In scope for v2:
+
+* Dynamic task creation (user-defined and template-based).
+* Task categories (binary, numeric, timed, “avoid”).
+* Daily logging with dynamic task list.
+* Migration from v1 schema to v2 (`daily_tasks` → `tasks` + `task_logs`).
+* Analytics that work across custom tasks (totals, streaks, completion rates).
+* Backward-compatible sync, offline-first, conflict resolution.
+* Task suggestions (basic, rule-driven).
+* Task library with templates (Reading, Meditation, Walking, Avoid X, etc.).
+* **Custom task personalization**: user-selectable icons and colors.
+
+Out of scope for v2 (future backlog): push notifications, advanced AI-driven suggestions, integrations (Wearables, HealthKit, Google Fit).
+
+#### 3. Target Users and Goals
+
+Same as v1: people who want a low-friction way to build daily habits. v2 expands appeal to users who want **personalized tracking beyond a fixed list**. Goals:
+
+* Add or remove tasks without technical knowledge.
+* Maintain under-2s task logging for daily use.
+* Retain streaks and data continuity from v1.
+
+#### 4. Success Metrics
+
+* Migration success rate (≥95% of existing user data correctly ported).
+* Median logging time < 2 seconds.
+* 7-day retention ≥ v1 baseline.
+* At least 30% of active users create a custom task within 30 days.
+* Zero major data loss incidents post-migration.
+
+#### 5. Functional Requirements
+
+* **Task Management:** Users can add, edit, archive, or reorder tasks. Task fields are based on task type (boolean, numeric, timed, or “avoid”). Each task supports custom icon and color for personalization.
+* **Logging:** Dynamic daily task list with fast toggles and optional detail entry.
+* **History:** Full editing by date across custom tasks. Deleted tasks remain in history but are hidden from the active list.
+* **Migration:** Automatic migration of v1 data into v2 tables. Default tasks are pre-seeded as user tasks in `tasks`.
+* **Analytics:** Generic streak and completion logic that works across custom tasks.
+* **Sync:** Offline-first with Supabase. Conflict resolution based on `(user_id, task_id, date)` uniqueness. If a task is archived on one device but logged on another, the system will unarchive the task automatically and preserve the log entry.
+
+#### 6. Non-Functional Requirements
+
+* Performance: Sub-2s logging, instant offline interactions, sync within 5s for a week of changes.
+* Security: HTTPS, Supabase RLS, biometric lock.
+* Maintainability: Schema versioning, clear data/domain/UI layers.
+* Accessibility: Same as v1.
+
+#### 7. UX and User Flows
+
+* **Daily Check-in:** Dynamic list of active tasks. Each task shows its type-appropriate input (toggle, number pad, duration chip). Custom icons and colors are displayed in the list.
+* **Task Creation:** Simple form with task name, type, icon, color, and optional fields.
+* **Migration UX:** On first launch after upgrade, user sees a brief notice: “Your tasks and history have been updated for v2.”
+* **Analytics:** Calendar heatmap, streak counters, and task-specific summaries, now adaptable to any task type.
+
+#### 8. Data Model Overview
+
+* **tasks table:** Defines each user task.
+
+  * id (uuid PK), user\_id, name, type (enum: boolean, numeric, timed, avoid), icon (string), color (string), metadata (JSONB), created\_at, updated\_at, archived\_at.
+* **task\_logs table:** Stores per-task, per-day logs.
+
+  * id (uuid PK), user\_id, task\_id (FK), date, value (JSONB: {completed: bool, duration: int, count: int, etc.}), created\_at, updated\_at, deleted\_at.
+* Constraints:
+
+  * Unique (user\_id, task\_id, date) in task\_logs.
+  * Value schema validated in app layer.
+* **Migration mapping:** Each v1 column maps to a task in `tasks`, and each row/day maps to entries in `task_logs`.
+
+#### 9. Migration Plan
+
+* On upgrade:
+
+  * Auto-create `tasks` entries for all v1 default tasks per user, with default icons/colors.
+  * For each v1 `daily_tasks` row, generate multiple `task_logs` entries (one per task type).
+  * Preserve streaks by calculating consecutive completions during migration.
+* v1 table remains for fallback but marked read-only. v2 becomes source of truth.
+
+#### 10. Analytics Redesign
+
+* **Streaks:** Generic calculation per task\_id.
+* **Completion:** Boolean or “value > 0” depending on type.
+* **Aggregations:** Task-type-specific logic (sum minutes for timed, pages for numeric, count for boolean).
+* **Cross-task insights:** Group tasks by type/category.
+
+#### 11. Notifications (unchanged)
+
+Daily reminders remain optional and local. Push notifications still backlog.
+
+#### 12. Performance and Reliability Budgets
+
+Same as v1, but add:
+
+* Migration process should complete within 30s for two years of data.
+* Task list UI must handle at least 50 active tasks without slowdown.
+
+#### 13. Telemetry
+
+* Track task creation/deletion events.
+* Track migration success/failures.
+* Track usage of custom tasks vs. template tasks.
+* Track task unarchive events triggered by cross-device logging.
+
+#### 14. Release Plan
+
+* **Alpha:** Internal migration tests with seeded v1 data.
+* **Beta:** Invite v1 users, validate migration success + logging flow.
+* **Production:** Release with clear upgrade path, monitor telemetry.
+* Acceptance criteria: Migration accuracy ≥95%, crash-free sessions ≥99.5%, daily flow intact.
+---
