@@ -7,6 +7,7 @@ import '../models/task_entry.dart';
 import '../models/task.dart';
 import '../models/task_type.dart';
 import 'supabase_service_v2.dart';
+import 'auth_service.dart'; // Add this import
 import 'error_service.dart';
 
 class CsvExportService {
@@ -14,7 +15,8 @@ class CsvExportService {
   factory CsvExportService() => _instance;
   CsvExportService._internal();
 
-  final SupabaseServiceV2 _supabaseService = SupabaseServiceV2();
+  // Remove the instance variable since we'll use static methods
+  // final SupabaseServiceV2 _supabaseService = SupabaseServiceV2();
 
   /// Export all data to CSV files and share them
   Future<void> exportAllData() async {
@@ -106,30 +108,31 @@ class CsvExportService {
   }
 
   Future<void> _exportDailyCheckins(String dirPath, [String? fileName]) async {
-    final checkins = await _supabaseService.getAllDailyCheckins();
+    final checkins = await SupabaseServiceV2.getAllDailyCheckins();
     final csvFileName = fileName ?? 'daily_checkins.csv';
     
     final headers = [
-      'ID', 'Date', 'Mood', 'Energy', 'Stress', 'Notes', 
+      'ID', 'Date', 'User ID', 'Notes', 
       'Created At', 'Updated At'
     ];
     
     final rows = checkins.map((checkin) => [
-      checkin.id,
-      checkin.date.toIso8601String().split('T')[0],
-      checkin.mood.toString(),
-      checkin.energy.toString(),
-      checkin.stress.toString(),
-      checkin.notes,
-      checkin.createdAt.toIso8601String(),
-      checkin.updatedAt.toIso8601String(),
+      checkin['id'],
+      checkin['date'],
+      checkin['user_id'],
+      checkin['notes'] ?? '',
+      checkin['created_at'],
+      checkin['updated_at'],
     ]).map((row) => row.map((item) => item.toString()).toList()).toList();
     
     await _writeCsvFile('$dirPath/$csvFileName', headers, rows);
   }
 
   Future<void> _exportDailyEntries(String dirPath, [String? fileName]) async {
-    final entries = await _supabaseService.getAllDailyEntries();
+    final userId = AuthService.userId; // Replace SupabaseServiceV2._client.auth.currentUser?.id
+    if (userId == null) throw Exception('User not authenticated');
+    
+    final entries = await SupabaseServiceV2.getAllDailyEntries(userId);
     final csvFileName = fileName ?? 'daily_entries.csv';
     
     final headers = [
@@ -149,7 +152,10 @@ class CsvExportService {
   }
 
   Future<void> _exportTaskEntries(String dirPath, [String? fileName]) async {
-    final entries = await _supabaseService.getAllTaskEntries();
+    final userId = AuthService.userId; // Replace SupabaseServiceV2._client.auth.currentUser?.id
+    if (userId == null) throw Exception('User not authenticated');
+    
+    final entries = await SupabaseServiceV2.getAllTaskEntries(userId);
     final csvFileName = fileName ?? 'task_entries.csv';
     
     final headers = [
@@ -171,7 +177,7 @@ class CsvExportService {
   }
 
   Future<void> _exportTasks(String dirPath, [String? fileName]) async {
-    final tasks = await _supabaseService.getAllTasks();
+    final tasks = await SupabaseServiceV2.getAllTasks();
     final csvFileName = fileName ?? 'tasks.csv';
     
     final headers = [
@@ -195,7 +201,7 @@ class CsvExportService {
   }
 
   Future<void> _exportTaskTypes(String dirPath, [String? fileName]) async {
-    final taskTypes = await _supabaseService.getAllTaskTypes();
+    final taskTypes = await SupabaseServiceV2.getAllTaskTypes();
     final csvFileName = fileName ?? 'task_types.csv';
     
     final headers = [
@@ -217,7 +223,7 @@ class CsvExportService {
   }
 
   Future<void> _exportHabits(String dirPath, [String? fileName]) async {
-    final habits = await _supabaseService.getAllHabits();
+    final habits = await SupabaseServiceV2.getAllHabits();
     final csvFileName = fileName ?? 'habits.csv';
     
     final headers = [
@@ -226,20 +232,20 @@ class CsvExportService {
     ];
     
     final rows = habits.map((habit) => [
-      habit.id,
-      habit.name,
-      habit.description,
-      habit.frequency.name,
-      habit.isActive.toString(),
-      habit.createdAt.toIso8601String(),
-      habit.updatedAt.toIso8601String(),
+      habit['id'],
+      habit['name'],
+      habit['description'] ?? '',
+      habit['frequency'] ?? '',
+      habit['is_active'].toString(),
+      habit['created_at'],
+      habit['updated_at'],
     ]).map((row) => row.map((item) => item.toString()).toList()).toList();
     
     await _writeCsvFile('$dirPath/$csvFileName', headers, rows);
   }
 
   Future<void> _exportGoals(String dirPath, [String? fileName]) async {
-    final goals = await _supabaseService.getAllGoals();
+    final goals = await SupabaseServiceV2.getAllGoals();
     final csvFileName = fileName ?? 'goals.csv';
     
     final headers = [
@@ -248,24 +254,24 @@ class CsvExportService {
     ];
     
     final rows = goals.map((goal) => [
-      goal.id,
-      goal.title,
-      goal.description,
-      goal.category.name,
-      goal.priority.name,
-      goal.targetDate.toIso8601String().split('T')[0],
-      goal.isCompleted.toString(),
-      goal.completedAt?.toIso8601String() ?? '',
-      goal.progress.toString(),
-      goal.createdAt.toIso8601String(),
-      goal.updatedAt.toIso8601String(),
+      goal['id'],
+      goal['title'] ?? '',
+      goal['description'] ?? '',
+      goal['category'] ?? '',
+      goal['priority'] ?? '',
+      goal['target_date'] ?? '',
+      goal['is_completed'].toString(),
+      goal['completed_at'] ?? '',
+      goal['progress']?.toString() ?? '0',
+      goal['created_at'],
+      goal['updated_at'],
     ]).map((row) => row.map((item) => item.toString()).toList()).toList();
     
     await _writeCsvFile('$dirPath/$csvFileName', headers, rows);
   }
 
   Future<void> _exportJournalEntries(String dirPath, [String? fileName]) async {
-    final entries = await _supabaseService.getAllJournalEntries();
+    final entries = await SupabaseServiceV2.getAllJournalEntries();
     final csvFileName = fileName ?? 'journal_entries.csv';
     
     final headers = [
@@ -274,13 +280,13 @@ class CsvExportService {
     ];
     
     final rows = entries.map((entry) => [
-      entry.id.toString(),
-      entry.title,
-      entry.content.replaceAll('\n', '\\n'), // Escape newlines for CSV
-      entry.mood.toString(),
-      entry.tags.join(';'), // Join tags with semicolon
-      entry.createdAt.toIso8601String(),
-      entry.updatedAt.toIso8601String(),
+      entry['id'].toString(),
+      entry['title'] ?? '',
+      (entry['content'] ?? '').toString().replaceAll('\n', '\\n'), // Escape newlines for CSV
+      entry['mood']?.toString() ?? '',
+      entry['tags']?.toString() ?? '',
+      entry['created_at'],
+      entry['updated_at'],
     ]).map((row) => row.map((item) => item.toString()).toList()).toList();
     
     await _writeCsvFile('$dirPath/$csvFileName', headers, rows);
