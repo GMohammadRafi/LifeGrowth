@@ -11,7 +11,7 @@ returns void as $$
 declare
   old_record record;
   daily_entry_id uuid;
-  task_type_record record;
+  task_type_id_var uuid;
   user_task_id uuid;
 begin
   -- Process each old daily_tasks record
@@ -29,14 +29,14 @@ begin
     -- Migrate Reading Book data
     if old_record.reading_book_pages is not null or old_record.reading_book_time is not null or old_record.reading_book_completed then
       -- Get or create user task for reading_book
-      select id into user_task_id from public.tasks t
+      select t.id into user_task_id from public.tasks t
       join public.task_types tt on t.task_type_id = tt.id
       where t.user_id = old_record.user_id and tt.name = 'reading_book' and t.name = 'Reading Book';
       
       if user_task_id is null then
-        select id into task_type_record from public.task_types where name = 'reading_book';
+        select id into task_type_id_var from public.task_types where name = 'reading_book';
         insert into public.tasks (user_id, task_type_id, name, description)
-        values (old_record.user_id, task_type_record, 'Reading Book', 'Daily book reading')
+        values (old_record.user_id, task_type_id_var, 'Reading Book', 'Daily book reading')
         returning id into user_task_id;
       end if;
       
@@ -52,14 +52,14 @@ begin
     
     -- Migrate Stretch/Exercise data
     if old_record.stretch_type is not null or old_record.stretch_minutes is not null or old_record.stretch_completed then
-      select id into user_task_id from public.tasks t
+      select t.id into user_task_id from public.tasks t
       join public.task_types tt on t.task_type_id = tt.id
       where t.user_id = old_record.user_id and tt.name = 'stretch_exercise' and t.name = 'Stretch/Exercise';
       
       if user_task_id is null then
-        select id into task_type_record from public.task_types where name = 'stretch_exercise';
+        select id into task_type_id_var from public.task_types where name = 'stretch_exercise';
         insert into public.tasks (user_id, task_type_id, name, description)
-        values (old_record.user_id, task_type_record, 'Stretch/Exercise', 'Daily stretching and exercise')
+        values (old_record.user_id, task_type_id_var, 'Stretch/Exercise', 'Daily stretching and exercise')
         returning id into user_task_id;
       end if;
       
@@ -75,14 +75,14 @@ begin
     
     -- Migrate Meditation data
     if old_record.meditation_minutes is not null or old_record.meditation_completed then
-      select id into user_task_id from public.tasks t
+      select t.id into user_task_id from public.tasks t
       join public.task_types tt on t.task_type_id = tt.id
       where t.user_id = old_record.user_id and tt.name = 'meditation' and t.name = 'Meditation';
       
       if user_task_id is null then
-        select id into task_type_record from public.task_types where name = 'meditation';
+        select id into task_type_id_var from public.task_types where name = 'meditation';
         insert into public.tasks (user_id, task_type_id, name, description)
-        values (old_record.user_id, task_type_record, 'Meditation', 'Daily meditation practice')
+        values (old_record.user_id, task_type_id_var, 'Meditation', 'Daily meditation practice')
         returning id into user_task_id;
       end if;
       
@@ -98,14 +98,14 @@ begin
     -- Migrate Reading Docs data
     if old_record.reading_docs_name_link is not null or old_record.reading_docs_pages is not null or 
        old_record.reading_docs_time is not null or old_record.reading_docs_completed then
-      select id into user_task_id from public.tasks t
+      select t.id into user_task_id from public.tasks t
       join public.task_types tt on t.task_type_id = tt.id
       where t.user_id = old_record.user_id and tt.name = 'reading_docs' and t.name = 'Reading Documentation';
       
       if user_task_id is null then
-        select id into task_type_record from public.task_types where name = 'reading_docs';
+        select id into task_type_id_var from public.task_types where name = 'reading_docs';
         insert into public.tasks (user_id, task_type_id, name, description)
-        values (old_record.user_id, task_type_record, 'Reading Documentation', 'Daily documentation reading')
+        values (old_record.user_id, task_type_id_var, 'Reading Documentation', 'Daily documentation reading')
         returning id into user_task_id;
       end if;
       
@@ -124,14 +124,14 @@ begin
     if old_record.learning_tech_name is not null or old_record.learning_tech_source is not null or 
        old_record.learning_tech_url is not null or old_record.learning_tech_time is not null or 
        old_record.learning_tech_completed then
-      select id into user_task_id from public.tasks t
+      select t.id into user_task_id from public.tasks t
       join public.task_types tt on t.task_type_id = tt.id
       where t.user_id = old_record.user_id and tt.name = 'learning_tech' and t.name = 'Learning Technology';
       
       if user_task_id is null then
-        select id into task_type_record from public.task_types where name = 'learning_tech';
+        select id into task_type_id_var from public.task_types where name = 'learning_tech';
         insert into public.tasks (user_id, task_type_id, name, description)
-        values (old_record.user_id, task_type_record, 'Learning Technology', 'Daily technology learning')
+        values (old_record.user_id, task_type_id_var, 'Learning Technology', 'Daily technology learning')
         returning id into user_task_id;
       end if;
       
@@ -149,14 +149,14 @@ begin
     
     -- Migrate Walking data
     if old_record.walking_steps is not null or old_record.walking_time is not null or old_record.walking_completed then
-      select id into user_task_id from public.tasks t
+      select t.id into user_task_id from public.tasks t
       join public.task_types tt on t.task_type_id = tt.id
       where t.user_id = old_record.user_id and tt.name = 'walking' and t.name = 'Walking';
       
       if user_task_id is null then
-        select id into task_type_record from public.task_types where name = 'walking';
+        select id into task_type_id_var from public.task_types where name = 'walking';
         insert into public.tasks (user_id, task_type_id, name, description)
-        values (old_record.user_id, task_type_record, 'Walking', 'Daily walking activity')
+        values (old_record.user_id, task_type_id_var, 'Walking', 'Daily walking activity')
         returning id into user_task_id;
       end if;
       
@@ -172,14 +172,14 @@ begin
     
     -- Migrate Avoid Habit data
     if old_record.avoid_habit_label is not null or old_record.avoid_habit_value is not null then
-      select id into user_task_id from public.tasks t
+      select t.id into user_task_id from public.tasks t
       join public.task_types tt on t.task_type_id = tt.id
       where t.user_id = old_record.user_id and tt.name = 'habit' and t.name = 'Avoid Habit';
       
       if user_task_id is null then
-        select id into task_type_record from public.task_types where name = 'habit';
+        select id into task_type_id_var from public.task_types where name = 'habit';
         insert into public.tasks (user_id, task_type_id, name, description)
-        values (old_record.user_id, task_type_record, 'Avoid Habit', 'Habit avoidance tracking')
+        values (old_record.user_id, task_type_id_var, 'Avoid Habit', 'Habit avoidance tracking')
         returning id into user_task_id;
       end if;
       
@@ -195,14 +195,14 @@ begin
     
     -- Migrate Avoid Sweets data
     if old_record.avoid_sweets_value is not null then
-      select id into user_task_id from public.tasks t
+      select t.id into user_task_id from public.tasks t
       join public.task_types tt on t.task_type_id = tt.id
       where t.user_id = old_record.user_id and tt.name = 'habit' and t.name = 'Avoid Sweets';
       
       if user_task_id is null then
-        select id into task_type_record from public.task_types where name = 'habit';
+        select id into task_type_id_var from public.task_types where name = 'habit';
         insert into public.tasks (user_id, task_type_id, name, description)
-        values (old_record.user_id, task_type_record, 'Avoid Sweets', 'Sweet avoidance tracking')
+        values (old_record.user_id, task_type_id_var, 'Avoid Sweets', 'Sweet avoidance tracking')
         returning id into user_task_id;
       end if;
       
@@ -218,14 +218,14 @@ begin
     
     -- Migrate Work Done data
     if old_record.work_done_value is not null then
-      select id into user_task_id from public.tasks t
+      select t.id into user_task_id from public.tasks t
       join public.task_types tt on t.task_type_id = tt.id
       where t.user_id = old_record.user_id and tt.name = 'habit' and t.name = 'Work Done';
       
       if user_task_id is null then
-        select id into task_type_record from public.task_types where name = 'habit';
+        select id into task_type_id_var from public.task_types where name = 'habit';
         insert into public.tasks (user_id, task_type_id, name, description)
-        values (old_record.user_id, task_type_record, 'Work Done', 'Work completion tracking')
+        values (old_record.user_id, task_type_id_var, 'Work Done', 'Work completion tracking')
         returning id into user_task_id;
       end if;
       
@@ -243,14 +243,14 @@ begin
     if old_record.movie_series_name is not null or old_record.movie_series_start_time is not null or 
        old_record.movie_series_end_time is not null or old_record.movie_series_duration is not null or 
        old_record.movie_series_completed then
-      select id into user_task_id from public.tasks t
+      select t.id into user_task_id from public.tasks t
       join public.task_types tt on t.task_type_id = tt.id
       where t.user_id = old_record.user_id and tt.name = 'entertainment' and t.name = 'Movies/Series';
       
       if user_task_id is null then
-        select id into task_type_record from public.task_types where name = 'entertainment';
+        select id into task_type_id_var from public.task_types where name = 'entertainment';
         insert into public.tasks (user_id, task_type_id, name, description)
-        values (old_record.user_id, task_type_record, 'Movies/Series', 'Entertainment tracking')
+        values (old_record.user_id, task_type_id_var, 'Movies/Series', 'Entertainment tracking')
         returning id into user_task_id;
       end if;
       
