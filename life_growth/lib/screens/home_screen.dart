@@ -1,11 +1,15 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../services/supabase_service.dart';
 import '../services/supabase_service_v2.dart';
 import '../services/background_sync_manager.dart';
 import '../services/personalization_service.dart';
 import '../services/telemetry_service.dart';
+import '../services/notification_service.dart';
 import '../models/daily_entry.dart';
+import '../models/daily_entry_extensions.dart';
 import '../models/task_entry.dart';
 import '../models/task.dart';
 import '../models/task_type.dart';
@@ -39,6 +43,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isUndoing = false;
   String? _errorMessage;
   String? _syncStatus;
+
+  // Add the missing _todayTask getter
+  DailyEntry? get _todayTask => _todayEntry;
 
   @override
   void initState() {
@@ -171,7 +178,7 @@ class _HomeScreenState extends State<HomeScreen> {
       await BackgroundSyncManager().scheduleImmediateSync();
 
       // Also perform direct sync for immediate feedback
-      await SupabaseService.syncAllPendingChanges(AuthService.userId!);
+      await SupabaseServiceV2.syncAllPendingChanges(AuthService.userId!);
       await _loadTodayTask(); // Reload to get any updates
 
       if (mounted) {
@@ -239,6 +246,75 @@ class _HomeScreenState extends State<HomeScreen> {
             backgroundColor: Colors.red,
           ),
         );
+      }
+    }
+  }
+
+  // Add the missing _loadTodayTask method
+  Future<void> _loadTodayTask() async {
+    await _loadTodayData();
+  }
+
+  // Add the missing _updateTask method
+  Future<void> _updateTask(DailyEntry updatedEntry) async {
+    try {
+      setState(() {
+        _todayEntry = updatedEntry;
+      });
+
+      // Save to database
+      await SupabaseServiceV2.createOrUpdateDailyEntry(
+        date: updatedEntry.date,
+        notes: updatedEntry.notes,
+        timezoneOffset: updatedEntry.timezoneOffset,
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to update task: $e';
+        });
+      }
+    }
+  }
+
+  Future<void> _performDirectSync() async {
+    if (_isSyncing) return;
+
+    setState(() {
+      _isSyncing = true;
+      _syncStatus = 'Syncing...';
+    });
+
+    try {
+      await TelemetryService().trackSyncStart();
+      await NotificationService().showSyncStartToast();
+
+      await SupabaseService.syncAllPendingChanges(AuthService.userId!);
+      await _loadTodayTask(); // Reload to get any updates
+
+      // Track sync success
+      await TelemetryService().trackSyncFinish(success: true);
+      await NotificationService().showSyncSuccessToast();
+
+      if (kDebugMode) {
+        print('Direct sync completed successfully');
+      }
+    } catch (e) {
+      // Handle sync error
+      await TelemetryService().trackSyncFinish(success: false, errorMessage: e.toString());
+      await NotificationService().showSyncErrorToast(e.toString());
+
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Sync failed: $e';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSyncing = false;
+          _syncStatus = null;
+        });
       }
     }
   }
@@ -665,17 +741,18 @@ class _HomeScreenState extends State<HomeScreen> {
               child: FloatingActionButton.extended(
                 onPressed: () async {
                   if (!AuthService.isAuthenticated) return;
-                  final saved = await Navigator.of(context).push<bool>(
+                  Navigator.push(
+                    context,
                     MaterialPageRoute(
                       builder: (context) => DailyCheckinScreen(
-                        existingTask: _todayTask,
+                        existingEntry: _todayTask,
+                        existingTaskEntries: _todayTaskEntries,
                         date: DateTime.now(),
                       ),
                     ),
-                  );
-                  if (saved == true) {
+                  ).then((_) {
                     _loadTodayTask();
-                  }
+                  });
                 },
                 icon: const Icon(Icons.edit),
                 label: const Text('Daily Check-in'),

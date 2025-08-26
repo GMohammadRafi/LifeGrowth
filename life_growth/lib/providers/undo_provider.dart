@@ -140,7 +140,7 @@ class UndoProvider extends ChangeNotifier {
         case 'delete_entry':
           // Restore the deleted daily entry and its task entries
           if (action.previousDailyEntry != null) {
-            await _supabaseService.restoreDailyEntry(
+            await SupabaseServiceV2.restoreDailyEntry(
               action.previousDailyEntry!,
               action.previousTaskEntries ?? [],
             );
@@ -151,7 +151,7 @@ class UndoProvider extends ChangeNotifier {
         case 'edit_entry':
           // Restore the previous state of daily entry and task entries
           if (action.previousDailyEntry != null) {
-            await _supabaseService.updateDailyEntry(
+            await SupabaseServiceV2.updateDailyEntry(
               action.previousDailyEntry!,
               action.previousTaskEntries ?? [],
             );
@@ -162,7 +162,7 @@ class UndoProvider extends ChangeNotifier {
         case 'create_entry':
           // Delete the created daily entry and its task entries
           if (action.currentDailyEntry != null) {
-            await _supabaseService.softDeleteDailyEntry(
+            await SupabaseServiceV2.softDeleteDailyEntry(
               action.currentDailyEntry!.userId,
               action.currentDailyEntry!.date,
             );
@@ -173,7 +173,7 @@ class UndoProvider extends ChangeNotifier {
         case 'delete_task_entry':
           // Restore the deleted task entry
           if (action.previousTaskEntry != null) {
-            await _supabaseService.restoreTaskEntry(action.previousTaskEntry!);
+            await SupabaseServiceV2.restoreTaskEntry(action.previousTaskEntry!);
             await Future.delayed(const Duration(milliseconds: 150));
           }
           break;
@@ -181,7 +181,7 @@ class UndoProvider extends ChangeNotifier {
         case 'edit_task_entry':
           // Restore the previous state of task entry
           if (action.previousTaskEntry != null) {
-            await _supabaseService.updateTaskEntry(action.previousTaskEntry!);
+            await SupabaseServiceV2.updateTaskEntry(action.previousTaskEntry!);
             await Future.delayed(const Duration(milliseconds: 150));
           }
           break;
@@ -189,7 +189,7 @@ class UndoProvider extends ChangeNotifier {
         case 'create_task_entry':
           // Delete the created task entry
           if (action.currentTaskEntry != null) {
-            await _supabaseService.deleteTaskEntry(action.currentTaskEntry!.id);
+            await SupabaseServiceV2.deleteTaskEntry(action.currentTaskEntry!.id);
             await Future.delayed(const Duration(milliseconds: 150));
           }
           break;

@@ -65,7 +65,10 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
     
     try {
       // Load daily data (entry, task entries, tasks, task types)
-      final dailyData = await SupabaseServiceV2.getDailyData(widget.date);
+      final dailyData = await SupabaseServiceV2.getDailyData(
+        userId: _auth.currentUser!.uid,
+        date: widget.date,
+      );
       
       _currentEntry = widget.existingEntry ?? dailyData['dailyEntry'] ?? DailyEntry.empty(
         date: widget.date,

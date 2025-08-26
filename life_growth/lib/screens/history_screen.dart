@@ -53,7 +53,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     try {
       // Load user's tasks and task types first
-      final tasks = await SupabaseServiceV2.getUserTasks();
+      final tasks = await SupabaseServiceV2.getUserTasks(_auth.currentUser!.uid);
       final taskTypes = await SupabaseServiceV2.getTaskTypes();
       
       _userTasks = tasks;
@@ -70,7 +70,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
       // Load entries for each day in the range
       for (DateTime date = startDate; date.isBefore(endDate); date = date.add(const Duration(days: 1))) {
         try {
-          final dailyData = await SupabaseServiceV2.getDailyData(date);
+          final dailyData = await SupabaseServiceV2.getDailyData(
+            userId: _auth.currentUser!.uid,
+            date: date,
+          );
           final dailyEntry = dailyData['dailyEntry'] as DailyEntry?;
           final taskEntries = dailyData['taskEntries'] as List<TaskEntry>? ?? [];
           
@@ -263,9 +266,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete),
-                  onPressed: () => _confirmDelete(entry),
-                  tooltip: 'Delete',
-                )
+                  onPressed: () => _deleteEntry(date),
+                ),
               ] else
                 IconButton(
                   icon: const Icon(Icons.restore_rounded),
