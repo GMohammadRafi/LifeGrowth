@@ -439,4 +439,75 @@ class SupabaseServiceV2 {
 
     return response;
   }
+
+  // Initialize default tasks for a user based on hardcoded task types
+  static Future<List<Task>> initializeDefaultTasks(String userId) async {
+    final taskTypes = await getTaskTypes();
+    final existingTasks = await getUserTasks(userId);
+    
+    // Define all default tasks to be created based on current hardcoded tasks
+    final defaultTasks = [
+      {'taskTypeName': 'reading_book', 'name': 'Reading Book', 'description': 'Track daily reading progress'},
+      {'taskTypeName': 'stretch_exercise', 'name': 'Stretch Exercise', 'description': 'Track daily stretching routine'},
+      {'taskTypeName': 'meditation', 'name': 'Meditation', 'description': 'Track daily meditation practice'},
+      {'taskTypeName': 'reading_docs', 'name': 'Reading Documentation', 'description': 'Track technical documentation reading'},
+      {'taskTypeName': 'learning_tech', 'name': 'Learning New Technology', 'description': 'Track technology learning progress'},
+      {'taskTypeName': 'walking', 'name': 'Walking', 'description': 'Track daily walking activity'},
+      {'taskTypeName': 'habit', 'name': 'Avoid Bad Habit', 'description': 'Track avoiding a specific bad habit'},
+      {'taskTypeName': 'habit', 'name': 'Avoid Sweets', 'description': 'Track avoiding sweets and sugary foods'},
+      {'taskTypeName': 'habit', 'name': 'Work Done Today', 'description': 'Track daily work completion'},
+      {'taskTypeName': 'entertainment', 'name': 'Movie or Series', 'description': 'Track entertainment consumption'},
+    ];
+    
+    final List<Task> createdTasks = [];
+    
+    for (final defaultTask in defaultTasks) {
+      // Find the corresponding task type
+      final taskType = taskTypes.firstWhere(
+        (type) => type.name == defaultTask['taskTypeName'],
+        orElse: () => throw Exception('Task type ${defaultTask['taskTypeName']} not found'),
+      );
+      
+      // Check if user already has a task with this name and type
+      final hasExistingTask = existingTasks.any((task) => 
+        task.taskTypeId == taskType.id && task.name == defaultTask['name']);
+      
+      if (!hasExistingTask) {
+        try {
+          final task = await createTask(
+            taskTypeId: taskType.id,
+            name: defaultTask['name']!,
+            description: defaultTask['description']!,
+          );
+          createdTasks.add(task);
+          
+          if (kDebugMode) {
+            print('Created default task: ${defaultTask['name']}');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('Error creating default task ${defaultTask['name']}: $e');
+          }
+        }
+      }
+    }
+    
+    if (kDebugMode) {
+      print('Initialized ${createdTasks.length} default tasks for user: $userId');
+    }
+    
+    return createdTasks;
+  }
+  
+  // Enhanced getDailyData method that ensures default tasks exist
+  static Future<Map<String, dynamic>> getDailyDataWithDefaults({
+    required String userId,
+    required DateTime date,
+  }) async {
+    // Ensure user has default tasks
+    await initializeDefaultTasks(userId);
+    
+    // Get the regular daily data
+    return await getDailyData(userId: userId, date: date);
+  }
 }

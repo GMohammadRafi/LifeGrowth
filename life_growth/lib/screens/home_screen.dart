@@ -47,6 +47,11 @@ class _HomeScreenState extends State<HomeScreen> {
   // Add the missing _todayTask getter
   DailyEntry? get _todayTask => _todayEntry;
 
+  // Count of completed tasks for today
+  int get _completedTasksCount {
+    return _todayTaskEntries.where((entry) => entry.completed).length;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -90,15 +95,23 @@ class _HomeScreenState extends State<HomeScreen> {
       final today = DateTime.now();
       final userId = AuthService.userId!;
 
-      // Load today's data using v2 service
-      final dailyData = await SupabaseServiceV2.getDailyData(
+      // Load today's data using enhanced method that ensures default tasks exist
+      final dailyData = await SupabaseServiceV2.getDailyDataWithDefaults(
         userId: userId,
         date: today,
       );
 
+      // If no daily entry exists, create one automatically
+      DailyEntry? todayEntry = dailyData['dailyEntry'] as DailyEntry?;
+      if (todayEntry == null) {
+        todayEntry = await SupabaseServiceV2.createOrUpdateDailyEntry(
+          date: today,
+        );
+      }
+
       if (mounted) {
         setState(() {
-          _todayEntry = dailyData['dailyEntry'] as DailyEntry?;
+          _todayEntry = todayEntry;
           _todayTaskEntries = dailyData['taskEntries'] as List<TaskEntry>;
           _userTasks = dailyData['tasks'] as List<Task>;
           _taskTypes = dailyData['taskTypes'] as List<TaskType>;
@@ -654,84 +667,81 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 )
-              : _todayTask == null
-                  ? const Center(child: Text('No task data available'))
-                  : RefreshIndicator(
-                      onRefresh: _loadTodayTask,
-                      child: ListView(
-                        children: [
-                          // Header
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Today - ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
-                                  style:
-                                      Theme.of(context).textTheme.headlineSmall,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Completed: ${_todayTask!.completedTasksCount}/10 tasks',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyLarge
-                                      ?.copyWith(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary,
-                                      ),
-                                ),
-                              ],
+              : RefreshIndicator(
+                  onRefresh: _loadTodayTask,
+                  child: ListView(
+                    children: [
+                      // Header
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Today - ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
+                              style: Theme.of(context).textTheme.headlineSmall,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Completed: $_completedTasksCount tasks',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyLarge
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Incomplete Tasks Section
+                      if (_getIncompleteTaskWidgets().isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Text(
+                            'Today\'s Tasks',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                           ),
-
-                          // Incomplete Tasks Section
-                          if (_getIncompleteTaskWidgets().isNotEmpty) ...[
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              child: Text(
-                                'Today\'s Tasks',
+                        ),
+                        ..._getIncompleteTaskWidgets(),
+                      ],
+                      
+                      // Completed Tasks Section
+                      if (_getCompletedTaskWidgets().isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.check_circle,
+                                color: Colors.green,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Completed Tasks',
                                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).colorScheme.primary,
+                                  color: Colors.green,
                                 ),
                               ),
-                            ),
-                            ..._getIncompleteTaskWidgets(),
-                          ],
-                          
-                          // Completed Tasks Section
-                          if (_getCompletedTaskWidgets().isNotEmpty) ...[
-                            const SizedBox(height: 16),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.check_circle,
-                                    color: Colors.green,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Completed Tasks',
-                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.green,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            ..._getCompletedTaskWidgets(),
-                          ],
+                            ],
+                          ),
+                        ),
+                        ..._getCompletedTaskWidgets(),
+                      ],
 
-                          const SizedBox(height: 16),
-                        ],
-                      ),
-                    ),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
       floatingActionButton: _todayTask == null
           ? null
           : Semantics(
@@ -761,43 +771,25 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  List<Widget> _buildPersonalizedTaskList() {
-    if (_personalizationSettings == null || _todayTask == null) {
-      return _buildDefaultTaskList();
-    }
-
-    final List<Widget> taskWidgets = [];
-    final taskOrder = _personalizationSettings!.taskOrder;
-    final hiddenTasks = _personalizationSettings!.hiddenTasks;
-
-    for (final taskType in taskOrder) {
-       if (!hiddenTasks.contains(taskType)) {
-         final widget = _buildTaskTileForType(taskType);
-         if (widget != null) {
-           taskWidgets.add(widget);
-         }
-       }
-     }
-
-    return taskWidgets;
-  }
-
   List<Widget> _getIncompleteTaskWidgets() {
-    final allTaskWidgets = _personalizationSettings == null || _todayTask == null
-        ? _buildDefaultTaskList()
-        : _buildPersonalizedTaskList();
-    
     final List<Widget> incompleteWidgets = [];
-    final taskOrder = _personalizationSettings?.taskOrder ?? [
-      'readingBook', 'stretch', 'meditation', 'readingDocs', 'learningTech',
-      'walking', 'avoidHabit', 'avoidSweets', 'workDone', 'movieSeries'
-    ];
     
-    for (final taskType in taskOrder) {
-      if (_personalizationSettings?.hiddenTasks.contains(taskType) == true) continue;
+    for (final task in _userTasks) {
+      final taskEntry = _todayTaskEntries.firstWhere(
+        (entry) => entry.taskId == task.id,
+        orElse: () => TaskEntry(
+          id: '',
+          dailyEntryId: _todayEntry?.id ?? '',
+          taskId: task.id,
+          data: {},
+          completed: false,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      );
       
-      if (!_isTaskTypeCompleted(taskType)) {
-        final widget = _buildTaskTileForType(taskType);
+      if (!taskEntry.completed) {
+        final widget = _buildDynamicTaskTile(task, taskEntry);
         if (widget != null) {
           incompleteWidgets.add(widget);
         }
@@ -809,16 +801,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Widget> _getCompletedTaskWidgets() {
     final List<Widget> completedWidgets = [];
-    final taskOrder = _personalizationSettings?.taskOrder ?? [
-      'readingBook', 'stretch', 'meditation', 'readingDocs', 'learningTech',
-      'walking', 'avoidHabit', 'avoidSweets', 'workDone', 'movieSeries'
-    ];
     
-    for (final taskType in taskOrder) {
-      if (_personalizationSettings?.hiddenTasks.contains(taskType) == true) continue;
+    for (final task in _userTasks) {
+      final taskEntry = _todayTaskEntries.firstWhere(
+        (entry) => entry.taskId == task.id,
+        orElse: () => TaskEntry(
+          id: '',
+          dailyEntryId: _todayEntry?.id ?? '',
+          taskId: task.id,
+          data: {},
+          completed: false,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      );
       
-      if (_isTaskTypeCompleted(taskType)) {
-        final widget = _buildTaskTileForType(taskType);
+      if (taskEntry.completed) {
+        final widget = _buildDynamicTaskTile(task, taskEntry);
         if (widget != null) {
           completedWidgets.add(widget);
         }
@@ -828,195 +827,82 @@ class _HomeScreenState extends State<HomeScreen> {
     return completedWidgets;
   }
 
-  bool _isTaskTypeCompleted(String taskType) {
-    if (_todayTask == null) return false;
+  Widget? _buildDynamicTaskTile(Task task, TaskEntry taskEntry) {
+    final taskType = _taskTypes.firstWhere(
+      (type) => type.id == task.taskTypeId,
+      orElse: () => TaskType(
+        id: '',
+        name: 'unknown',
+        description: '',
+        schemaDefinition: {},
+        isActive: true,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+    );
     
-    switch (taskType) {
-      case 'readingBook':
-        return _todayTask!.isReadingBookEffectivelyCompleted;
-      case 'stretch':
-        return _todayTask!.isStretchEffectivelyCompleted;
-      case 'meditation':
-        return _todayTask!.isMeditationEffectivelyCompleted;
-      case 'readingDocs':
-        return _todayTask!.isReadingDocsEffectivelyCompleted;
-      case 'learningTech':
-        return _todayTask!.isLearningTechEffectivelyCompleted;
-      case 'walking':
-        return _todayTask!.isWalkingEffectivelyCompleted;
-      case 'avoidHabit':
-        return _todayTask!.avoidHabitValue;
-      case 'avoidSweets':
-        return _todayTask!.avoidSweetsValue;
-      case 'workDone':
-        return _todayTask!.workDoneValue;
-      case 'movieSeries':
-        return _todayTask!.isMovieSeriesEffectivelyCompleted;
-      default:
-        return false;
-    }
-  }
-
-  List<Widget> _buildDefaultTaskList() {
-    if (_todayTask == null) return [];
+    String subtitle = '';
     
-    return [
-      _buildTaskTileForType('readingBook'),
-      _buildTaskTileForType('stretch'),
-      _buildTaskTileForType('meditation'),
-      _buildTaskTileForType('readingDocs'),
-      _buildTaskTileForType('learningTech'),
-      _buildTaskTileForType('walking'),
-      _buildTaskTileForType('avoidHabit'),
-      _buildTaskTileForType('avoidSweets'),
-      _buildTaskTileForType('workDone'),
-      _buildTaskTileForType('movieSeries'),
-    ].where((widget) => widget != null).cast<Widget>().toList();
-  }
-
-  Widget? _buildTaskTileForType(String taskType) {
-    if (_todayTask == null) return null;
-
-    switch (taskType) {
-      case 'readingBook':
-        return _buildTaskTile(
-          title: 'Reading Book',
-          completed: _todayTask!.isReadingBookEffectivelyCompleted,
-          subtitle: _todayTask!.readingBookPages != null ||
-                  _todayTask!.readingBookTime != null
-              ? '${_todayTask!.readingBookPages ?? 0} pages, ${_todayTask!.readingBookTime ?? 0} min'
-              : null,
-          onToggle: () {
-            final updated = _todayTask!.copyWith(
-              readingBookCompleted: !_todayTask!.readingBookCompleted,
-            );
-            _updateTask(updated);
-          },
-        );
-      case 'stretch':
-        return _buildTaskTile(
-          title: 'Stretch (${_todayTask!.stretchType ?? 'Not specified'})',
-          completed: _todayTask!.isStretchEffectivelyCompleted,
-          subtitle: _todayTask!.stretchMinutes != null
-              ? '${_todayTask!.stretchMinutes} minutes'
-              : null,
-          onToggle: () {
-            final updated = _todayTask!.copyWith(
-              stretchCompleted: !_todayTask!.stretchCompleted,
-            );
-            _updateTask(updated);
-          },
-        );
+    // Build subtitle based on task type and data
+    switch (taskType.name) {
+      case 'reading_book':
+        final pages = taskEntry.getIntValue('pages') ?? 0;
+        final time = taskEntry.getIntValue('time') ?? 0;
+        if (pages > 0 || time > 0) {
+          subtitle = '$pages pages, $time min';
+        }
+        break;
+      case 'stretch_exercise':
+        final minutes = taskEntry.getIntValue('minutes') ?? 0;
+        final type = taskEntry.getStringValue('type') ?? 'Not specified';
+        subtitle = '$type${minutes > 0 ? ', $minutes minutes' : ''}';
+        break;
       case 'meditation':
-        return _buildTaskTile(
-          title: 'Meditation',
-          completed: _todayTask!.isMeditationEffectivelyCompleted,
-          subtitle: _todayTask!.meditationMinutes != null
-              ? '${_todayTask!.meditationMinutes} minutes'
-              : null,
-          onToggle: () {
-            final updated = _todayTask!.copyWith(
-              meditationCompleted: !_todayTask!.meditationCompleted,
-            );
-            _updateTask(updated);
-          },
-        );
-      case 'readingDocs':
-        return _buildTaskTile(
-          title: 'Reading Docs',
-          completed: _todayTask!.isReadingDocsEffectivelyCompleted,
-          subtitle: _todayTask!.readingDocsPages != null ||
-                  _todayTask!.readingDocsTime != null
-              ? '${_todayTask!.readingDocsPages ?? 0} pages, ${_todayTask!.readingDocsTime ?? 0} min'
-              : null,
-          onToggle: () {
-            final updated = _todayTask!.copyWith(
-              readingDocsCompleted: !_todayTask!.readingDocsCompleted,
-            );
-            _updateTask(updated);
-          },
-        );
-      case 'learningTech':
-        return _buildTaskTile(
-          title: 'Learning New Technology',
-          completed: _todayTask!.isLearningTechEffectivelyCompleted,
-          subtitle: _todayTask!.learningTechName != null ||
-                  _todayTask!.learningTechTime != null
-              ? '${_todayTask!.learningTechName ?? 'Not specified'}, ${_todayTask!.learningTechTime ?? 0} min'
-              : null,
-          onToggle: () {
-            final updated = _todayTask!.copyWith(
-              learningTechCompleted: !_todayTask!.learningTechCompleted,
-            );
-            _updateTask(updated);
-          },
-        );
+        final minutes = taskEntry.getIntValue('minutes') ?? 0;
+        if (minutes > 0) {
+          subtitle = '$minutes minutes';
+        }
+        break;
+      case 'reading_docs':
+        final pages = taskEntry.getIntValue('pages') ?? 0;
+        final time = taskEntry.getIntValue('time') ?? 0;
+        if (pages > 0 || time > 0) {
+          subtitle = '$pages pages, $time min';
+        }
+        break;
+      case 'learning_tech':
+        final name = taskEntry.getStringValue('name') ?? 'Not specified';
+        final time = taskEntry.getIntValue('time') ?? 0;
+        subtitle = '$name${time > 0 ? ', $time min' : ''}';
+        break;
       case 'walking':
-        return _buildTaskTile(
-          title: 'Walking',
-          completed: _todayTask!.isWalkingEffectivelyCompleted,
-          subtitle: _todayTask!.walkingSteps != null ||
-                  _todayTask!.walkingTime != null
-              ? '${_todayTask!.walkingSteps ?? 0} steps, ${_todayTask!.walkingTime ?? 0} min'
-              : null,
-          onToggle: () {
-            final updated = _todayTask!.copyWith(
-              walkingCompleted: !_todayTask!.walkingCompleted,
-            );
-            _updateTask(updated);
-          },
-        );
-      case 'avoidHabit':
-        return _buildTaskTile(
-          title: _todayTask!.avoidHabitLabel ?? 'Avoid X',
-          completed: _todayTask!.avoidHabitValue,
-          onToggle: () {
-            final updated = _todayTask!.copyWith(
-              avoidHabitValue: !_todayTask!.avoidHabitValue,
-            );
-            _updateTask(updated);
-          },
-        );
-      case 'avoidSweets':
-        return _buildTaskTile(
-          title: 'Avoid Sweets',
-          completed: _todayTask!.avoidSweetsValue,
-          onToggle: () {
-            final updated = _todayTask!.copyWith(
-              avoidSweetsValue: !_todayTask!.avoidSweetsValue,
-            );
-            _updateTask(updated);
-          },
-        );
-      case 'workDone':
-        return _buildTaskTile(
-          title: 'Work Done Today',
-          completed: _todayTask!.workDoneValue,
-          onToggle: () {
-            final updated = _todayTask!.copyWith(
-              workDoneValue: !_todayTask!.workDoneValue,
-            );
-            _updateTask(updated);
-          },
-        );
-      case 'movieSeries':
-        return _buildTaskTile(
-          title: 'Movie or Series',
-          completed: _todayTask!.isMovieSeriesEffectivelyCompleted,
-          subtitle: _todayTask!.movieSeriesName != null ||
-                  _todayTask!.movieSeriesDuration != null
-              ? '${_todayTask!.movieSeriesName ?? 'Not specified'}, ${_todayTask!.movieSeriesDuration ?? 0} min'
-              : null,
-          onToggle: () {
-            final updated = _todayTask!.copyWith(
-              movieSeriesCompleted: !_todayTask!.movieSeriesCompleted,
-            );
-            _updateTask(updated);
-          },
-        );
-      default:
-        return null;
+        final steps = taskEntry.getIntValue('steps') ?? 0;
+        final time = taskEntry.getIntValue('time') ?? 0;
+        if (steps > 0 || time > 0) {
+          subtitle = '$steps steps, $time min';
+        }
+        break;
+      case 'entertainment':
+        final name = taskEntry.getStringValue('name') ?? 'Not specified';
+        final duration = taskEntry.getIntValue('duration') ?? 0;
+        subtitle = '$name${duration > 0 ? ', $duration min' : ''}';
+        break;
+      case 'habit':
+        final notes = taskEntry.getStringValue('notes');
+        if (notes != null && notes.isNotEmpty) {
+          subtitle = notes;
+        }
+        break;
     }
+    
+    return _buildTaskTile(
+      title: task.name,
+      completed: taskEntry.completed,
+      subtitle: subtitle.isNotEmpty ? subtitle : null,
+      onToggle: () => _updateTaskEntry(taskEntry.copyWith(
+        completed: !taskEntry.completed,
+      )),
+    );
   }
 
   @override
