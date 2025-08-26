@@ -16,7 +16,6 @@ import '../models/task_type.dart';
 import '../models/personalization_settings.dart';
 import '../providers/undo_provider.dart';
 import 'auth_screen.dart';
-import 'daily_checkin_screen.dart';
 import 'history_screen.dart';
 import 'analytics_screen.dart';
 import 'personalization_screen.dart';
@@ -43,6 +42,13 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isUndoing = false;
   String? _errorMessage;
   String? _syncStatus;
+  
+  // Track expanded state for each task
+  final Map<String, bool> _expandedTasks = {};
+  
+  // Form controllers for task data
+  final Map<String, TextEditingController> _controllers = {};
+  final _formKey = GlobalKey<FormState>();
 
   // Add the missing _todayTask getter
   DailyEntry? get _todayTask => _todayEntry;
@@ -59,6 +65,14 @@ class _HomeScreenState extends State<HomeScreen> {
     TelemetryService().trackScreenView('home_screen');
     _initializePersonalization();
     _loadTodayData();
+  }
+
+  @override
+  void dispose() {
+    for (final controller in _controllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
   }
 
   Future<void> _initializePersonalization() async {
@@ -95,13 +109,30 @@ class _HomeScreenState extends State<HomeScreen> {
       final today = DateTime.now();
       final userId = AuthService.userId!;
 
-      // Load today's data using enhanced method that ensures default tasks exist
+      // First, check if user has any tasks
+      final userTasks = await SupabaseServiceV2.getUserTasks(userId);
+
+      if (userTasks.isEmpty) {
+        // No tasks = show empty state, don't create daily entry
+        if (mounted) {
+          setState(() {
+            _todayEntry = null;
+            _todayTaskEntries = [];
+            _userTasks = [];
+            _taskTypes = [];
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
+      // User has tasks, proceed with normal flow
       final dailyData = await SupabaseServiceV2.getDailyDataWithDefaults(
         userId: userId,
         date: today,
       );
 
-      // If no daily entry exists, create one automatically
+      // Only create daily entry if user has tasks
       DailyEntry? todayEntry = dailyData['dailyEntry'] as DailyEntry?;
       if (todayEntry == null) {
         todayEntry = await SupabaseServiceV2.createOrUpdateDailyEntry(
@@ -113,10 +144,12 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _todayEntry = todayEntry;
           _todayTaskEntries = dailyData['taskEntries'] as List<TaskEntry>;
-          _userTasks = dailyData['tasks'] as List<Task>;
+          _userTasks = userTasks;
           _taskTypes = dailyData['taskTypes'] as List<TaskType>;
           _isLoading = false;
         });
+        
+        _setupFormControllers();
       }
     } catch (e) {
       if (mounted) {
@@ -124,6 +157,35 @@ class _HomeScreenState extends State<HomeScreen> {
           _errorMessage = 'Failed to load today\'s data: $e';
           _isLoading = false;
         });
+      }
+    }
+  }
+  
+  void _setupFormControllers() {
+    // Clear existing controllers
+    for (final controller in _controllers.values) {
+      controller.dispose();
+    }
+    _controllers.clear();
+    
+    // Setup controllers for each task based on their schema
+    for (final task in _userTasks) {
+      final taskType = _taskTypes.firstWhere((type) => type.id == task.taskTypeId);
+      final existingEntry = _todayTaskEntries.where((entry) => entry.taskId == task.id).firstOrNull;
+      
+      // Create controllers for each field in the task type schema
+      final fieldDefinitions = taskType.fieldDefinitions;
+      for (final fieldName in fieldDefinitions.keys) {
+        final controllerKey = '${task.id}_$fieldName';
+        _controllers[controllerKey] = TextEditingController();
+        
+        // Set initial value from existing entry
+        if (existingEntry != null) {
+          final value = existingEntry.getDataValue(fieldName);
+          if (value != null) {
+            _controllers[controllerKey]!.text = value.toString();
+          }
+        }
       }
     }
   }
@@ -667,107 +729,122 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 )
-              : RefreshIndicator(
-                  onRefresh: _loadTodayTask,
-                  child: ListView(
-                    children: [
-                      // Header
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Today - ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
-                              style: Theme.of(context).textTheme.headlineSmall,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Completed: $_completedTasksCount tasks',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyLarge
-                                  ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Incomplete Tasks Section
-                      if (_getIncompleteTaskWidgets().isNotEmpty) ...[
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          child: Text(
-                            'Today\'s Tasks',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
+              : (_userTasks.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.task_alt,
+                            size: 64,
+                            color: Colors.grey[400],
                           ),
-                        ),
-                        ..._getIncompleteTaskWidgets(),
-                      ],
-                      
-                      // Completed Tasks Section
-                      if (_getCompletedTaskWidgets().isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.check_circle,
-                                color: Colors.green,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Completed Tasks',
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.green,
+                          const SizedBox(height: 16),
+                          Text(
+                            'No tasks yet',
+                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  color: Colors.grey[600],
                                 ),
-                              ),
-                            ],
                           ),
-                        ),
-                        ..._getCompletedTaskWidgets(),
-                      ],
-
-                      const SizedBox(height: 16),
-                    ],
-                  ),
-                ),
-      floatingActionButton: _todayTask == null
-          ? null
-          : Semantics(
-              label: 'Daily Check-in',
-              hint: 'Open daily check-in form to track your tasks',
-              button: true,
-              child: FloatingActionButton.extended(
-                onPressed: () async {
-                  if (!AuthService.isAuthenticated) return;
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => DailyCheckinScreen(
-                        existingEntry: _todayTask,
-                        existingTaskEntries: _todayTaskEntries,
-                        date: DateTime.now(),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Create your first task in Personalization',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Colors.grey[500],
+                                ),
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const PersonalizationScreen(),
+                                ),
+                              ).then((_) => _loadTodayData());
+                            },
+                            icon: const Icon(Icons.add),
+                            label: const Text('Create Tasks'),
+                          ),
+                        ],
                       ),
-                    ),
-                  ).then((_) {
-                    _loadTodayTask();
-                  });
-                },
-                icon: const Icon(Icons.edit),
-                label: const Text('Daily Check-in'),
-              ),
-            ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _loadTodayTask,
+                      child: ListView(
+                        children: [
+                          // Header
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Today - ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
+                                  style: Theme.of(context).textTheme.headlineSmall,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Completed: $_completedTasksCount tasks',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.copyWith(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Incomplete Tasks Section
+                          if (_getIncompleteTaskWidgets().isNotEmpty) ...[
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              child: Text(
+                                'Today\'s Tasks',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                              ),
+                            ),
+                            ..._getIncompleteTaskWidgets(),
+                          ],
+                          
+                          // Completed Tasks Section
+                          if (_getCompletedTaskWidgets().isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.check_circle,
+                                    color: Colors.green,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Completed Tasks',
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.green,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            ..._getCompletedTaskWidgets(),
+                          ],
+
+                          const SizedBox(height: 16),
+                        ],
+                      ),
+                    )),
+      floatingActionButton: null,
     );
   }
 
@@ -841,6 +918,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
     
+    final isExpanded = _expandedTasks[task.id] ?? false;
+    
     String subtitle = '';
     
     // Build subtitle based on task type and data
@@ -895,18 +974,209 @@ class _HomeScreenState extends State<HomeScreen> {
         break;
     }
     
-    return _buildTaskTile(
-      title: task.name,
-      completed: taskEntry.completed,
-      subtitle: subtitle.isNotEmpty ? subtitle : null,
-      onToggle: () => _updateTaskEntry(taskEntry.copyWith(
-        completed: !taskEntry.completed,
-      )),
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Column(
+        children: [
+          ListTile(
+            leading: Checkbox(
+              value: taskEntry.completed,
+              onChanged: (_) => _updateTaskEntry(taskEntry.copyWith(
+                completed: !taskEntry.completed,
+              )),
+            ),
+            title: Text(
+              task.name,
+              style: TextStyle(
+                decoration: taskEntry.completed ? TextDecoration.lineThrough : null,
+                color: taskEntry.completed ? Colors.grey : null,
+              ),
+            ),
+            subtitle: subtitle.isNotEmpty ? Text(subtitle) : null,
+            trailing: IconButton(
+              icon: Icon(
+                isExpanded ? Icons.expand_less : Icons.expand_more,
+              ),
+              onPressed: () {
+                setState(() {
+                  _expandedTasks[task.id] = !isExpanded;
+                });
+              },
+            ),
+            onTap: () {
+              setState(() {
+                _expandedTasks[task.id] = !isExpanded;
+              });
+            },
+          ),
+          if (isExpanded) ...[
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (task.description != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16.0),
+                        child: Text(
+                          task.description!,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ..._buildTaskFields(task, taskType),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () => _saveTaskData(task.id),
+                          child: const Text('Save'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
-
-  @override
-  void dispose() {
-    super.dispose();
+  
+  List<Widget> _buildTaskFields(Task task, TaskType taskType) {
+    final widgets = <Widget>[];
+    final fieldDefinitions = taskType.fieldDefinitions;
+    
+    for (final entry in fieldDefinitions.entries) {
+      final fieldName = entry.key;
+      final fieldDef = entry.value as Map<String, dynamic>;
+      final fieldType = fieldDef['type'] as String?;
+      final fieldTitle = fieldDef['title'] as String? ?? fieldName;
+      final isRequired = taskType.requiredFields.contains(fieldName);
+      
+      final controllerKey = '${task.id}_$fieldName';
+      final controller = _controllers[controllerKey];
+      
+      if (controller != null) {
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12.0),
+            child: TextFormField(
+              controller: controller,
+              decoration: InputDecoration(
+                labelText: fieldTitle + (isRequired ? ' *' : ''),
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+              keyboardType: _getKeyboardType(fieldType),
+              validator: isRequired ? (value) {
+                if (value == null || value.isEmpty) {
+                  return 'This field is required';
+                }
+                return null;
+              } : null,
+            ),
+          ),
+        );
+      }
+    }
+    
+    return widgets;
   }
+  
+  TextInputType _getKeyboardType(String? fieldType) {
+    switch (fieldType) {
+      case 'integer':
+      case 'number':
+        return TextInputType.number;
+      case 'email':
+        return TextInputType.emailAddress;
+      case 'url':
+        return TextInputType.url;
+      default:
+        return TextInputType.text;
+    }
+  }
+
+  Future<void> _saveTaskData(String taskId) async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    try {
+      final task = _userTasks.firstWhere((t) => t.id == taskId);
+      final taskType = _taskTypes.firstWhere((type) => type.id == task.taskTypeId);
+      final fieldDefinitions = taskType.fieldDefinitions;
+
+      final Map<String, dynamic> data = {};
+
+      // Collect data from form controllers
+      for (final fieldName in fieldDefinitions.keys) {
+        final controllerKey = '${taskId}_$fieldName';
+        final controller = _controllers[controllerKey];
+
+        if (controller != null && controller.text.isNotEmpty) {
+          final fieldDef = fieldDefinitions[fieldName] as Map<String, dynamic>;
+          final fieldType = fieldDef['type'] as String?;
+
+          // Parse value based on field type
+          switch (fieldType) {
+            case 'integer':
+              final intValue = int.tryParse(controller.text);
+              if (intValue != null) {
+                data[fieldName] = intValue;
+              }
+              break;
+            case 'number':
+              final doubleValue = double.tryParse(controller.text);
+              if (doubleValue != null) {
+                data[fieldName] = doubleValue;
+              }
+              break;
+            case 'boolean':
+              data[fieldName] = controller.text.toLowerCase() == 'true';
+              break;
+            default:
+              data[fieldName] = controller.text;
+          }
+        }
+      }
+
+      // Find existing task entry or create new one
+      final existingEntry = _todayTaskEntries.firstWhere(
+        (entry) => entry.taskId == taskId,
+        orElse: () => TaskEntry(
+          id: '',
+          dailyEntryId: _todayEntry?.id ?? '',
+          taskId: taskId,
+          data: {},
+          completed: false,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      );
+
+      // Update task entry with new data
+      final updatedEntry = existingEntry.copyWith(data: data);
+      await _updateTaskEntry(updatedEntry);
+
+      // Collapse the expanded section after saving
+      setState(() {
+        _expandedTasks[taskId] = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save task data: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
 }

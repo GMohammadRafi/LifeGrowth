@@ -3,6 +3,11 @@ import '../models/personalization_settings.dart';
 import '../services/personalization_service.dart';
 import '../services/notification_service.dart';
 import '../services/telemetry_service.dart';
+import '../services/auth_service.dart';
+import '../services/supabase_service_v2.dart';
+import '../models/task.dart';
+import '../models/task_type.dart';
+import '../widgets/create_task_dialog.dart';
 
 class PersonalizationScreen extends StatefulWidget {
   const PersonalizationScreen({super.key});
@@ -469,9 +474,88 @@ class _PersonalizationScreenState extends State<PersonalizationScreen> {
                 ),
               ),
             ),
+            // Add after existing sections in build method
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'My Tasks',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Create and manage your personal tasks',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    // List existing user tasks
+                    FutureBuilder<List<Task>>(
+                      future: _loadUserTasks(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const CircularProgressIndicator();
+                        }
+                        
+                        final tasks = snapshot.data ?? [];
+                        
+                        return Column(
+                          children: [
+                            ...tasks.map((task) => ListTile(
+                              title: Text(task.name),
+                              subtitle: Text(task.description ?? ''),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.delete),
+                                onPressed: () => _deleteTask(task.id),
+                              ),
+                            )),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: _showCreateTaskDialog,
+                              icon: const Icon(Icons.add),
+                              label: const Text('Create New Task'),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  // Move these functions inside the class
+  Future<List<Task>> _loadUserTasks() async {
+    if (!AuthService.isAuthenticated) return [];
+    return await SupabaseServiceV2.getUserTasks(AuthService.userId!);
+  }
+
+  Future<void> _showCreateTaskDialog() async {
+    final taskTypes = await SupabaseServiceV2.getTaskTypes();
+    
+    showDialog(
+      context: context,
+      builder: (context) => CreateTaskDialog(
+        taskTypes: taskTypes,
+        onTaskCreated: () {
+          setState(() {}); // Refresh the task list
+        },
+      ),
+    );
+  }
+
+  Future<void> _deleteTask(String taskId) async {
+    await SupabaseServiceV2.deleteTask(taskId);
+    setState(() {}); // Refresh the task list
   }
 }

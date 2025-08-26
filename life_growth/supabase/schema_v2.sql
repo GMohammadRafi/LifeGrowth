@@ -270,9 +270,7 @@ insert into public.task_types (name, description, schema_definition) values
 ('habit', 'General Habit Tracking', '{
   "type": "object",
   "properties": {
-    "label": {"type": "string", "maxLength": 200},
-    "value": {"type": "boolean"},
-    "notes": {"type": "string", "maxLength": 300}
+    "value": {"type": "boolean"}
   },
   "required": []
 }'),

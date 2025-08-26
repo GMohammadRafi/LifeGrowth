@@ -9,7 +9,6 @@ import '../services/auth_service.dart';
 import '../services/supabase_service_v2.dart';
 import '../services/telemetry_service.dart';
 import '../providers/undo_provider.dart';
-import 'daily_checkin_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -287,10 +286,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (context) => DailyCheckinScreen(
-          existingEntry: entry,
-          existingTaskEntries: taskEntries,
-          date: entry.date,
+        builder: (context) => IconButton(
+          icon: const Icon(Icons.edit),
+          onPressed: () => _editEntry(entry),
+          tooltip: 'Edit',
         ),
       ),
     );
@@ -507,8 +506,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Future<void> _createNewEntry() async {
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (context) => DailyCheckinScreen(
-          date: _selectedDay!,
+        builder: (context) => IconButton(
+          icon: const Icon(Icons.add),
+          onPressed: () => _createNewEntry(),
+          tooltip: 'Create New Entry',
         ),
       ),
     );
