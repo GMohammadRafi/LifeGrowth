@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
-import '../models/daily_task.dart' as model;
+import '../models/daily_entry.dart';
+import '../models/task_entry.dart';
+import '../models/task.dart';
+import '../models/task_type.dart';
 import '../services/notification_service.dart';
 import '../services/telemetry_service.dart';
 import '../models/custom_reminder.dart';
-import '../services/database_service.dart';
+import '../services/supabase_service_v2.dart';
 import '../services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -17,9 +20,12 @@ class TaskReminderScreen extends StatefulWidget {
 
 class _TaskReminderScreenState extends State<TaskReminderScreen> with TickerProviderStateMixin {
   final NotificationService _notificationService = NotificationService();
-  List<model.DailyTask> _tasks = [];
+  List<DailyEntry> _dailyEntries = [];
+  List<TaskEntry> _taskEntries = [];
+  List<Task> _userTasks = [];
+  List<TaskType> _taskTypes = [];
   List<CustomReminder> _customReminders = [];
-  Map<String, DateTime?> _taskReminders = {};
+  Map<String, DateTime?> _entryReminders = {};
   bool _isLoading = true;
   int _selectedTabIndex = 0;
   late TabController _tabController;
@@ -30,7 +36,7 @@ class _TaskReminderScreenState extends State<TaskReminderScreen> with TickerProv
     _tabController = TabController(length: 2, vsync: this);
     // Track screen view
     TelemetryService().trackScreenView('task_reminder_screen');
-    _loadTasksAndReminders();
+    _loadEntriesAndReminders();
     _loadCustomReminders();
   }
 
@@ -40,27 +46,35 @@ class _TaskReminderScreenState extends State<TaskReminderScreen> with TickerProv
     super.dispose();
   }
 
-  Future<void> _loadTasksAndReminders() async {
+  Future<void> _loadEntriesAndReminders() async {
     try {
       final userId = AuthService.userId;
       if (userId == null) {
         throw Exception('User not authenticated');
       }
       
-      final tasks = await DatabaseService.instance.getAllDailyTasksForUser(userId);
+      // Load all v2 data
+      final entries = await SupabaseServiceV2.getAllDailyEntries(userId);
+      final taskEntries = await SupabaseServiceV2.getAllTaskEntries(userId);
+      final tasks = await SupabaseServiceV2.getUserTasks(userId);
+      final taskTypes = await SupabaseServiceV2.getTaskTypes();
+      
       final reminders = await _notificationService.getPendingReminders();
       
       setState(() {
-        _tasks = tasks;
-        _taskReminders = {};
+        _dailyEntries = entries;
+        _taskEntries = taskEntries;
+        _userTasks = tasks;
+        _taskTypes = taskTypes;
+        _entryReminders = {};
         
-        // Map task reminders
+        // Map entry reminders
         for (final reminder in reminders) {
-          if (reminder['type'] == 'task') {
-            final taskId = reminder['taskId']?.toString();
+          if (reminder['type'] == 'daily_entry') {
+            final entryId = reminder['entryId']?.toString();
             final scheduledDate = reminder['scheduledDate'] as DateTime?;
-            if (taskId != null && scheduledDate != null) {
-              _taskReminders[taskId] = scheduledDate;
+            if (entryId != null && scheduledDate != null) {
+              _entryReminders[entryId] = scheduledDate;
             }
           }
         }
@@ -74,7 +88,7 @@ class _TaskReminderScreenState extends State<TaskReminderScreen> with TickerProv
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error loading tasks: $e'),
+            content: Text('Error loading data: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -124,10 +138,10 @@ class _TaskReminderScreenState extends State<TaskReminderScreen> with TickerProv
     }
   }
 
-  Future<void> _setTaskReminder(model.DailyTask task) async {
+  Future<void> _setEntryReminder(DailyEntry entry) async {
     final DateTime? selectedDate = await showDatePicker(
       context: context,
-      initialDate: _taskReminders[task.id ?? ''] ?? DateTime.now().add(const Duration(days: 1)),
+      initialDate: _entryReminders[entry.id] ?? DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
@@ -136,7 +150,7 @@ class _TaskReminderScreenState extends State<TaskReminderScreen> with TickerProv
       final TimeOfDay? selectedTime = await showTimePicker(
         context: context,
         initialTime: TimeOfDay.fromDateTime(
-          _taskReminders[task.id ?? ''] ?? DateTime.now().add(const Duration(hours: 1)),
+          _entryReminders[entry.id] ?? DateTime.now().add(const Duration(hours: 1)),
         ),
       );
 
@@ -151,19 +165,19 @@ class _TaskReminderScreenState extends State<TaskReminderScreen> with TickerProv
 
         try {
           await _notificationService.setTaskReminder(
-            taskId: task.id ?? '',
-            taskTitle: 'Daily Task for ${task.date.day}/${task.date.month}/${task.date.year}',
+            taskId: entry.id,
+            taskTitle: 'Daily Entry for ${entry.date.day}/${entry.date.month}/${entry.date.year}',
             reminderTime: reminderDateTime,
           );
 
           setState(() {
-            _taskReminders[task.id ?? ''] = reminderDateTime;
+            _entryReminders[entry.id] = reminderDateTime;
           });
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Reminder set for daily task'),
+                content: Text('Reminder set for daily entry'),
                 backgroundColor: Colors.green,
               ),
             );
@@ -182,18 +196,18 @@ class _TaskReminderScreenState extends State<TaskReminderScreen> with TickerProv
     }
   }
 
-  Future<void> _removeTaskReminder(model.DailyTask task) async {
+  Future<void> _removeEntryReminder(DailyEntry entry) async {
     try {
-      await _notificationService.removeTaskReminder(task.id ?? '');
+      await _notificationService.removeTaskReminder(entry.id);
       
       setState(() {
-        _taskReminders.remove(task.id ?? '');
+        _entryReminders.remove(entry.id);
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Reminder removed for daily task'),
+                content: Text('Reminder removed for daily entry'),
                 backgroundColor: Colors.orange,
               ),
             );
@@ -361,6 +375,14 @@ class _TaskReminderScreenState extends State<TaskReminderScreen> with TickerProv
     }
   }
 
+  String _getEntryTasksDescription(DailyEntry entry) {
+    final entryTasks = _taskEntries.where((te) => te.dailyEntryId == entry.id).toList();
+    if (entryTasks.isEmpty) return 'No tasks';
+    
+    final completedCount = entryTasks.where((te) => te.completed).length;
+    return '$completedCount/${entryTasks.length} tasks completed';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -369,7 +391,7 @@ class _TaskReminderScreenState extends State<TaskReminderScreen> with TickerProv
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Daily Tasks', icon: Icon(Icons.task_alt)),
+            Tab(text: 'Daily Entries', icon: Icon(Icons.task_alt)),
             Tab(text: 'Custom Reminders', icon: Icon(Icons.alarm_add)),
           ],
         ),
@@ -377,10 +399,10 @@ class _TaskReminderScreenState extends State<TaskReminderScreen> with TickerProv
       body: TabBarView(
         controller: _tabController,
         children: [
-          // Daily Tasks Tab
+          // Daily Entries Tab
           _isLoading
               ? const Center(child: CircularProgressIndicator())
-              : _tasks.isEmpty
+              : _dailyEntries.isEmpty
                   ? const Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -392,7 +414,7 @@ class _TaskReminderScreenState extends State<TaskReminderScreen> with TickerProv
                           ),
                           SizedBox(height: 16),
                           Text(
-                            'No tasks available',
+                            'No daily entries available',
                             style: TextStyle(
                               fontSize: 18,
                               color: Colors.grey,
@@ -400,7 +422,7 @@ class _TaskReminderScreenState extends State<TaskReminderScreen> with TickerProv
                           ),
                           SizedBox(height: 8),
                           Text(
-                            'Create some tasks to set reminders',
+                            'Create some daily entries to set reminders',
                             style: TextStyle(
                               color: Colors.grey,
                             ),
@@ -410,12 +432,12 @@ class _TaskReminderScreenState extends State<TaskReminderScreen> with TickerProv
                     )
                   : ListView.builder(
                       padding: const EdgeInsets.all(16),
-                      itemCount: _tasks.length,
+                      itemCount: _dailyEntries.length,
                       itemBuilder: (context, index) {
-                        final task = _tasks[index];
-                        final taskId = task.id ?? '';
-                        final hasReminder = _taskReminders.containsKey(taskId);
-                        final reminderDate = _taskReminders[taskId];
+                        final entry = _dailyEntries[index];
+                        final entryId = entry.id;
+                        final hasReminder = _entryReminders.containsKey(entryId);
+                        final reminderDate = _entryReminders[entryId];
 
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
@@ -432,31 +454,38 @@ class _TaskReminderScreenState extends State<TaskReminderScreen> with TickerProv
                               ),
                             ),
                             title: Text(
-                              'Daily Task - ${task.date.day}/${task.date.month}/${task.date.year}',
+                              'Daily Entry - ${entry.date.day}/${entry.date.month}/${entry.date.year}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
-                            subtitle: hasReminder && reminderDate != null
-                                ? Text(
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(_getEntryTasksDescription(entry)),
+                                if (hasReminder && reminderDate != null)
+                                  Text(
                                     'Reminder: ${_TaskReminderScreenState._formatDateTime(reminderDate)}',
                                     style: const TextStyle(
                                       color: Colors.green,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   )
-                                : const Text(
+                                else
+                                  const Text(
                                     'No reminder set',
                                     style: TextStyle(color: Colors.grey),
                                   ),
+                              ],
+                            ),
                             trailing: PopupMenuButton<String>(
                               onSelected: (value) {
                                 switch (value) {
                                   case 'set':
-                                    _setTaskReminder(task);
+                                    _setEntryReminder(entry);
                                     break;
                                   case 'remove':
-                                    _removeTaskReminder(task);
+                                    _removeEntryReminder(entry);
                                     break;
                                 }
                               },

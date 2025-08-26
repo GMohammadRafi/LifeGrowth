@@ -1,21 +1,29 @@
 import 'package:flutter/material.dart';
-import '../models/daily_task.dart' as model;
-import '../services/database_service.dart';
-import '../services/supabase_service.dart';
+import '../models/daily_entry.dart';
+import '../models/task_entry.dart';
+import '../services/supabase_service_v2.dart';
 
 class UndoAction {
   final String id;
-  final String type; // 'delete', 'edit', 'create'
-  final model.DailyTask? previousState;
-  final model.DailyTask? currentState;
+  final String type; // 'delete_entry', 'edit_entry', 'create_entry', 'delete_task_entry', 'edit_task_entry', 'create_task_entry'
+  final DailyEntry? previousDailyEntry;
+  final DailyEntry? currentDailyEntry;
+  final TaskEntry? previousTaskEntry;
+  final TaskEntry? currentTaskEntry;
+  final List<TaskEntry>? previousTaskEntries;
+  final List<TaskEntry>? currentTaskEntries;
   final DateTime timestamp;
   final String description;
 
   UndoAction({
     required this.id,
     required this.type,
-    this.previousState,
-    this.currentState,
+    this.previousDailyEntry,
+    this.currentDailyEntry,
+    this.previousTaskEntry,
+    this.currentTaskEntry,
+    this.previousTaskEntries,
+    this.currentTaskEntries,
     required this.timestamp,
     required this.description,
   });
@@ -24,7 +32,7 @@ class UndoAction {
 class UndoProvider extends ChangeNotifier {
   final List<UndoAction> _undoStack = [];
   final int _maxUndoActions = 10;
-  final DatabaseService _databaseService = DatabaseService.instance;
+  final SupabaseServiceV2 _supabaseService = SupabaseServiceV2();
 
   List<UndoAction> get undoStack => List.unmodifiable(_undoStack);
   bool get canUndo => _undoStack.isNotEmpty;
@@ -42,39 +50,81 @@ class UndoProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Record a delete action
-  void recordDelete(model.DailyTask deletedTask) {
+  /// Record a delete action for daily entry
+  void recordDeleteDailyEntry(DailyEntry deletedEntry, List<TaskEntry> deletedTaskEntries) {
     final action = UndoAction(
-      id: '${deletedTask.userId}_${deletedTask.date.millisecondsSinceEpoch}',
-      type: 'delete',
-      previousState: deletedTask,
+      id: '${deletedEntry.userId}_${deletedEntry.date.millisecondsSinceEpoch}',
+      type: 'delete_entry',
+      previousDailyEntry: deletedEntry,
+      previousTaskEntries: deletedTaskEntries,
       timestamp: DateTime.now(),
-      description: 'Deleted task for ${_formatDate(deletedTask.date)}',
+      description: 'Deleted daily entry for ${_formatDate(deletedEntry.date)}',
     );
     addAction(action);
   }
 
-  /// Record an edit action
-  void recordEdit(model.DailyTask previousTask, model.DailyTask updatedTask) {
+  /// Record an edit action for daily entry
+  void recordEditDailyEntry(DailyEntry previousEntry, DailyEntry updatedEntry, 
+                           List<TaskEntry> previousTaskEntries, List<TaskEntry> updatedTaskEntries) {
     final action = UndoAction(
-      id: '${updatedTask.userId}_${updatedTask.date.millisecondsSinceEpoch}',
-      type: 'edit',
-      previousState: previousTask,
-      currentState: updatedTask,
+      id: '${updatedEntry.userId}_${updatedEntry.date.millisecondsSinceEpoch}',
+      type: 'edit_entry',
+      previousDailyEntry: previousEntry,
+      currentDailyEntry: updatedEntry,
+      previousTaskEntries: previousTaskEntries,
+      currentTaskEntries: updatedTaskEntries,
       timestamp: DateTime.now(),
-      description: 'Edited task for ${_formatDate(updatedTask.date)}',
+      description: 'Edited daily entry for ${_formatDate(updatedEntry.date)}',
     );
     addAction(action);
   }
 
-  /// Record a create action
-  void recordCreate(model.DailyTask createdTask) {
+  /// Record a create action for daily entry
+  void recordCreateDailyEntry(DailyEntry createdEntry, List<TaskEntry> createdTaskEntries) {
     final action = UndoAction(
-      id: '${createdTask.userId}_${createdTask.date.millisecondsSinceEpoch}',
-      type: 'create',
-      currentState: createdTask,
+      id: '${createdEntry.userId}_${createdEntry.date.millisecondsSinceEpoch}',
+      type: 'create_entry',
+      currentDailyEntry: createdEntry,
+      currentTaskEntries: createdTaskEntries,
       timestamp: DateTime.now(),
-      description: 'Created task for ${_formatDate(createdTask.date)}',
+      description: 'Created daily entry for ${_formatDate(createdEntry.date)}',
+    );
+    addAction(action);
+  }
+
+  /// Record a delete action for individual task entry
+  void recordDeleteTaskEntry(TaskEntry deletedTaskEntry) {
+    final action = UndoAction(
+      id: '${deletedTaskEntry.id}_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'delete_task_entry',
+      previousTaskEntry: deletedTaskEntry,
+      timestamp: DateTime.now(),
+      description: 'Deleted task completion',
+    );
+    addAction(action);
+  }
+
+  /// Record an edit action for individual task entry
+  void recordEditTaskEntry(TaskEntry previousTaskEntry, TaskEntry updatedTaskEntry) {
+    final action = UndoAction(
+      id: '${updatedTaskEntry.id}_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'edit_task_entry',
+      previousTaskEntry: previousTaskEntry,
+      currentTaskEntry: updatedTaskEntry,
+      timestamp: DateTime.now(),
+      description: 'Edited task completion',
+    );
+    addAction(action);
+  }
+
+  /// Record a create action for individual task entry
+  void recordCreateTaskEntry(TaskEntry createdTaskEntry) {
+    final action = UndoAction(
+      id: '${createdTaskEntry.id}_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'create_task_entry',
+      currentTaskEntry: createdTaskEntry,
+      timestamp: DateTime.now(),
+      description: 'Created task completion',
     );
     addAction(action);
   }
@@ -87,35 +137,59 @@ class UndoProvider extends ChangeNotifier {
     
     try {
       switch (action.type) {
-        case 'delete':
-          // Restore the deleted task using SupabaseService for proper sync
-          if (action.previousState != null) {
-            await SupabaseService.restoreDailyTask(
-              userId: action.previousState!.userId!,
-              date: action.previousState!.date,
+        case 'delete_entry':
+          // Restore the deleted daily entry and its task entries
+          if (action.previousDailyEntry != null) {
+            await _supabaseService.restoreDailyEntry(
+              action.previousDailyEntry!,
+              action.previousTaskEntries ?? [],
             );
-            // Add a delay to ensure database write is complete
             await Future.delayed(const Duration(milliseconds: 150));
           }
           break;
           
-        case 'edit':
-          // Restore the previous state using SupabaseService for proper sync
-          if (action.previousState != null) {
-            await SupabaseService.upsertDailyTask(action.previousState!);
-            // Add a delay to ensure database write is complete
+        case 'edit_entry':
+          // Restore the previous state of daily entry and task entries
+          if (action.previousDailyEntry != null) {
+            await _supabaseService.updateDailyEntry(
+              action.previousDailyEntry!,
+              action.previousTaskEntries ?? [],
+            );
             await Future.delayed(const Duration(milliseconds: 150));
           }
           break;
           
-        case 'create':
-          // Delete the created task using SupabaseService for proper sync
-          if (action.currentState != null) {
-            await SupabaseService.softDeleteDailyTask(
-              userId: action.currentState!.userId!,
-              date: action.currentState!.date,
+        case 'create_entry':
+          // Delete the created daily entry and its task entries
+          if (action.currentDailyEntry != null) {
+            await _supabaseService.softDeleteDailyEntry(
+              action.currentDailyEntry!.userId,
+              action.currentDailyEntry!.date,
             );
-            // Add a delay to ensure database write is complete
+            await Future.delayed(const Duration(milliseconds: 150));
+          }
+          break;
+
+        case 'delete_task_entry':
+          // Restore the deleted task entry
+          if (action.previousTaskEntry != null) {
+            await _supabaseService.restoreTaskEntry(action.previousTaskEntry!);
+            await Future.delayed(const Duration(milliseconds: 150));
+          }
+          break;
+          
+        case 'edit_task_entry':
+          // Restore the previous state of task entry
+          if (action.previousTaskEntry != null) {
+            await _supabaseService.updateTaskEntry(action.previousTaskEntry!);
+            await Future.delayed(const Duration(milliseconds: 150));
+          }
+          break;
+          
+        case 'create_task_entry':
+          // Delete the created task entry
+          if (action.currentTaskEntry != null) {
+            await _supabaseService.deleteTaskEntry(action.currentTaskEntry!.id);
             await Future.delayed(const Duration(milliseconds: 150));
           }
           break;

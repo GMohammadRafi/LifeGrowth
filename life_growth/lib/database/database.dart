@@ -8,7 +8,7 @@ import 'tables.dart';
 part 'database.g.dart';
 
 @DriftDatabase(
-    tables: [DailyTasks, Habits, DailyCheckins, Goals, JournalEntries])
+    tables: [Habits, DailyCheckins, Goals, JournalEntries])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(createDatabase());
 
@@ -31,86 +31,9 @@ class AppDatabase extends _$AppDatabase {
         },
       );
 
-  // CRUD operations for DailyTasks
-  Future<DailyTask?> getDailyTask(String userId, DateTime date) async {
-    final dateOnly = DateTime(date.year, date.month, date.day);
-
-    final query = select(dailyTasks)
-      ..where((t) => t.userId.equals(userId) & t.date.equals(dateOnly));
-
-    return await query.getSingleOrNull();
-  }
-
-  Future<List<DailyTask>> getAllDailyTasksForUser(String userId,
-      {bool includeDeleted = false}) async {
-    final query = select(dailyTasks)
-      ..where((t) => t.userId.equals(userId))
-      ..orderBy([(t) => OrderingTerm.desc(t.date)]);
-
-    if (!includeDeleted) {
-      query.where((t) => t.deletedAt.isNull());
-    }
-
-    return await query.get();
-  }
-
-  Future<void> upsertDailyTask(DailyTask task) async {
-    await into(dailyTasks).insertOnConflictUpdate(task);
-  }
-
-  Future<void> deleteDailyTask(String userId, DateTime date) async {
-    final dateOnly = DateTime(date.year, date.month, date.day);
-
-    await (delete(dailyTasks)
-          ..where((t) => t.userId.equals(userId) & t.date.equals(dateOnly)))
-        .go();
-  }
-
-  Future<void> softDeleteDailyTask(String userId, DateTime date) async {
-    final dateOnly = DateTime(date.year, date.month, date.day);
-
-    await (update(dailyTasks)
-          ..where((t) => t.userId.equals(userId) & t.date.equals(dateOnly)))
-        .write(DailyTasksCompanion(
-      deletedAt: Value(DateTime.now()),
-      updatedAt: Value(DateTime.now()),
-      needsSync: const Value(true),
-    ));
-  }
-
-  Future<void> restoreDailyTask(String userId, DateTime date) async {
-    final dateOnly = DateTime(date.year, date.month, date.day);
-
-    await (update(dailyTasks)
-          ..where((t) => t.userId.equals(userId) & t.date.equals(dateOnly)))
-        .write(DailyTasksCompanion(
-      deletedAt: const Value(null),
-      updatedAt: Value(DateTime.now()),
-      needsSync: const Value(true),
-    ));
-  }
-
-  Future<List<DailyTask>> getTasksToSync() async {
-    final query = select(dailyTasks)
-      ..where((t) => t.needsSync.equals(true))
-      ..orderBy([(t) => OrderingTerm.asc(t.updatedAt)]);
-
-    return await query.get();
-  }
-
-  Future<void> markTaskAsSynced(String userId, DateTime date) async {
-    final dateOnly = DateTime(date.year, date.month, date.day);
-
-    await (update(dailyTasks)
-          ..where((t) => t.userId.equals(userId) & t.date.equals(dateOnly)))
-        .write(DailyTasksCompanion(
-      needsSync: const Value(false),
-      lastSyncAt: Value(DateTime.now()),
-    ));
-  }
+  // Removed all DailyTasks CRUD operations - replaced with v2 schema
 
   Future<void> clearAllData() async {
-    await delete(dailyTasks).go();
     await delete(habits).go();
     await delete(dailyCheckins).go();
     await delete(goals).go();
@@ -118,7 +41,6 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> clearUserData(String userId) async {
-    await (delete(dailyTasks)..where((t) => t.userId.equals(userId))).go();
     await (delete(habits)..where((tbl) => tbl.userId.equals(userId))).go();
     await (delete(dailyCheckins)..where((tbl) => tbl.userId.equals(userId)))
         .go();

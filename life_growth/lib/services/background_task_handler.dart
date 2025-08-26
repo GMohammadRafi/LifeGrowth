@@ -2,7 +2,7 @@ import 'package:workmanager/workmanager.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'supabase_service.dart';
+import 'supabase_service_v2.dart';
 import 'notification_service.dart';
 import 'auth_service.dart';
 
@@ -139,8 +139,9 @@ Future<void> _performBackgroundSync(
       print('Starting background sync for user: $userId');
     }
 
-    // Use the daily_tasks-focused sync to avoid errors from non-existent tables
-    await SupabaseService.syncAllPendingChanges(userId);
+    // Use v2 service for syncing all pending changes
+    final supabaseServiceV2 = SupabaseServiceV2();
+    await supabaseServiceV2.syncAllPendingChanges(userId);
 
     // Be silent on success to reduce notification noise
     if (kDebugMode) {

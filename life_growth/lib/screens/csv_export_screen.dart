@@ -35,10 +35,28 @@ class _CsvExportScreenState extends State<CsvExportScreen> {
       'type': 'daily_checkins',
     },
     {
-      'title': 'Daily Tasks',
-      'subtitle': 'Export all daily task completion data',
+      'title': 'Daily Entries',
+      'subtitle': 'Export daily entry records and notes',
+      'icon': Icons.calendar_today,
+      'type': 'daily_entries',
+    },
+    {
+      'title': 'Task Entries',
+      'subtitle': 'Export task completion data',
       'icon': Icons.task_alt,
-      'type': 'daily_tasks',
+      'type': 'task_entries',
+    },
+    {
+      'title': 'Tasks',
+      'subtitle': 'Export your custom tasks and configurations',
+      'icon': Icons.assignment,
+      'type': 'tasks',
+    },
+    {
+      'title': 'Task Types',
+      'subtitle': 'Export task type definitions and schemas',
+      'icon': Icons.category,
+      'type': 'task_types',
     },
     {
       'title': 'Habits',
@@ -134,8 +152,14 @@ class _CsvExportScreenState extends State<CsvExportScreen> {
     switch (type) {
       case 'daily_checkins':
         return 'Daily Check-ins';
-      case 'daily_tasks':
-        return 'Daily Tasks';
+      case 'daily_entries':
+        return 'Daily Entries';
+      case 'task_entries':
+        return 'Task Entries';
+      case 'tasks':
+        return 'Tasks';
+      case 'task_types':
+        return 'Task Types';
       case 'habits':
         return 'Habits';
       case 'goals':

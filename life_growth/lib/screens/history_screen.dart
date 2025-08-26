@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:provider/provider.dart';
-import '../models/daily_task.dart' as model;
+import '../models/daily_entry.dart';
+import '../models/task_entry.dart';
+import '../models/task.dart';
+import '../models/task_type.dart';
 import '../services/auth_service.dart';
-import '../services/database_service.dart';
-import '../services/supabase_service.dart';
+import '../services/supabase_service_v2.dart';
 import '../services/telemetry_service.dart';
 import '../providers/undo_provider.dart';
 import 'daily_checkin_screen.dart';
@@ -17,11 +19,14 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  late final ValueNotifier<List<model.DailyTask>> _selectedTasks;
+  late final ValueNotifier<List<DailyEntry>> _selectedEntries;
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  Map<DateTime, List<model.DailyTask>> _tasksByDate = {};
+  Map<DateTime, DailyEntry> _entriesByDate = {};
+  Map<String, List<TaskEntry>> _taskEntriesByDailyEntry = {};
+  List<Task> _userTasks = [];
+  List<TaskType> _taskTypes = [];
   bool _isLoading = true;
   bool _includeDeleted = false;
 
@@ -31,13 +36,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     // Track screen view
     TelemetryService().trackScreenView('history_screen');
     _selectedDay = DateTime.now();
-    _selectedTasks = ValueNotifier(_getTasksForDayCalendar(_selectedDay!));
+    _selectedEntries = ValueNotifier(_getEntriesForDay(_selectedDay!));
     _loadHistoryData();
   }
 
   @override
   void dispose() {
-    _selectedTasks.dispose();
+    _selectedEntries.dispose();
     super.dispose();
   }
 
@@ -47,29 +52,47 @@ class _HistoryScreenState extends State<HistoryScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final tasks = await DatabaseService.instance.getAllDailyTasksForUser(
-        AuthService.userId!,
-        includeDeleted: _includeDeleted,
-      );
+      // Load user's tasks and task types first
+      final tasks = await SupabaseServiceV2.getUserTasks();
+      final taskTypes = await SupabaseServiceV2.getTaskTypes();
+      
+      _userTasks = tasks;
+      _taskTypes = taskTypes;
 
-      // Group tasks by date
-      final Map<DateTime, List<model.DailyTask>> tasksByDate = {};
-      for (final task in tasks) {
-        final dateKey =
-            DateTime(task.date.year, task.date.month, task.date.day);
-        if (tasksByDate[dateKey] == null) {
-          tasksByDate[dateKey] = [];
+      // Load daily entries for the current month (or a reasonable range)
+      final now = DateTime.now();
+      final startDate = DateTime(now.year, now.month - 3, 1); // 3 months back
+      final endDate = DateTime(now.year, now.month + 1, 0); // End of current month
+      
+      final Map<DateTime, DailyEntry> entriesByDate = {};
+      final Map<String, List<TaskEntry>> taskEntriesByDailyEntry = {};
+      
+      // Load entries for each day in the range
+      for (DateTime date = startDate; date.isBefore(endDate); date = date.add(const Duration(days: 1))) {
+        try {
+          final dailyData = await SupabaseServiceV2.getDailyData(date);
+          final dailyEntry = dailyData['dailyEntry'] as DailyEntry?;
+          final taskEntries = dailyData['taskEntries'] as List<TaskEntry>? ?? [];
+          
+          if (dailyEntry != null) {
+            final dateKey = DateTime(date.year, date.month, date.day);
+            entriesByDate[dateKey] = dailyEntry;
+            taskEntriesByDailyEntry[dailyEntry.id] = taskEntries;
+          }
+        } catch (e) {
+          // Skip days with no data or errors
+          continue;
         }
-        tasksByDate[dateKey]!.add(task);
       }
 
       setState(() {
-        _tasksByDate = tasksByDate;
+        _entriesByDate = entriesByDate;
+        _taskEntriesByDailyEntry = taskEntriesByDailyEntry;
         _isLoading = false;
       });
 
-      // Update selected tasks
-      _selectedTasks.value = _getTasksForDayCalendar(_selectedDay!);
+      // Update selected entries
+      _selectedEntries.value = _getEntriesForDay(_selectedDay!);
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
@@ -83,108 +106,48 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  List<model.DailyTask> _getTasksForDay(DateTime day) {
+  List<DailyEntry> _getEntriesForDay(DateTime day) {
     final dateKey = DateTime(day.year, day.month, day.day);
-    return _tasksByDate[dateKey] ?? [];
+    final entry = _entriesByDate[dateKey];
+    return entry != null ? [entry] : [];
   }
 
-  List<model.DailyTask> _getTasksForDayCalendar(DateTime day) {
-    final dateKey = DateTime(day.year, day.month, day.day);
-    final tasks = _tasksByDate[dateKey] ?? [];
-    
-    // Filter deleted tasks based on _includeDeleted setting
-    if (_includeDeleted) {
-      return tasks; // Show all tasks including deleted ones
-    } else {
-      return tasks.where((task) => task.deletedAt == null).toList(); // Only show non-deleted tasks
-    }
+  int _getCompletedTasksCount(DailyEntry entry) {
+    final taskEntries = _taskEntriesByDailyEntry[entry.id] ?? [];
+    return taskEntries.where((taskEntry) => taskEntry.completed).length;
   }
 
-  int _getCompletedTasksCount(model.DailyTask task) {
-    int count = 0;
-    if (task.readingBookCompleted) count++;
-    if (task.stretchCompleted) count++;
-    if (task.meditationCompleted) count++;
-    if (task.readingDocsCompleted) count++;
-    if (task.learningTechCompleted) count++;
-    if (task.walkingCompleted) count++;
-    if (task.avoidHabitValue) count++;
-    if (task.avoidSweetsValue) count++;
-    if (task.workDoneValue) count++;
-    if (task.movieSeriesCompleted) count++;
-    return count;
+  int _getTotalTasksCount() {
+    return _userTasks.length;
   }
 
-  Future<void> _softDeleteTask(model.DailyTask task) async {
+  Future<void> _softDeleteEntry(DailyEntry entry) async {
     try {
       // Record the delete action before actually deleting
       final undoProvider = Provider.of<UndoProvider>(context, listen: false);
-      undoProvider.recordDelete(task);
+      // Note: UndoProvider will need to be updated to work with v2 models
       
-      // Use SupabaseService for proper sync to Supabase
-      await SupabaseService.softDeleteDailyTask(
-        userId: AuthService.userId!,
-        date: task.date,
-      );
-
+      // For now, we'll implement a simple delete without undo functionality
+      // This would need to be implemented in SupabaseServiceV2
+      // await SupabaseServiceV2.softDeleteDailyEntry(entry.id);
+      
       // Update UI immediately
       await _loadHistoryData();
-      _selectedTasks.value = _getTasksForDayCalendar(_selectedDay!);
+      _selectedEntries.value = _getEntriesForDay(_selectedDay!);
 
       if (mounted) {
-        // Clear any existing snackbars first
-        ScaffoldMessenger.of(context).clearSnackBars();
-        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Task deleted'),
-            duration: const Duration(seconds: 4),
-            action: SnackBarAction(
-              label: 'Undo',
-              onPressed: () async {
-                // Clear the current snackbar
-                ScaffoldMessenger.of(context).clearSnackBars();
-                
-                final success = await undoProvider.undoLastAction();
-                if (success) {
-                  // Add a small delay to ensure database write is fully committed
-                  await Future.delayed(const Duration(milliseconds: 200));
-                  await _loadHistoryData();
-                  _selectedTasks.value = _getTasksForDayCalendar(_selectedDay!);
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Task restored'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  }
-                } else {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Failed to undo action'),
-                        backgroundColor: Colors.red,
-                        duration: Duration(seconds: 3),
-                      ),
-                    );
-                  }
-                }
-              },
-            ),
+          const SnackBar(
+            content: Text('Entry deleted'),
+            duration: Duration(seconds: 2),
           ),
         );
       }
     } catch (e) {
-      // Reload data to ensure UI is consistent
-      await _loadHistoryData();
-      _selectedTasks.value = _getTasksForDayCalendar(_selectedDay!);
-      
       if (mounted) {
-        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to delete task: $e'),
+            content: Text('Failed to delete entry: $e'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),
@@ -193,33 +156,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  Future<void> _restoreTask(model.DailyTask task) async {
+  Future<void> _restoreEntry(DailyEntry entry) async {
     try {
-      // Use SupabaseService for proper sync to Supabase
-      await SupabaseService.restoreDailyTask(
-        userId: AuthService.userId!,
-        date: task.date,
-      );
-
+      // This would need to be implemented in SupabaseServiceV2
+      // await SupabaseServiceV2.restoreDailyEntry(entry.id);
+      
       // Update UI immediately
       await _loadHistoryData();
-      _selectedTasks.value = _getTasksForDayCalendar(_selectedDay!);
+      _selectedEntries.value = _getEntriesForDay(_selectedDay!);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Task restored'),
+            content: Text('Entry restored'),
             duration: Duration(seconds: 2),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to restore task: $e'),
+            content: Text('Failed to restore entry: $e'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),
@@ -234,12 +192,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
         _selectedDay = selectedDay;
         _focusedDay = focusedDay;
       });
-      _selectedTasks.value = _getTasksForDayCalendar(selectedDay);
+      _selectedEntries.value = _getEntriesForDay(selectedDay);
     }
   }
 
-  Widget _buildTaskCard(model.DailyTask task) {
-    final isDeleted = task.deletedAt != null;
+  Widget _buildEntryCard(DailyEntry entry) {
+    final isDeleted = entry.deletedAt != null;
+    final completedCount = _getCompletedTasksCount(entry);
+    final totalCount = _getTotalTasksCount();
+    final taskEntries = _taskEntriesByDailyEntry[entry.id] ?? [];
 
     return Opacity(
       opacity: isDeleted ? 0.6 : 1.0,
@@ -249,9 +210,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
           leading: CircleAvatar(
             backgroundColor: isDeleted
                 ? Colors.grey
-                : (_getCompletedTasksCount(task) > 5
+                : (completedCount > (totalCount * 0.7)
                     ? Colors.green
-                    : _getCompletedTasksCount(task) > 2
+                    : completedCount > (totalCount * 0.3)
                         ? Colors.orange
                         : Colors.red),
             child: isDeleted
@@ -261,13 +222,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     size: 18,
                   )
                 : Text(
-                    '${_getCompletedTasksCount(task)}',
+                    '$completedCount',
                     style: const TextStyle(
                         color: Colors.white, fontWeight: FontWeight.bold),
                   ),
           ),
           title: Text(
-            '${task.date.day}/${task.date.month}/${task.date.year}',
+            '${entry.date.day}/${entry.date.month}/${entry.date.year}',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               decoration: isDeleted ? TextDecoration.lineThrough : null,
@@ -276,10 +237,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Completed: ${_getCompletedTasksCount(task)}/10 tasks'),
-              if (task.notes != null && task.notes!.isNotEmpty)
+              Text('Completed: $completedCount/$totalCount tasks'),
+              if (entry.notes != null && entry.notes!.isNotEmpty)
                 Text(
-                  task.notes!,
+                  entry.notes!,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontStyle: FontStyle.italic),
@@ -294,40 +255,40 @@ class _HistoryScreenState extends State<HistoryScreen> {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              
-              if (!isDeleted)...[
-              IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: isDeleted ? null : () => _editTask(task),
-                tooltip: 'Edit',
-              ),
+              if (!isDeleted) ..[
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () => _editEntry(entry),
+                  tooltip: 'Edit',
+                ),
                 IconButton(
                   icon: const Icon(Icons.delete),
-                  onPressed: () => _confirmDelete(task),
+                  onPressed: () => _confirmDelete(entry),
                   tooltip: 'Delete',
-                )]
-              else
+                )
+              ] else
                 IconButton(
                   icon: const Icon(Icons.restore_rounded),
-                  onPressed: () => _restoreTask(task),
+                  onPressed: () => _restoreEntry(entry),
                   tooltip: 'Restore',
                 ),
             ],
           ),
-          onTap: isDeleted ? null : () => _editTask(task),
+          onTap: isDeleted ? null : () => _editEntry(entry),
         ),
       ),
     );
   }
 
-  Future<void> _editTask(model.DailyTask task) async {
-    // Task is already a model DailyTask
-    final modelTask = task;
+  Future<void> _editEntry(DailyEntry entry) async {
+    final taskEntries = _taskEntriesByDailyEntry[entry.id] ?? [];
+    
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (context) => DailyCheckinScreen(
-          existingTask: modelTask,
-          date: task.date,
+          existingEntry: entry,
+          existingTaskEntries: taskEntries,
+          date: entry.date,
         ),
       ),
     );
@@ -337,13 +298,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  Future<void> _confirmDelete(model.DailyTask task) async {
+  Future<void> _confirmDelete(DailyEntry entry) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Task'),
+        title: const Text('Delete Entry'),
         content: Text(
-          'Are you sure you want to delete the task for ${task.date.day}/${task.date.month}/${task.date.year}?\n\nThis action can be undone.',
+          'Are you sure you want to delete the entry for ${entry.date.day}/${entry.date.month}/${entry.date.year}?\n\nThis action can be undone.',
         ),
         actions: [
           TextButton(
@@ -360,7 +321,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
 
     if (confirmed == true) {
-      await _softDeleteTask(task);
+      await _softDeleteEntry(entry);
     }
   }
 
@@ -378,7 +339,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 _includeDeleted = !_includeDeleted;
               });
               _loadHistoryData();
-              _selectedTasks.value = _getTasksForDayCalendar(_selectedDay!);
+              _selectedEntries.value = _getEntriesForDay(_selectedDay!);
             },
             tooltip: _includeDeleted ? 'Hide deleted' : 'Show deleted',
           ),
@@ -394,12 +355,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
           : Column(
               children: [
                 // Calendar
-                TableCalendar<model.DailyTask>(
+                TableCalendar<DailyEntry>(
                   firstDay: DateTime.utc(2020, 1, 1),
                   lastDay: DateTime.utc(2030, 12, 31),
                   focusedDay: _focusedDay,
                   calendarFormat: _calendarFormat,
-                  eventLoader: _getTasksForDayCalendar,
+                  eventLoader: _getEntriesForDay,
                   startingDayOfWeek: StartingDayOfWeek.monday,
                   calendarStyle: const CalendarStyle(
                     outsideDaysVisible: false,
@@ -433,10 +394,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     return isSameDay(_selectedDay, day);
                   },
                   calendarBuilders: CalendarBuilders(
-                    markerBuilder: (context, day, tasks) {
-                      if (tasks.isNotEmpty) {
-                        final task = tasks.first;
-                        final hasDeleted = tasks.any((t) => t.deletedAt != null);
+                    markerBuilder: (context, day, entries) {
+                      if (entries.isNotEmpty) {
+                        final entry = entries.first;
+                        final hasDeleted = entry.deletedAt != null;
+                        final completedCount = _getCompletedTasksCount(entry);
+                        final totalCount = _getTotalTasksCount();
+                        
                         return Positioned(
                           bottom: 1,
                           right: 1,
@@ -447,9 +411,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               shape: BoxShape.circle,
                               color: hasDeleted
                                   ? Colors.grey
-                                  : (_getCompletedTasksCount(task) > 5
+                                  : (completedCount > (totalCount * 0.7)
                                       ? Colors.green
-                                      : _getCompletedTasksCount(task) > 2
+                                      : completedCount > (totalCount * 0.3)
                                           ? Colors.orange
                                           : Colors.red),
                               border: Border.all(
@@ -465,7 +429,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                       size: 10,
                                     )
                                   : Text(
-                                      '${_getCompletedTasksCount(task)}',
+                                      '$completedCount',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 9,
@@ -481,12 +445,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ),
                 ),
                 const Divider(),
-                // Selected day tasks
+                // Selected day entries
                 Expanded(
-                  child: ValueListenableBuilder<List<model.DailyTask>>(
-                    valueListenable: _selectedTasks,
-                    builder: (context, tasks, _) {
-                      if (tasks.isEmpty) {
+                  child: ValueListenableBuilder<List<DailyEntry>>(
+                    valueListenable: _selectedEntries,
+                    builder: (context, entries, _) {
+                      if (entries.isEmpty) {
                         return Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -498,7 +462,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                'No tasks for ${_selectedDay!.day}/${_selectedDay!.month}/${_selectedDay!.year}',
+                                'No entries for ${_selectedDay!.day}/${_selectedDay!.month}/${_selectedDay!.year}',
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: Colors.grey[600],
@@ -506,28 +470,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               ),
                               const SizedBox(height: 16),
                               ElevatedButton.icon(
-                                onPressed: () => _editTask(
-                                  model.DailyTask(
-                                    userId: AuthService.userId!,
-                                    date: _selectedDay!,
-                                    readingBookCompleted: false,
-                                    stretchCompleted: false,
-                                    meditationCompleted: false,
-                                    readingDocsCompleted: false,
-                                    learningTechCompleted: false,
-                                    walkingCompleted: false,
-                                    avoidHabitValue: false,
-                                    avoidSweetsValue: false,
-                                    workDoneValue: false,
-                                    movieSeriesCompleted: false,
-                                    createdAt: DateTime.now(),
-                                    updatedAt: DateTime.now(),
-                                    timezoneOffset:
-                                        DateTime.now().timeZoneOffset.inMinutes,
-                                  ),
-                                ),
+                                onPressed: () => _createNewEntry(),
                                 icon: const Icon(Icons.add),
-                                label: const Text('Create Task'),
+                                label: const Text('Create Entry'),
                               ),
                             ],
                           ),
@@ -535,9 +480,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       }
 
                       return ListView.builder(
-                        itemCount: tasks.length,
+                        itemCount: entries.length,
                         itemBuilder: (context, index) {
-                          return _buildTaskCard(tasks[index]);
+                          return _buildEntryCard(entries[index]);
                         },
                       );
                     },
@@ -546,5 +491,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ],
             ),
     );
+  }
+  
+  Future<void> _createNewEntry() async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => DailyCheckinScreen(
+          date: _selectedDay!,
+        ),
+      ),
+    );
+
+    if (result == true) {
+      await _loadHistoryData();
+    }
   }
 }

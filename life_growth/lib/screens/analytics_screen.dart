@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../services/database_service.dart';
+import '../services/supabase_service_v2.dart';
 import '../services/auth_service.dart';
 import '../services/telemetry_service.dart';
-import '../models/daily_task.dart' as model;
+import '../models/daily_entry.dart';
+import '../models/task_entry.dart';
+import '../models/task.dart';
+import '../models/task_type.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -15,11 +18,14 @@ class AnalyticsScreen extends StatefulWidget {
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
   bool _isLoading = true;
   String? _errorMessage;
-  List<model.DailyTask> _allTasks = [];
+  List<DailyEntry> _allEntries = [];
+  List<TaskEntry> _allTaskEntries = [];
+  List<Task> _userTasks = [];
+  List<TaskType> _taskTypes = [];
   
   // Analytics data
-  int _totalTasks = 0;
-  int _completedTasks = 0;
+  int _totalEntries = 0;
+  int _completedEntries = 0;
   double _completionRate = 0.0;
   int _currentStreak = 0;
   int _longestStreak = 0;
@@ -50,12 +56,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       });
 
       final userId = AuthService.userId!;
-      final tasks = await DatabaseService.instance.getAllDailyTasksForUser(
-        userId,
-        includeDeleted: false,
-      );
+      
+      // Load all data for analytics
+      final entries = await SupabaseServiceV2.getAllDailyEntries(userId);
+      final taskEntries = await SupabaseServiceV2.getAllTaskEntries(userId);
+      final tasks = await SupabaseServiceV2.getUserTasks(userId);
+      final taskTypes = await SupabaseServiceV2.getTaskTypes();
 
-      _allTasks = tasks;
+      _allEntries = entries;
+      _allTaskEntries = taskEntries;
+      _userTasks = tasks;
+      _taskTypes = taskTypes;
+      
       _calculateAnalytics();
 
       setState(() {
@@ -70,49 +82,43 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   void _calculateAnalytics() {
-    if (_allTasks.isEmpty) return;
+    if (_allEntries.isEmpty) return;
 
-    _totalTasks = _allTasks.length;
-    _completedTasks = _allTasks.where((task) => _isTaskCompleted(task)).length;
-    _completionRate = _totalTasks > 0 ? (_completedTasks / _totalTasks) * 100 : 0.0;
+    _totalEntries = _allEntries.length;
+    _completedEntries = _allEntries.where((entry) => _isEntryCompleted(entry)).length;
+    _completionRate = _totalEntries > 0 ? (_completedEntries / _totalEntries) * 100 : 0.0;
 
     _calculateStreaks();
     _calculateTaskCompletionCounts();
     _calculateWeeklyCompletionData();
   }
 
-  bool _isTaskCompleted(model.DailyTask task) {
-    // Consider a task completed if at least 50% of activities are done
-    int completedActivities = 0;
-    int totalActivities = 10; // Total number of trackable activities
-
-    if (task.readingBookCompleted) completedActivities++;
-    if (task.stretchCompleted) completedActivities++;
-    if (task.meditationCompleted) completedActivities++;
-    if (task.readingDocsCompleted) completedActivities++;
-    if (task.learningTechCompleted) completedActivities++;
-    if (task.walkingCompleted) completedActivities++;
-    if (task.avoidHabitValue) completedActivities++;
-    if (task.avoidSweetsValue) completedActivities++;
-    if (task.workDoneValue) completedActivities++;
-    if (task.movieSeriesCompleted) completedActivities++;
-
-    return completedActivities >= (totalActivities * 0.5);
+  bool _isEntryCompleted(DailyEntry entry) {
+    // Get task entries for this daily entry
+    final entryTaskEntries = _allTaskEntries.where(
+      (taskEntry) => taskEntry.dailyEntryId == entry.id
+    ).toList();
+    
+    if (entryTaskEntries.isEmpty) return false;
+    
+    // Consider entry completed if at least 50% of tasks are completed
+    final completedTasks = entryTaskEntries.where((te) => te.completed).length;
+    return completedTasks >= (entryTaskEntries.length * 0.5);
   }
 
   void _calculateStreaks() {
-    if (_allTasks.isEmpty) return;
+    if (_allEntries.isEmpty) return;
 
-    // Group tasks by date and check if each day is completed
+    // Group entries by date and check if each day is completed
     final Map<DateTime, bool> dailyCompletions = {};
     
-    for (final task in _allTasks) {
-      final dateKey = DateTime(task.date.year, task.date.month, task.date.day);
+    for (final entry in _allEntries) {
+      final dateKey = DateTime(entry.date.year, entry.date.month, entry.date.day);
       if (!dailyCompletions.containsKey(dateKey)) {
-        dailyCompletions[dateKey] = _isTaskCompleted(task);
+        dailyCompletions[dateKey] = _isEntryCompleted(entry);
       } else {
-        // If multiple tasks for same day, consider day completed if any task is completed
-        dailyCompletions[dateKey] = dailyCompletions[dateKey]! || _isTaskCompleted(task);
+        // If multiple entries for same day, consider day completed if any entry is completed
+        dailyCompletions[dateKey] = dailyCompletions[dateKey]! || _isEntryCompleted(entry);
       }
     }
 
@@ -163,30 +169,32 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   void _calculateTaskCompletionCounts() {
-    _taskCompletionCounts = {
-      'Reading Book': 0,
-      'Stretch/Workout': 0,
-      'Meditation': 0,
-      'Reading Docs': 0,
-      'Learning Tech': 0,
-      'Walking': 0,
-      'Avoid Habit': 0,
-      'Avoid Sweets': 0,
-      'Work Done': 0,
-      'Movie/Series': 0,
-    };
+    _taskCompletionCounts = {};
+    
+    // Initialize counts for all user tasks
+    for (final task in _userTasks) {
+      _taskCompletionCounts[task.name] = 0;
+    }
 
-    for (final task in _allTasks) {
-      if (task.readingBookCompleted) _taskCompletionCounts['Reading Book'] = _taskCompletionCounts['Reading Book']! + 1;
-      if (task.stretchCompleted) _taskCompletionCounts['Stretch/Workout'] = _taskCompletionCounts['Stretch/Workout']! + 1;
-      if (task.meditationCompleted) _taskCompletionCounts['Meditation'] = _taskCompletionCounts['Meditation']! + 1;
-      if (task.readingDocsCompleted) _taskCompletionCounts['Reading Docs'] = _taskCompletionCounts['Reading Docs']! + 1;
-      if (task.learningTechCompleted) _taskCompletionCounts['Learning Tech'] = _taskCompletionCounts['Learning Tech']! + 1;
-      if (task.walkingCompleted) _taskCompletionCounts['Walking'] = _taskCompletionCounts['Walking']! + 1;
-      if (task.avoidHabitValue) _taskCompletionCounts['Avoid Habit'] = _taskCompletionCounts['Avoid Habit']! + 1;
-      if (task.avoidSweetsValue) _taskCompletionCounts['Avoid Sweets'] = _taskCompletionCounts['Avoid Sweets']! + 1;
-      if (task.workDoneValue) _taskCompletionCounts['Work Done'] = _taskCompletionCounts['Work Done']! + 1;
-      if (task.movieSeriesCompleted) _taskCompletionCounts['Movie/Series'] = _taskCompletionCounts['Movie/Series']! + 1;
+    // Count completions for each task
+    for (final taskEntry in _allTaskEntries) {
+      if (taskEntry.completed) {
+        final task = _userTasks.firstWhere(
+          (t) => t.id == taskEntry.taskId,
+          orElse: () => Task(
+            id: '',
+            userId: '',
+            taskTypeId: '',
+            name: 'Unknown Task',
+            description: '',
+            customSchema: {},
+            isActive: true,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          ),
+        );
+        _taskCompletionCounts[task.name] = (_taskCompletionCounts[task.name] ?? 0) + 1;
+      }
     }
   }
 
@@ -198,34 +206,27 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     
     for (int i = 0; i < 7; i++) {
       final date = startOfWeek.add(Duration(days: i));
-      final tasksForDay = _allTasks.where((task) => 
-        task.date.year == date.year &&
-        task.date.month == date.month &&
-        task.date.day == date.day
+      final entriesForDay = _allEntries.where((entry) => 
+        entry.date.year == date.year &&
+        entry.date.month == date.month &&
+        entry.date.day == date.day
       ).toList();
       
       double completionPercentage = 0.0;
-      if (tasksForDay.isNotEmpty) {
-        // Calculate average completion rate across all tasks for that day
+      if (entriesForDay.isNotEmpty) {
+        // Calculate average completion rate across all entries for that day
         double totalCompletionRate = 0.0;
-        for (final task in tasksForDay) {
-          int completedActivities = 0;
-          int totalActivities = 10;
+        for (final entry in entriesForDay) {
+          final entryTaskEntries = _allTaskEntries.where(
+            (te) => te.dailyEntryId == entry.id
+          ).toList();
           
-          if (task.readingBookCompleted) completedActivities++;
-          if (task.stretchCompleted) completedActivities++;
-          if (task.meditationCompleted) completedActivities++;
-          if (task.readingDocsCompleted) completedActivities++;
-          if (task.learningTechCompleted) completedActivities++;
-          if (task.walkingCompleted) completedActivities++;
-          if (task.avoidHabitValue) completedActivities++;
-          if (task.avoidSweetsValue) completedActivities++;
-          if (task.workDoneValue) completedActivities++;
-          if (task.movieSeriesCompleted) completedActivities++;
-          
-          totalCompletionRate += (completedActivities / totalActivities) * 100;
+          if (entryTaskEntries.isNotEmpty) {
+            final completedTasks = entryTaskEntries.where((te) => te.completed).length;
+            totalCompletionRate += (completedTasks / entryTaskEntries.length) * 100;
+          }
         }
-        completionPercentage = totalCompletionRate / tasksForDay.length;
+        completionPercentage = totalCompletionRate / entriesForDay.length;
       }
       
       _weeklyCompletionData.add(FlSpot(i.toDouble(), completionPercentage));
@@ -307,8 +308,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           children: [
             Expanded(
               child: _buildSummaryCard(
-                'Total Tasks',
-                _totalTasks.toString(),
+                'Total Entries',
+                _totalEntries.toString(),
                 Icons.assignment,
                 Colors.blue,
               ),
@@ -317,7 +318,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             Expanded(
               child: _buildSummaryCard(
                 'Completed',
-                _completedTasks.toString(),
+                _completedEntries.toString(),
                 Icons.check_circle,
                 Colors.green,
               ),
@@ -483,10 +484,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: _taskCompletionCounts.entries.map((entry) {
-                // Calculate percentage based on how many times this activity was completed
-                // out of total possible times (total tasks)
-                final percentage = _totalTasks > 0 
-                    ? (entry.value / _totalTasks) * 100 
+                // Calculate percentage based on how many times this task was completed
+                // out of total possible times (total entries)
+                final percentage = _totalEntries > 0 
+                    ? (entry.value / _totalEntries) * 100 
                     : 0.0;
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
@@ -513,7 +514,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       SizedBox(
                         width: 80,
                         child: Text(
-                          '${entry.value}/${_totalTasks} (${percentage.toStringAsFixed(1)}%)',
+                          '${entry.value}/${_totalEntries} (${percentage.toStringAsFixed(1)}%)',
                           style: Theme.of(context).textTheme.bodySmall,
                           textAlign: TextAlign.end,
                         ),
@@ -530,29 +531,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Color _getColorForTask(String taskName) {
-    switch (taskName) {
-      case 'Reading Book':
-        return Colors.blue;
-      case 'Stretch/Workout':
-        return Colors.red;
-      case 'Meditation':
-        return Colors.purple;
-      case 'Reading Docs':
-        return Colors.cyan;
-      case 'Learning Tech':
-        return Colors.green;
-      case 'Walking':
-        return Colors.orange;
-      case 'Avoid Habit':
-        return Colors.brown;
-      case 'Avoid Sweets':
-        return Colors.pink;
-      case 'Work Done':
-        return Colors.teal;
-      case 'Movie/Series':
-        return Colors.indigo;
-      default:
-        return Colors.grey;
-    }
+    // Generate colors based on task name hash for consistency
+    final hash = taskName.hashCode;
+    final colors = [
+      Colors.blue, Colors.red, Colors.purple, Colors.cyan,
+      Colors.green, Colors.orange, Colors.brown, Colors.pink,
+      Colors.teal, Colors.indigo, Colors.amber, Colors.deepOrange,
+    ];
+    return colors[hash.abs() % colors.length];
   }
 }

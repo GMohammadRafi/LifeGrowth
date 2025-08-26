@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
-import '../services/supabase_service.dart';
+import '../services/supabase_service_v2.dart';
 import '../services/background_sync_manager.dart';
 import '../services/personalization_service.dart';
 import '../services/telemetry_service.dart';
-import '../models/daily_task.dart' as model;
+import '../models/daily_entry.dart';
+import '../models/task_entry.dart';
+import '../models/task.dart';
+import '../models/task_type.dart';
 import '../models/personalization_settings.dart';
 import '../providers/undo_provider.dart';
 import 'auth_screen.dart';
@@ -25,7 +28,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  model.DailyTask? _todayTask;
+  DailyEntry? _todayEntry;
+  List<TaskEntry> _todayTaskEntries = [];
+  List<Task> _userTasks = [];
+  List<TaskType> _taskTypes = [];
   bool _isLoading = true;
   PersonalizationService? _personalizationService;
   PersonalizationSettings? _personalizationSettings;
@@ -40,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Track screen view
     TelemetryService().trackScreenView('home_screen');
     _initializePersonalization();
-    _loadTodayTask();
+    _loadTodayData();
   }
 
   Future<void> _initializePersonalization() async {
@@ -55,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _loadTodayTask() async {
+  Future<void> _loadTodayData() async {
     if (!AuthService.isAuthenticated) {
       if (mounted) {
         setState(() {
@@ -77,57 +83,63 @@ class _HomeScreenState extends State<HomeScreen> {
       final today = DateTime.now();
       final userId = AuthService.userId!;
 
-      model.DailyTask? task = await SupabaseService.getDailyTask(
+      // Load today's data using v2 service
+      final dailyData = await SupabaseServiceV2.getDailyData(
         userId: userId,
         date: today,
       );
 
-      // If no task exists for today, create an empty one
-      task ??= model.DailyTask.empty(date: today).copyWith(userId: userId);
-
       if (mounted) {
         setState(() {
-          _todayTask = task;
+          _todayEntry = dailyData['dailyEntry'] as DailyEntry?;
+          _todayTaskEntries = dailyData['taskEntries'] as List<TaskEntry>;
+          _userTasks = dailyData['tasks'] as List<Task>;
+          _taskTypes = dailyData['taskTypes'] as List<TaskType>;
           _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Failed to load today\'s tasks: $e';
+          _errorMessage = 'Failed to load today\'s data: $e';
           _isLoading = false;
         });
       }
     }
   }
 
-  Future<void> _updateTask(model.DailyTask updatedTask) async {
+  Future<void> _updateTaskEntry(TaskEntry updatedEntry) async {
     if (!AuthService.isAuthenticated) return;
 
     try {
-      // Record the edit action for undo functionality
-       if (_todayTask != null && mounted) {
-         Provider.of<UndoProvider>(context, listen: false)
-             .recordEdit(_todayTask!, updatedTask);
-       }
-
-      // Ensure userId is set before upserting (important for persistence)
-      final taskWithUser = (updatedTask.userId == null)
-          ? updatedTask.copyWith(userId: AuthService.userId)
-          : updatedTask;
-
-      final savedTask = await SupabaseService.upsertDailyTask(taskWithUser);
-      if (mounted) {
-        setState(() {
-          _todayTask = savedTask;
-        });
+      // Create daily entry if it doesn't exist
+      if (_todayEntry == null) {
+        _todayEntry = await SupabaseServiceV2.createOrUpdateDailyEntry(
+          date: DateTime.now(),
+        );
       }
 
+      // Update the task entry
+      final savedEntry = await SupabaseServiceV2.createOrUpdateTaskEntry(
+        dailyEntryId: _todayEntry!.id,
+        taskId: updatedEntry.taskId,
+        data: updatedEntry.data,
+        completed: updatedEntry.completed,
+      );
+
       if (mounted) {
+        setState(() {
+          final index = _todayTaskEntries.indexWhere((e) => e.taskId == savedEntry.taskId);
+          if (index >= 0) {
+            _todayTaskEntries[index] = savedEntry;
+          } else {
+            _todayTaskEntries.add(savedEntry);
+          }
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content:
-                Text('Task updated (saved locally, will sync when online)'),
+            content: Text('Task updated successfully'),
             duration: Duration(seconds: 2),
           ),
         );
