@@ -53,7 +53,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     try {
       // Load user's tasks and task types first
-      final tasks = await SupabaseServiceV2.getUserTasks(_auth.currentUser!.uid);
+      final tasks = await SupabaseServiceV2.getUserTasks(AuthService.userId!); // Fixed: replaced _auth.currentUser!.uid
       final taskTypes = await SupabaseServiceV2.getTaskTypes();
       
       _userTasks = tasks;
@@ -71,7 +71,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       for (DateTime date = startDate; date.isBefore(endDate); date = date.add(const Duration(days: 1))) {
         try {
           final dailyData = await SupabaseServiceV2.getDailyData(
-            userId: _auth.currentUser!.uid,
+            userId: AuthService.userId!, // Fixed: replaced _auth.currentUser!.uid
             date: date,
           );
           final dailyEntry = dailyData['dailyEntry'] as DailyEntry?;
@@ -258,7 +258,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (!isDeleted) ..[
+              if (!isDeleted) ...[ // Fixed: added three dots for spread operator
                 IconButton(
                   icon: const Icon(Icons.edit),
                   onPressed: () => _editEntry(entry),
@@ -266,7 +266,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete),
-                  onPressed: () => _deleteEntry(date),
+                  onPressed: () => _deleteEntry(entry.date),
                 ),
               ] else
                 IconButton(
@@ -324,6 +324,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     if (confirmed == true) {
       await _softDeleteEntry(entry);
+    }
+  }
+
+  // Add this new method
+  Future<void> _deleteEntry(DateTime date) async {
+    final dateKey = DateTime(date.year, date.month, date.day);
+    final entry = _entriesByDate[dateKey];
+    if (entry != null) {
+      await _confirmDelete(entry);
     }
   }
 

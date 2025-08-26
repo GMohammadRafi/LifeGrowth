@@ -139,9 +139,8 @@ Future<void> _performBackgroundSync(
       print('Starting background sync for user: $userId');
     }
 
-    // Use v2 service for syncing all pending changes
-    final supabaseServiceV2 = SupabaseServiceV2();
-    await supabaseServiceV2.syncAllPendingChanges(userId);
+    // Use v2 service for syncing all pending changes - Fixed: use static method
+    await SupabaseServiceV2.syncAllPendingChanges(userId);
 
     // Be silent on success to reduce notification noise
     if (kDebugMode) {

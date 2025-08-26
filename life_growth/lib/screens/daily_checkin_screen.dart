@@ -66,7 +66,7 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
     try {
       // Load daily data (entry, task entries, tasks, task types)
       final dailyData = await SupabaseServiceV2.getDailyData(
-        userId: _auth.currentUser!.uid,
+        userId: AuthService.userId!, // Fixed: replaced _auth.currentUser!.uid
         date: widget.date,
       );
       
@@ -229,8 +229,12 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
         updatedAt: DateTime.now(),
       );
       
-      // Save daily entry
-      final savedEntry = await SupabaseServiceV2.createOrUpdateDailyEntry(updatedEntry);
+      // Save daily entry - Fixed: use named parameters
+      final savedEntry = await SupabaseServiceV2.createOrUpdateDailyEntry(
+        date: updatedEntry.date,
+        notes: updatedEntry.notes,
+        timezoneOffset: updatedEntry.timezoneOffset,
+      );
       
       // Update task entries with form data and save them
       for (final task in _userTasks) {
@@ -266,25 +270,22 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
         }
         
         if (existingEntryIndex >= 0) {
-          // Update existing entry
+          // Update existing entry - Fixed: use correct variable reference
           final existingEntry = _taskEntries[existingEntryIndex];
-          final updatedTaskEntry = existingEntry.copyWith(
-            dailyEntryId: savedEntry.id,
-            data: taskData,
-            updatedAt: DateTime.now(),
-          );
-          await SupabaseServiceV2.createOrUpdateTaskEntry(updatedTaskEntry);
-        } else if (taskData.isNotEmpty) {
-          // Create new entry only if there's data
-          final newTaskEntry = TaskEntry(
-            id: '',
+          await SupabaseServiceV2.createOrUpdateTaskEntry(
             dailyEntryId: savedEntry.id,
             taskId: task.id,
             data: taskData,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
+            completed: existingEntry.completed,
           );
-          await SupabaseServiceV2.createOrUpdateTaskEntry(newTaskEntry);
+        } else if (taskData.isNotEmpty) {
+          // Create new entry - Fixed: use named parameters
+          await SupabaseServiceV2.createOrUpdateTaskEntry(
+            dailyEntryId: savedEntry.id,
+            taskId: task.id,
+            data: taskData,
+            completed: false,
+          );
         }
       }
       
