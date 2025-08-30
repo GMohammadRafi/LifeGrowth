@@ -1056,31 +1056,73 @@ class _HomeScreenState extends State<HomeScreen> {
       final fieldType = fieldDef['type'] as String?;
       final fieldTitle = fieldDef['title'] as String? ?? fieldName;
       final isRequired = taskType.requiredFields.contains(fieldName);
+      final enumValues = fieldDef['enum'] as List<dynamic>?;
       
       final controllerKey = '${task.id}_$fieldName';
       final controller = _controllers[controllerKey];
       
       if (controller != null) {
-        widgets.add(
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12.0),
-            child: TextFormField(
-              controller: controller,
-              decoration: InputDecoration(
-                labelText: fieldTitle + (isRequired ? ' *' : ''),
-                border: const OutlineInputBorder(),
-                isDense: true,
+        // Enum-backed field -> Dropdown
+        if (enumValues != null && enumValues.isNotEmpty) {
+          final currentValue = controller.text.isEmpty ? null : controller.text;
+          
+          widgets.add(
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: DropdownButtonFormField<String>(
+                value: enumValues.contains(currentValue) ? currentValue : null,
+                decoration: InputDecoration(
+                  labelText: fieldTitle + (isRequired ? ' *' : ''),
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                ),
+                items: enumValues.map<DropdownMenuItem<String>>((value) {
+                  return DropdownMenuItem<String>(
+                    value: value.toString(),
+                    child: Text(value.toString()),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  if (newValue != null) {
+                    controller.text = newValue;
+                  }
+                },
+                validator: isRequired
+                    ? (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'This field is required';
+                        }
+                        return null;
+                      }
+                    : null,
               ),
-              keyboardType: _getKeyboardType(fieldType),
-              validator: isRequired ? (value) {
-                if (value == null || value.isEmpty) {
-                  return 'This field is required';
-                }
-                return null;
-              } : null,
             ),
-          ),
-        );
+          );
+        } else {
+          // Regular text field for non-enum fields
+          widgets.add(
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: TextFormField(
+                controller: controller,
+                decoration: InputDecoration(
+                  labelText: fieldTitle + (isRequired ? ' *' : ''),
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                ),
+                keyboardType: _getKeyboardType(fieldType),
+                validator: isRequired
+                    ? (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'This field is required';
+                        }
+                        return null;
+                      }
+                    : null,
+              ),
+            ),
+          );
+        }
       }
     }
     
