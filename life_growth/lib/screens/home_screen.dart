@@ -24,13 +24,15 @@ import 'task_reminder_screen.dart';
 import 'csv_export_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final bool showAppBar;
+  
+  const HomeScreen({super.key, this.showAppBar = true});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> {
   DailyEntry? _todayEntry;
   List<TaskEntry> _todayTaskEntries = [];
   List<Task> _userTasks = [];
@@ -64,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Track screen view
     TelemetryService().trackScreenView('home_screen');
     _initializePersonalization();
-    _loadTodayData();
+    loadTodayData();
   }
 
   @override
@@ -87,7 +89,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _loadTodayData() async {
+  // Public so it can be called from parent widgets
+  Future<void> loadTodayData() async {
     if (!AuthService.isAuthenticated) {
       if (mounted) {
         setState(() {
@@ -170,7 +173,18 @@ class _HomeScreenState extends State<HomeScreen> {
     
     // Setup controllers for each task based on their schema
     for (final task in _userTasks) {
-      final taskType = _taskTypes.firstWhere((type) => type.id == task.taskTypeId);
+      final taskType = _taskTypes.firstWhere(
+        (type) => type.id == task.taskTypeId,
+        orElse: () => TaskType(
+          id: '',
+          name: 'unknown',
+          description: '',
+          schemaDefinition: {},
+          isActive: true,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      );
       final existingEntry = _todayTaskEntries.where((entry) => entry.taskId == task.id).firstOrNull;
       
       // Create controllers for each field in the task type schema
@@ -254,7 +268,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       // Also perform direct sync for immediate feedback
       await SupabaseServiceV2.syncAllPendingChanges(AuthService.userId!);
-      await _loadTodayTask(); // Reload to get any updates
+      await loadTodayData(); // Reload to get any updates
 
       if (mounted) {
         setState(() {
@@ -325,11 +339,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Add the missing _loadTodayTask method
-  Future<void> _loadTodayTask() async {
-    await _loadTodayData();
-  }
-
   // Add the missing _updateTask method
   Future<void> _updateTask(DailyEntry updatedEntry) async {
     try {
@@ -365,7 +374,7 @@ class _HomeScreenState extends State<HomeScreen> {
       await NotificationService().showSyncStartToast();
 
       await SupabaseService.syncAllPendingChanges(AuthService.userId!);
-      await _loadTodayTask(); // Reload to get any updates
+      await loadTodayData(); // Reload to get any updates
 
       // Track sync success
       await TelemetryService().trackSyncFinish(success: true);
@@ -435,417 +444,426 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Life Growth'),
-            if (_syncStatus != null)
-              Text(
-                _syncStatus!,
-                style: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.normal),
+    if (widget.showAppBar) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Life Growth'),
+              if (_syncStatus != null)
+                Text(
+                  _syncStatus!,
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.normal),
+                ),
+            ],
+          ),
+          actions: [
+            Consumer<UndoProvider>(
+              builder: (context, undoProvider, child) {
+                return Semantics(
+                  label: 'Undo',
+                  hint: _isUndoing
+                      ? 'Undoing action, please wait'
+                      : undoProvider.canUndo 
+                          ? 'Undo last action: ${undoProvider.getUndoDescription()}'
+                          : 'No actions to undo',
+                  button: true,
+                  child: IconButton(
+                    icon: _isUndoing 
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Icon(Icons.undo),
+                    onPressed: (undoProvider.canUndo && !_isUndoing) ? () async {
+                      setState(() {
+                        _isUndoing = true;
+                      });
+                      
+                      try {
+                        final success = await undoProvider.undoLastAction();
+                        if (success) {
+                          // Add a small delay to ensure database write is fully committed
+                          await Future.delayed(const Duration(milliseconds: 200));
+                          await loadTodayData();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Action undone')),
+                            );
+                          }
+                        } else {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Failed to undo action'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      } finally {
+                        if (mounted) {
+                          setState(() {
+                            _isUndoing = false;
+                          });
+                        }
+                      }
+                    } : null,
+                    tooltip: _isUndoing
+                        ? 'Undoing action...'
+                        : undoProvider.canUndo 
+                            ? 'Undo: ${undoProvider.getUndoDescription()}'
+                            : 'No actions to undo',
+                  ),
+                );
+              },
+            ),
+            Semantics(
+              label: 'Refresh',
+              hint: 'Refresh today\'s task data',
+              button: true,
+              child: IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: loadTodayData,
+                tooltip: 'Refresh',
               ),
+            ),
+            Semantics(
+              label: 'Sync Data',
+              hint: _isSyncing ? 'Syncing data with server' : 'Sync your data with the server',
+              button: true,
+              child: IconButton(
+                icon: _isSyncing
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Icon(Icons.sync),
+                onPressed: _isSyncing ? null : _syncData,
+                tooltip: 'Sync Data',
+              ),
+            ),
+            Semantics(
+              label: 'Menu',
+              hint: 'Open menu with options for history, analytics, settings, and sign out',
+              button: true,
+              child: PopupMenuButton<String>(
+              onSelected: (value) async {
+                if (value == 'history') {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const HistoryScreen(),
+                    ),
+                  );
+                } else if (value == 'analytics') {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const AnalyticsScreen(),
+                    ),
+                  );
+                } else if (value == 'personalization') {
+                  final result = await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const PersonalizationScreen(),
+                    ),
+                  );
+                  if (result == true) {
+                    await _initializePersonalization();
+                  }
+                } else if (value == 'accessibility') {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const AccessibilitySettingsScreen(),
+                    ),
+                  );
+                } else if (value == 'reminders') {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const TaskReminderScreen(),
+                    ),
+                  );
+                } else if (value == 'export') {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const CsvExportScreen(),
+                    ),
+                  );
+                } else if (value == 'signout') {
+                  _signOut();
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'history',
+                  child: Semantics(
+                    label: 'History',
+                    hint: 'View your task history',
+                    button: true,
+                    child: const Row(
+                      children: [
+                        Icon(Icons.history),
+                        SizedBox(width: 8),
+                        Text('History'),
+                      ],
+                    ),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'analytics',
+                  child: Semantics(
+                    label: 'Analytics',
+                    hint: 'View your task analytics and statistics',
+                    button: true,
+                    child: const Row(
+                      children: [
+                        Icon(Icons.analytics),
+                        SizedBox(width: 8),
+                        Text('Analytics'),
+                      ],
+                    ),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'personalization',
+                  child: Semantics(
+                    label: 'Personalization',
+                    hint: 'Customize your task preferences and settings',
+                    button: true,
+                    child: const Row(
+                      children: [
+                        Icon(Icons.tune),
+                        SizedBox(width: 8),
+                        Text('Personalization'),
+                      ],
+                    ),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'accessibility',
+                  child: Semantics(
+                    label: 'Accessibility',
+                    hint: 'Configure accessibility settings and theme preferences',
+                    button: true,
+                    child: const Row(
+                      children: [
+                        Icon(Icons.accessibility),
+                        SizedBox(width: 8),
+                        Text('Accessibility'),
+                      ],
+                    ),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'reminders',
+                  child: Semantics(
+                    label: 'Task Reminders',
+                    hint: 'Manage reminders for your tasks',
+                    button: true,
+                    child: const Row(
+                      children: [
+                        Icon(Icons.notifications),
+                        SizedBox(width: 8),
+                        Text('Task Reminders'),
+                      ],
+                    ),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'export',
+                  child: Semantics(
+                    label: 'Export Data',
+                    hint: 'Export your data to CSV files',
+                    button: true,
+                    child: const Row(
+                      children: [
+                        Icon(Icons.file_download),
+                        SizedBox(width: 8),
+                        Text('Export Data'),
+                      ],
+                    ),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'signout',
+                  child: Semantics(
+                    label: 'Sign Out',
+                    hint: 'Sign out from your account: ${AuthService.userEmail ?? 'Unknown'}',
+                    button: true,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.logout),
+                        const SizedBox(width: 8),
+                        Text('Sign Out'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+              ),
+            ),
           ],
         ),
-        actions: [
-          Consumer<UndoProvider>(
-            builder: (context, undoProvider, child) {
-              return Semantics(
-                label: 'Undo',
-                hint: _isUndoing
-                    ? 'Undoing action, please wait'
-                    : undoProvider.canUndo 
-                        ? 'Undo last action: ${undoProvider.getUndoDescription()}'
-                        : 'No actions to undo',
-                button: true,
-                child: IconButton(
-                  icon: _isUndoing 
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+        body: _buildBody(),
+        floatingActionButton: null,
+      );
+    }
+
+    // No AppBar version
+    return _buildBody();
+  }
+
+  Widget _buildBody() {
+    return _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : _errorMessage != null
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red.withOpacity(0.7),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _errorMessage!,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: loadTodayData,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              )
+            : (_userTasks.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.task_alt,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No tasks yet',
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                color: Colors.grey[600],
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Create your first task in Personalization',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Colors.grey[500],
+                              ),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const PersonalizationScreen(),
+                              ),
+                            ).then((_) => loadTodayData());
+                          },
+                          icon: const Icon(Icons.add),
+                          label: const Text('Create Tasks'),
+                        ),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: loadTodayData,
+                    child: ListView(
+                      children: [
+                        // Header
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Today - ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
+                                style: Theme.of(context).textTheme.headlineSmall,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Completed: $_completedTasksCount tasks',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary,
+                                    ),
+                              ),
+                            ],
                           ),
-                        )
-                      : const Icon(Icons.undo),
-                  onPressed: (undoProvider.canUndo && !_isUndoing) ? () async {
-                    setState(() {
-                      _isUndoing = true;
-                    });
-                    
-                    try {
-                      final success = await undoProvider.undoLastAction();
-                      if (success) {
-                        // Add a small delay to ensure database write is fully committed
-                        await Future.delayed(const Duration(milliseconds: 200));
-                        await _loadTodayTask();
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Action undone')),
-                          );
-                        }
-                      } else {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Failed to undo action'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      }
-                    } finally {
-                      if (mounted) {
-                        setState(() {
-                          _isUndoing = false;
-                        });
-                      }
-                    }
-                  } : null,
-                  tooltip: _isUndoing
-                      ? 'Undoing action...'
-                      : undoProvider.canUndo 
-                          ? 'Undo: ${undoProvider.getUndoDescription()}'
-                          : 'No actions to undo',
-                ),
-              );
-            },
-          ),
-          Semantics(
-            label: 'Refresh',
-            hint: 'Refresh today\'s task data',
-            button: true,
-            child: IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _loadTodayTask,
-              tooltip: 'Refresh',
-            ),
-          ),
-          Semantics(
-            label: 'Sync Data',
-            hint: _isSyncing ? 'Syncing data with server' : 'Sync your data with the server',
-            button: true,
-            child: IconButton(
-              icon: _isSyncing
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : const Icon(Icons.sync),
-              onPressed: _isSyncing ? null : _syncData,
-              tooltip: 'Sync Data',
-            ),
-          ),
-          Semantics(
-            label: 'Menu',
-            hint: 'Open menu with options for history, analytics, settings, and sign out',
-            button: true,
-            child: PopupMenuButton<String>(
-            onSelected: (value) async {
-              if (value == 'history') {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const HistoryScreen(),
-                  ),
-                );
-              } else if (value == 'analytics') {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const AnalyticsScreen(),
-                  ),
-                );
-              } else if (value == 'personalization') {
-                final result = await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const PersonalizationScreen(),
-                  ),
-                );
-                if (result == true) {
-                  await _initializePersonalization();
-                }
-              } else if (value == 'accessibility') {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const AccessibilitySettingsScreen(),
-                  ),
-                );
-              } else if (value == 'reminders') {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const TaskReminderScreen(),
-                  ),
-                );
-              } else if (value == 'export') {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const CsvExportScreen(),
-                  ),
-                );
-              } else if (value == 'signout') {
-                _signOut();
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'history',
-                child: Semantics(
-                  label: 'History',
-                  hint: 'View your task history',
-                  button: true,
-                  child: const Row(
-                    children: [
-                      Icon(Icons.history),
-                      SizedBox(width: 8),
-                      Text('History'),
-                    ],
-                  ),
-                ),
-              ),
-              PopupMenuItem(
-                value: 'analytics',
-                child: Semantics(
-                  label: 'Analytics',
-                  hint: 'View your task analytics and statistics',
-                  button: true,
-                  child: const Row(
-                    children: [
-                      Icon(Icons.analytics),
-                      SizedBox(width: 8),
-                      Text('Analytics'),
-                    ],
-                  ),
-                ),
-              ),
-              PopupMenuItem(
-                value: 'personalization',
-                child: Semantics(
-                  label: 'Personalization',
-                  hint: 'Customize your task preferences and settings',
-                  button: true,
-                  child: const Row(
-                    children: [
-                      Icon(Icons.tune),
-                      SizedBox(width: 8),
-                      Text('Personalization'),
-                    ],
-                  ),
-                ),
-              ),
-              PopupMenuItem(
-                value: 'accessibility',
-                child: Semantics(
-                  label: 'Accessibility',
-                  hint: 'Configure accessibility settings and theme preferences',
-                  button: true,
-                  child: const Row(
-                    children: [
-                      Icon(Icons.accessibility),
-                      SizedBox(width: 8),
-                      Text('Accessibility'),
-                    ],
-                  ),
-                ),
-              ),
-              PopupMenuItem(
-                value: 'reminders',
-                child: Semantics(
-                  label: 'Task Reminders',
-                  hint: 'Manage reminders for your tasks',
-                  button: true,
-                  child: const Row(
-                    children: [
-                      Icon(Icons.notifications),
-                      SizedBox(width: 8),
-                      Text('Task Reminders'),
-                    ],
-                  ),
-                ),
-              ),
-              PopupMenuItem(
-                value: 'export',
-                child: Semantics(
-                  label: 'Export Data',
-                  hint: 'Export your data to CSV files',
-                  button: true,
-                  child: const Row(
-                    children: [
-                      Icon(Icons.file_download),
-                      SizedBox(width: 8),
-                      Text('Export Data'),
-                    ],
-                  ),
-                ),
-              ),
-              PopupMenuItem(
-                value: 'signout',
-                child: Semantics(
-                  label: 'Sign Out',
-                  hint: 'Sign out from your account: ${AuthService.userEmail ?? 'Unknown'}',
-                  button: true,
-                  child: Row(
-                    children: [
-                      const Icon(Icons.logout),
-                      const SizedBox(width: 8),
-                      Text('Sign Out'),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-            ),
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: Colors.red.withOpacity(0.7),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _errorMessage!,
-                        style: Theme.of(context).textTheme.bodyLarge,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadTodayTask,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                )
-              : (_userTasks.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.task_alt,
-                            size: 64,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No tasks yet',
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  color: Colors.grey[600],
-                                ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Create your first task in Personalization',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Colors.grey[500],
-                                ),
-                          ),
-                          const SizedBox(height: 24),
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const PersonalizationScreen(),
-                                ),
-                              ).then((_) => _loadTodayData());
-                            },
-                            icon: const Icon(Icons.add),
-                            label: const Text('Create Tasks'),
-                          ),
-                        ],
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _loadTodayTask,
-                      child: ListView(
-                        children: [
-                          // Header
+                        ),
+
+                        // Incomplete Tasks Section
+                        if (_getIncompleteTaskWidgets().isNotEmpty) ...[
                           Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            child: Text(
+                              'Today\'s Tasks',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                            ),
+                          ),
+                          ..._getIncompleteTaskWidgets(),
+                        ],
+                        
+                        // Completed Tasks Section
+                        if (_getCompletedTaskWidgets().isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            child: Row(
                               children: [
-                                Text(
-                                  'Today - ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
-                                  style: Theme.of(context).textTheme.headlineSmall,
+                                Icon(
+                                  Icons.check_circle,
+                                  color: Colors.green,
+                                  size: 20,
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(width: 8),
                                 Text(
-                                  'Completed: $_completedTasksCount tasks',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyLarge
-                                      ?.copyWith(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary,
+                                  'Completed Tasks',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green,
                                       ),
                                 ),
                               ],
                             ),
                           ),
-
-                          // Incomplete Tasks Section
-                          if (_getIncompleteTaskWidgets().isNotEmpty) ...[
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              child: Text(
-                                'Today\'s Tasks',
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: Theme.of(context).colorScheme.primary,
-                                    ),
-                              ),
-                            ),
-                            ..._getIncompleteTaskWidgets(),
-                          ],
-                          
-                          // Completed Tasks Section
-                          if (_getCompletedTaskWidgets().isNotEmpty) ...[
-                            const SizedBox(height: 16),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.check_circle,
-                                    color: Colors.green,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Completed Tasks',
-                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.green,
-                                        ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            ..._getCompletedTaskWidgets(),
-                          ],
-
-                          const SizedBox(height: 16),
+                          ..._getCompletedTaskWidgets(),
                         ],
-                      ),
-                    )),
-      floatingActionButton: null,
-    );
+
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+                  ));
   }
 
   List<Widget> _getIncompleteTaskWidgets() {
@@ -1150,7 +1168,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final task = _userTasks.firstWhere((t) => t.id == taskId);
-      final taskType = _taskTypes.firstWhere((type) => type.id == task.taskTypeId);
+      final taskType = _taskTypes.firstWhere(
+        (type) => type.id == task.taskTypeId,
+        orElse: () => TaskType(
+          id: '',
+          name: 'unknown',
+          description: '',
+          schemaDefinition: {},
+          isActive: true,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      );
       final fieldDefinitions = taskType.fieldDefinitions;
 
       final Map<String, dynamic> data = {};

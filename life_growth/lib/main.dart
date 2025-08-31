@@ -19,7 +19,7 @@ import 'services/error_service.dart';
 import 'providers/theme_provider.dart';
 import 'providers/undo_provider.dart';
 import 'screens/auth_screen.dart';
-import 'screens/home_screen.dart';
+import 'screens/main_navigation_screen.dart'; // Add this import
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -394,7 +394,7 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
 
     // Check if user is authenticated
     if (AuthService.isAuthenticated) {
-      return const HomeScreen();
+      return const MainNavigationScreen();
     } else {
       return const AuthScreen();
     }
