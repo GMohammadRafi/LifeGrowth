@@ -364,135 +364,80 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
+                // Add a refresh button and toggle at the top
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      IconButton(
+                        icon: Icon(_includeDeleted ? Icons.visibility_off : Icons.visibility),
+                        onPressed: () {
+                          setState(() {
+                            _includeDeleted = !_includeDeleted;
+                          });
+                          _loadHistoryData();
+                          _selectedEntries.value = _getEntriesForDay(_selectedDay!);
+                        },
+                        tooltip: _includeDeleted ? 'Hide deleted' : 'Show deleted',
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.refresh),
+                        onPressed: _loadHistoryData,
+                        tooltip: 'Refresh',
+                      ),
+                    ],
+                  ),
+                ),
                 // Calendar
-                TableCalendar<DailyEntry>(
-                  firstDay: DateTime.utc(2020, 1, 1),
-                  lastDay: DateTime.utc(2030, 12, 31),
-                  focusedDay: _focusedDay,
-                  calendarFormat: _calendarFormat,
-                  eventLoader: _getEntriesForDay,
-                  startingDayOfWeek: StartingDayOfWeek.monday,
-                  calendarStyle: const CalendarStyle(
-                    outsideDaysVisible: false,
-                    weekendTextStyle: TextStyle(color: Colors.red),
-                    holidayTextStyle: TextStyle(color: Colors.red),
-                  ),
-                  headerStyle: const HeaderStyle(
-                    formatButtonVisible: true,
-                    titleCentered: true,
-                    formatButtonShowsNext: false,
-                    formatButtonDecoration: BoxDecoration(
-                      color: Colors.blue,
-                      borderRadius: BorderRadius.all(Radius.circular(12.0)),
+                Expanded(
+                  child: TableCalendar<DailyEntry>(
+                    firstDay: DateTime.utc(2020, 1, 1),
+                    lastDay: DateTime.utc(2030, 12, 31),
+                    focusedDay: _focusedDay,
+                    calendarFormat: _calendarFormat,
+                    eventLoader: _getEntriesForDay,
+                    startingDayOfWeek: StartingDayOfWeek.monday,
+                    calendarStyle: const CalendarStyle(
+                      outsideDaysVisible: false,
+                      weekendTextStyle: TextStyle(color: Colors.red),
+                      holidayTextStyle: TextStyle(color: Colors.red),
                     ),
-                    formatButtonTextStyle: TextStyle(
-                      color: Colors.white,
+                    headerStyle: const HeaderStyle(
+                      formatButtonVisible: true,
+                      titleCentered: true,
+                      formatButtonShowsNext: false,
+                      formatButtonDecoration: BoxDecoration(
+                        color: Colors.blue,
+                        borderRadius: BorderRadius.all(Radius.circular(12.0)),
+                      ),
+                      formatButtonTextStyle: TextStyle(
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                  onDaySelected: _onDaySelected,
-                  onFormatChanged: (format) {
-                    if (_calendarFormat != format) {
-                      setState(() {
-                        _calendarFormat = format;
-                      });
-                    }
-                  },
-                  onPageChanged: (focusedDay) {
-                    _focusedDay = focusedDay;
-                  },
-                  selectedDayPredicate: (day) {
-                    return isSameDay(_selectedDay, day);
-                  },
-                  calendarBuilders: CalendarBuilders(
-                    markerBuilder: (context, day, entries) {
-                      if (entries.isNotEmpty) {
-                        final entry = entries.first;
-                        final hasDeleted = entry.deletedAt != null;
-                        final completedCount = _getCompletedTasksCount(entry);
-                        final totalCount = _getTotalTasksCount();
-                        
-                        return Positioned(
-                          bottom: 1,
-                          right: 1,
-                          child: Container(
-                            width: 18,
-                            height: 18,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: hasDeleted
-                                  ? Colors.grey
-                                  : (completedCount > (totalCount * 0.7)
-                                      ? Colors.green
-                                      : completedCount > (totalCount * 0.3)
-                                          ? Colors.orange
-                                          : Colors.red),
-                              border: Border.all(
-                                color: Colors.white,
-                                width: 1,
-                              ),
-                            ),
-                            child: Center(
-                              child: hasDeleted
-                                  ? const Icon(
-                                      Icons.visibility_off,
-                                      color: Colors.white,
-                                      size: 10,
-                                    )
-                                  : Text(
-                                      '$completedCount',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                            ),
-                          ),
-                        );
+                    onDaySelected: _onDaySelected,
+                    onFormatChanged: (format) {
+                      if (_calendarFormat != format) {
+                        setState(() {
+                          _calendarFormat = format;
+                        });
                       }
-                      return null;
+                    },
+                    onPageChanged: (focusedDay) {
+                      _focusedDay = focusedDay;
                     },
                   ),
                 ),
-                const Divider(),
                 // Selected day entries
+                const SizedBox(height: 8.0),
                 Expanded(
                   child: ValueListenableBuilder<List<DailyEntry>>(
                     valueListenable: _selectedEntries,
-                    builder: (context, entries, _) {
-                      if (entries.isEmpty) {
-                        return Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.event_note,
-                                size: 64,
-                                color: Colors.grey[400],
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No entries for ${_selectedDay!.day}/${_selectedDay!.month}/${_selectedDay!.year}',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              ElevatedButton.icon(
-                                onPressed: () => _createNewEntry(),
-                                icon: const Icon(Icons.add),
-                                label: const Text('Create Entry'),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-
+                    builder: (context, value, _) {
                       return ListView.builder(
-                        itemCount: entries.length,
+                        itemCount: value.length,
                         itemBuilder: (context, index) {
-                          return _buildEntryCard(entries[index]);
+                          return _buildEntryCard(value[index]);
                         },
                       );
                     },
@@ -500,7 +445,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
               ],
             ),
-    );
+            );
   }
   
   Future<void> _createNewEntry() async {

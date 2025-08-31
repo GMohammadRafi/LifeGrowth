@@ -27,11 +27,50 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   bool _isSyncing = false;
   String? _syncStatus;
   
+  // Add PageController for swipe navigation
+  late PageController _pageController;
+  
   final List<String> _titles = [
     'Life Growth',
     'History',
     'Analytics',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  // Handle page changes from swipe gestures
+  void _onPageChanged(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+    // Track navigation
+    TelemetryService().trackScreenView(_titles[index].toLowerCase().replaceAll(' ', '_'));
+  }
+
+  // Handle bottom navigation bar taps
+  void _onBottomNavTap(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+    // Animate to the selected page
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+    // Track navigation
+    TelemetryService().trackScreenView(_titles[index].toLowerCase().replaceAll(' ', '_'));
+  }
 
   Future<void> _syncData() async {
     if (!AuthService.isAuthenticated) return;
@@ -332,8 +371,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           ),
         ],
       ),
-      body: IndexedStack(
-        index: _currentIndex,
+      // Replace IndexedStack with PageView for swipe navigation
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: _onPageChanged,
         children: [
           HomeScreen(key: _homeScreenKey, showAppBar: false),
           const HistoryScreen(),
@@ -342,13 +383,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-          // Track navigation
-          TelemetryService().trackScreenView(_titles[index].toLowerCase().replaceAll(' ', '_'));
-        },
+        onTap: _onBottomNavTap, // Use the new method that handles page animation
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),

@@ -232,312 +232,313 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       _weeklyCompletionData.add(FlSpot(i.toDouble(), completionPercentage));
     }
   }
+@override
+Widget build(BuildContext context) {
+  return _isLoading
+      ? const Center(child: CircularProgressIndicator())
+      : _errorMessage != null
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: Colors.red.withOpacity(0.7),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _errorMessage!,
+                    style: Theme.of(context).textTheme.bodyLarge,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadAnalyticsData,
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Summary Cards
+                  _buildSummaryCards(),
+                  const SizedBox(height: 24),
+                  
+                  // Weekly Completion Chart
+                  _buildWeeklyCompletionChart(),
+                  const SizedBox(height: 24),
+                  
+                  // Task Completion Breakdown
+                  _buildTaskCompletionBreakdown(),
+                ],
+              ),
+            );
+}
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Analytics'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadAnalyticsData,
-            tooltip: 'Refresh',
+Widget _buildSummaryCards() {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Overview',
+        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 16),
+      Row(
+        children: [
+          Expanded(
+            child: _buildSummaryCard(
+              'Total Entries',
+              _totalEntries.toString(),
+              Icons.assignment,
+              Colors.blue,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildSummaryCard(
+              'Completed',
+              _completedEntries.toString(),
+              Icons.check_circle,
+              Colors.green,
+            ),
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: Colors.red.withOpacity(0.7),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _errorMessage!,
-                        style: Theme.of(context).textTheme.bodyLarge,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadAnalyticsData,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Summary Cards
-                      _buildSummaryCards(),
-                      const SizedBox(height: 24),
-                      
-                      // Weekly Completion Chart
-                      _buildWeeklyCompletionChart(),
-                      const SizedBox(height: 24),
-                      
-                      // Task Completion Breakdown
-                      _buildTaskCompletionBreakdown(),
-                    ],
-                  ),
-                ),
-    );
-  }
-
-  Widget _buildSummaryCards() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Overview',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
+      const SizedBox(height: 12),
+      Row(
+        children: [
+          Expanded(
+            child: _buildSummaryCard(
+              'Completion Rate',
+              '${_completionRate.toStringAsFixed(1)}%',
+              Icons.trending_up,
+              Colors.orange,
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildSummaryCard(
-                'Total Entries',
-                _totalEntries.toString(),
-                Icons.assignment,
-                Colors.blue,
-              ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildSummaryCard(
+              'Current Streak',
+              '$_currentStreak days',
+              Icons.local_fire_department,
+              Colors.red,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildSummaryCard(
-                'Completed',
-                _completedEntries.toString(),
-                Icons.check_circle,
-                Colors.green,
-              ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      Row(
+        children: [
+          Expanded(
+            child: _buildSummaryCard(
+              'Longest Streak',
+              '$_longestStreak days',
+              Icons.emoji_events,
+              Colors.amber,
             ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildSummaryCard(
-                'Completion Rate',
-                '${_completionRate.toStringAsFixed(1)}%',
-                Icons.trending_up,
-                Colors.orange,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildSummaryCard(
-                'Current Streak',
-                '$_currentStreak days',
-                Icons.local_fire_department,
-                Colors.red,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        _buildSummaryCard(
-          'Longest Streak',
-          '$_longestStreak days',
-          Icons.emoji_events,
-          Colors.purple,
-        ),
-      ],
-    );
-  }
+          ),
+          const SizedBox(width: 12),
+          const Expanded(child: SizedBox()), // Empty space for alignment
+        ],
+      ),
+    ],
+  );
+}
 
-  Widget _buildSummaryCard(String title, String value, IconData icon, Color color) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: color, size: 24),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+Widget _buildSummaryCard(String title, String value, IconData icon, Color color) {
+  return Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 24),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
               ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: color,
             ),
-          ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildWeeklyCompletionChart() {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Weekly Completion Trend',
+        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+          fontWeight: FontWeight.bold,
         ),
       ),
-    );
-  }
-
-  Widget _buildWeeklyCompletionChart() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Weekly Completion Trend',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
+      const SizedBox(height: 16),
+      SizedBox(
+        height: 200,
+        child: LineChart(
+          LineChartData(
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: true,
+              horizontalInterval: 25,
+              verticalInterval: 1,
+            ),
+            titlesData: FlTitlesData(
+              show: true,
+              rightTitles: AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              topTitles: AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (value, meta) {
+                    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                    if (value.toInt() >= 0 && value.toInt() < days.length) {
+                      return Text(days[value.toInt()]);
+                    }
+                    return const Text('');
+                  },
+                ),
+              ),
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (value, meta) {
+                    return Text('${value.toInt()}%');
+                  },
+                ),
+              ),
+            ),
+            borderData: FlBorderData(
+              show: true,
+              border: Border.all(color: const Color(0xff37434d)),
+            ),
+            minX: 0,
+            maxX: 6,
+            minY: 0,
+            maxY: 100,
+            lineBarsData: [
+              LineChartBarData(
+                spots: _weeklyCompletionData,
+                isCurved: true,
+                color: Colors.blue,
+                barWidth: 3,
+                isStrokeCapRound: true,
+                dotData: FlDotData(
+                  show: true,
+                ),
+                belowBarData: BarAreaData(
+                  show: true,
+                  color: Colors.blue.withOpacity(0.3),
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 16),
-        Card(
-          elevation: 2,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              height: 200,
-              child: LineChart(
-                LineChartData(
-                  gridData: const FlGridData(show: true),
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 40,
-                        getTitlesWidget: (value, meta) {
-                          return Text('${value.toInt()}%');
-                        },
+      ),
+    ],
+  );
+}
+
+Widget _buildTaskCompletionBreakdown() {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Task Completion Breakdown',
+        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 16),
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: _taskCompletionCounts.entries.map((entry) {
+              if (entry.value == 0) return const SizedBox.shrink();
+              
+              final percentage = _totalEntries > 0
+                  ? (entry.value / _totalEntries) * 100
+                  : 0.0;
+              
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        entry.key,
+                        style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                          final index = value.toInt();
-                          if (index >= 0 && index < days.length) {
-                            return Text(days[index]);
-                          }
-                          return const Text('');
-                        },
+                    Expanded(
+                      flex: 3,
+                      child: LinearProgressIndicator(
+                        value: percentage / 100,
+                        backgroundColor: Colors.grey[300],
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          _getColorForTask(entry.key),
+                        ),
                       ),
                     ),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  ),
-                  borderData: FlBorderData(show: true),
-                  minX: 0,
-                  maxX: 6,
-                  minY: 0,
-                  maxY: 100,
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: _weeklyCompletionData,
-                      isCurved: true,
-                      color: Colors.blue,
-                      barWidth: 3,
-                      dotData: const FlDotData(show: true),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        color: Colors.blue.withOpacity(0.1),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 80,
+                      child: Text(
+                        '${entry.value}/${_totalEntries} (${percentage.toStringAsFixed(1)}%)',
+                        style: Theme.of(context).textTheme.bodySmall,
+                        textAlign: TextAlign.end,
                       ),
                     ),
                   ],
                 ),
-              ),
-            ),
+              );
+            }).toList(),
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildTaskCompletionBreakdown() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Task Completion Breakdown',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          elevation: 2,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: _taskCompletionCounts.entries.map((entry) {
-                // Calculate percentage based on how many times this task was completed
-                // out of total possible times (total entries)
-                final percentage = _totalEntries > 0 
-                    ? (entry.value / _totalEntries) * 100 
-                    : 0.0;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: Text(
-                          entry.key,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ),
-                      Expanded(
-                        flex: 3,
-                        child: LinearProgressIndicator(
-                          value: percentage / 100,
-                          backgroundColor: Colors.grey[300],
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            _getColorForTask(entry.key),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        width: 80,
-                        child: Text(
-                          '${entry.value}/${_totalEntries} (${percentage.toStringAsFixed(1)}%)',
-                          style: Theme.of(context).textTheme.bodySmall,
-                          textAlign: TextAlign.end,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Color _getColorForTask(String taskName) {
-    // Generate colors based on task name hash for consistency
-    final hash = taskName.hashCode;
-    final colors = [
-      Colors.blue, Colors.red, Colors.purple, Colors.cyan,
-      Colors.green, Colors.orange, Colors.brown, Colors.pink,
-      Colors.teal, Colors.indigo, Colors.amber, Colors.deepOrange,
-    ];
-    return colors[hash.abs() % colors.length];
-  }
+      ),
+    ],
+  );
 }
+
+Color _getColorForTask(String taskName) {
+  // Generate colors based on task name hash for consistency
+  final hash = taskName.hashCode;
+  final colors = [
+    Colors.blue, Colors.red, Colors.purple, Colors.cyan,
+    Colors.green, Colors.orange, Colors.brown, Colors.pink,
+    Colors.teal, Colors.indigo, Colors.amber, Colors.deepOrange,
+  ];
+  return colors[hash.abs() % colors.length];
+}}
