@@ -338,98 +338,36 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('History'),
-        actions: [
-          IconButton(
-            icon:
-                Icon(_includeDeleted ? Icons.visibility_off : Icons.visibility),
-            onPressed: () {
-              setState(() {
-                _includeDeleted = !_includeDeleted;
-              });
-              _loadHistoryData();
-              _selectedEntries.value = _getEntriesForDay(_selectedDay!);
-            },
-            tooltip: _includeDeleted ? 'Hide deleted' : 'Show deleted',
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadHistoryData,
-            tooltip: 'Refresh',
-          ),
-        ],
-      ),
+      // Remove any duplicate AppBar since MainNavigationScreen already provides one
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // Add a refresh button and toggle at the top
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      IconButton(
-                        icon: Icon(_includeDeleted ? Icons.visibility_off : Icons.visibility),
-                        onPressed: () {
-                          setState(() {
-                            _includeDeleted = !_includeDeleted;
-                          });
-                          _loadHistoryData();
-                          _selectedEntries.value = _getEntriesForDay(_selectedDay!);
-                        },
-                        tooltip: _includeDeleted ? 'Hide deleted' : 'Show deleted',
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.refresh),
-                        onPressed: _loadHistoryData,
-                        tooltip: 'Refresh',
-                      ),
-                    ],
+                // Calendar widget
+                TableCalendar<DailyEntry>(
+                  firstDay: DateTime.utc(2020, 1, 1),
+                  lastDay: DateTime.utc(2030, 12, 31),
+                  focusedDay: _focusedDay,
+                  calendarFormat: _calendarFormat,
+                  eventLoader: _getEntriesForDay,
+                  startingDayOfWeek: StartingDayOfWeek.monday,
+                  calendarStyle: const CalendarStyle(
+                    outsideDaysVisible: false,
                   ),
+                  onDaySelected: _onDaySelected,
+                  onFormatChanged: (format) {
+                    if (_calendarFormat != format) {
+                      setState(() {
+                        _calendarFormat = format;
+                      });
+                    }
+                  },
+                  onPageChanged: (focusedDay) {
+                    _focusedDay = focusedDay;
+                  },
                 ),
-                // Calendar
-                Expanded(
-                  child: TableCalendar<DailyEntry>(
-                    firstDay: DateTime.utc(2020, 1, 1),
-                    lastDay: DateTime.utc(2030, 12, 31),
-                    focusedDay: _focusedDay,
-                    calendarFormat: _calendarFormat,
-                    eventLoader: _getEntriesForDay,
-                    startingDayOfWeek: StartingDayOfWeek.monday,
-                    calendarStyle: const CalendarStyle(
-                      outsideDaysVisible: false,
-                      weekendTextStyle: TextStyle(color: Colors.red),
-                      holidayTextStyle: TextStyle(color: Colors.red),
-                    ),
-                    headerStyle: const HeaderStyle(
-                      formatButtonVisible: true,
-                      titleCentered: true,
-                      formatButtonShowsNext: false,
-                      formatButtonDecoration: BoxDecoration(
-                        color: Colors.blue,
-                        borderRadius: BorderRadius.all(Radius.circular(12.0)),
-                      ),
-                      formatButtonTextStyle: TextStyle(
-                        color: Colors.white,
-                      ),
-                    ),
-                    onDaySelected: _onDaySelected,
-                    onFormatChanged: (format) {
-                      if (_calendarFormat != format) {
-                        setState(() {
-                          _calendarFormat = format;
-                        });
-                      }
-                    },
-                    onPageChanged: (focusedDay) {
-                      _focusedDay = focusedDay;
-                    },
-                  ),
-                ),
-                // Selected day entries
                 const SizedBox(height: 8.0),
+                // Rest of your existing content
                 Expanded(
                   child: ValueListenableBuilder<List<DailyEntry>>(
                     valueListenable: _selectedEntries,
@@ -437,6 +375,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       return ListView.builder(
                         itemCount: value.length,
                         itemBuilder: (context, index) {
+                          // Your existing list item builder
                           return _buildEntryCard(value[index]);
                         },
                       );
@@ -445,7 +384,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
               ],
             ),
-            );
+            // Add floating action button for navigation if needed
+            floatingActionButton: FloatingActionButton(
+              onPressed: () {
+                // Add any specific action or navigation
+                Navigator.pop(context);
+              },
+              child: const Icon(Icons.arrow_back),
+            ),
+          );
   }
   
   Future<void> _createNewEntry() async {
