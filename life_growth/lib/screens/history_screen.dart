@@ -14,10 +14,10 @@ class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
 
   @override
-  State<HistoryScreen> createState() => _HistoryScreenState();
+  State<HistoryScreen> createState() => HistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen> {
+class HistoryScreenState extends State<HistoryScreen> {
   late final ValueNotifier<List<DailyEntry>> _selectedEntries;
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
@@ -48,7 +48,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Future<void> _loadHistoryData() async {
     if (!AuthService.isAuthenticated) return;
 
-    setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
 
     try {
       // Load user's tasks and task types first
@@ -87,16 +89,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
         }
       }
 
-      setState(() {
-        _entriesByDate = entriesByDate;
-        _taskEntriesByDailyEntry = taskEntriesByDailyEntry;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _entriesByDate = entriesByDate;
+          _taskEntriesByDailyEntry = taskEntriesByDailyEntry;
+          _isLoading = false;
+        });
+      }
 
       // Update selected entries
       _selectedEntries.value = _getEntriesForDay(_selectedDay!);
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -111,7 +117,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
   List<DailyEntry> _getEntriesForDay(DateTime day) {
     final dateKey = DateTime(day.year, day.month, day.day);
     final entry = _entriesByDate[dateKey];
-    return entry != null ? [entry] : [];
+    if (entry != null) {
+      // Filter based on _includeDeleted flag
+      if (_includeDeleted || entry.deletedAt == null) {
+        return [entry];
+      }
+    }
+    return [];
   }
 
   int _getCompletedTasksCount(DailyEntry entry) {
@@ -188,15 +200,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
-    if (!isSameDay(_selectedDay, selectedDay)) {
+void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
+  if (!isSameDay(_selectedDay, selectedDay)) {
+    if (mounted) {
       setState(() {
         _selectedDay = selectedDay;
         _focusedDay = focusedDay;
       });
-      _selectedEntries.value = _getEntriesForDay(selectedDay);
     }
+    _selectedEntries.value = _getEntriesForDay(selectedDay);
   }
+}
 
   Widget _buildEntryCard(DailyEntry entry) {
     final isDeleted = entry.deletedAt != null;
@@ -335,10 +349,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
+  // Add this method after the _getTotalTasksCount() method
+  void updateIncludeDeleted(bool includeDeleted) {
+    if (mounted) {
+      setState(() {
+        _includeDeleted = includeDeleted;
+      });
+      _selectedEntries.value = _getEntriesForDay(_selectedDay!);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Remove any duplicate AppBar since MainNavigationScreen already provides one
+  
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
@@ -356,15 +380,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ),
                   onDaySelected: _onDaySelected,
                   onFormatChanged: (format) {
-                    if (_calendarFormat != format) {
-                      setState(() {
-                        _calendarFormat = format;
-                      });
-                    }
-                  },
-                  onPageChanged: (focusedDay) {
-                    _focusedDay = focusedDay;
-                  },
+  if (_calendarFormat != format && mounted) {
+    setState(() {
+      _calendarFormat = format;
+    });
+  }
+},
+onPageChanged: (focusedDay) {
+  setState(() {
+    _focusedDay = focusedDay;
+  });
+},
                 ),
                 const SizedBox(height: 8.0),
                 // Rest of your existing content
@@ -385,14 +411,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ],
             ),
             // Add floating action button for navigation if needed
-            floatingActionButton: FloatingActionButton(
-              onPressed: () {
-                // Add any specific action or navigation
-                Navigator.pop(context);
-              },
-              child: const Icon(Icons.arrow_back),
-            ),
-          );
+           );
   }
   
   Future<void> _createNewEntry() async {

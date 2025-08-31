@@ -42,18 +42,22 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   Future<void> _loadAnalyticsData() async {
     if (!AuthService.isAuthenticated) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'User not authenticated';
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'User not authenticated';
+        });
+      }
       return;
     }
 
     try {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = true;
+          _errorMessage = null;
+        });
+      }
 
       final userId = AuthService.userId!;
       
@@ -70,14 +74,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       
       _calculateAnalytics();
 
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to load analytics data: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load analytics data: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 

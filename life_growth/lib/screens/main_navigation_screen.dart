@@ -24,8 +24,10 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
   final GlobalKey<HomeScreenState> _homeScreenKey = GlobalKey<HomeScreenState>();
+  final GlobalKey<HistoryScreenState> _historyScreenKey = GlobalKey<HistoryScreenState>();
   bool _isSyncing = false;
   String? _syncStatus;
+  bool _includeDeleted = false; // Add this state for history screen
   
   // Add PageController for swipe navigation
   late PageController _pageController;
@@ -252,6 +254,24 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               ),
             ),
           ],
+          // Add eye toggle for History screen
+          if (_currentIndex == 1) 
+            IconButton(
+              icon: Icon(
+                _includeDeleted ? Icons.visibility : Icons.visibility_off,
+                color: _includeDeleted ? Colors.blue : Colors.grey,
+              ),
+              onPressed: () {
+                setState(() {
+                  _includeDeleted = !_includeDeleted;
+                });
+                // Notify history screen of the change
+                if (_historyScreenKey.currentState != null) {
+                  _historyScreenKey.currentState!.updateIncludeDeleted(_includeDeleted);
+                }
+              },
+              tooltip: _includeDeleted ? 'Hide deleted entries' : 'Show deleted entries',
+            ),
           // Settings menu for all screens
           Semantics(
             label: 'Menu',
@@ -377,7 +397,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         onPageChanged: _onPageChanged,
         children: [
           HomeScreen(key: _homeScreenKey, showAppBar: false),
-          const HistoryScreen(),
+          HistoryScreen(key: _historyScreenKey),
           const AnalyticsScreen(),
         ],
       ),
