@@ -68,6 +68,9 @@ class SupabaseServiceV2 {
         .select()
         .single();
 
+    // Clear cache when tasks are modified
+    clearCache();
+    
     return Task.fromJson(response);
   }
 
@@ -76,6 +79,9 @@ class SupabaseServiceV2 {
         .from('tasks')
         .update({'deleted_at': DateTime.now().toIso8601String()})
         .eq('id', taskId);
+    
+    // Clear cache when tasks are modified
+    clearCache();
   }
 
   // Daily Entries
@@ -310,6 +316,64 @@ class SupabaseServiceV2 {
     };
   }
 
+  // Batch loading for better performance
+  static Future<Map<String, dynamic>> getBatchDailyData({
+    required String userId,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    // Load all daily entries in the date range in a single query
+    final response = await _client
+        .from('daily_entries')
+        .select()
+        .eq('user_id', userId)
+        .gte('date', startDate.toIso8601String().split('T')[0])
+        .lte('date', endDate.toIso8601String().split('T')[0])
+        .order('date');
+
+    final dailyEntries = response.map((json) => DailyEntry.fromJson(json)).toList();
+    final entriesByDate = <DateTime, DailyEntry>{};
+    final dailyEntryIds = <String>[];
+
+    for (final entry in dailyEntries) {
+      final dateKey = DateTime(entry.date.year, entry.date.month, entry.date.day);
+      entriesByDate[dateKey] = entry;
+      dailyEntryIds.add(entry.id);
+    }
+
+    // Load all task entries for these daily entries in a single query
+    final Map<String, List<TaskEntry>> taskEntriesByDailyEntry = {};
+    if (dailyEntryIds.isNotEmpty) {
+      final taskEntriesResponse = await _client
+          .from('task_entries')
+          .select()
+          .inFilter('daily_entry_id', dailyEntryIds)
+          .isFilter('deleted_at', null)
+          .order('created_at');
+
+      final allTaskEntries = taskEntriesResponse.map((json) => TaskEntry.fromJson(json)).toList();
+      
+      // Group task entries by daily entry ID
+      for (final taskEntry in allTaskEntries) {
+        if (!taskEntriesByDailyEntry.containsKey(taskEntry.dailyEntryId)) {
+          taskEntriesByDailyEntry[taskEntry.dailyEntryId] = [];
+        }
+        taskEntriesByDailyEntry[taskEntry.dailyEntryId]!.add(taskEntry);
+      }
+    }
+
+    // Load tasks and task types (these can be cached)
+    final tasks = await getUserTasks(userId);
+    final taskTypes = await getTaskTypes();
+
+    return {
+      'entriesByDate': entriesByDate,
+      'taskEntriesByDailyEntry': taskEntriesByDailyEntry,
+      'tasks': tasks,
+      'taskTypes': taskTypes,
+    };
+  }
+
   // Helper method to check network connectivity
   static Future<bool> _hasNetworkConnection() async {
     try {
@@ -509,5 +573,50 @@ class SupabaseServiceV2 {
     
     // Get the regular daily data
     return await getDailyData(userId: userId, date: date);
+  }
+
+  // Cache for frequently accessed data
+  static Map<String, List<Task>>? _userTasksCache;
+  static List<TaskType>? _taskTypesCache;
+  static DateTime? _cacheTimestamp;
+  static const Duration _cacheExpiry = Duration(minutes: 5);
+
+  // Cached getUserTasks
+  static Future<List<Task>> getUserTasksCached(String userId) async {
+    final now = DateTime.now();
+    if (_userTasksCache != null && 
+        _userTasksCache!.containsKey(userId) &&
+        _cacheTimestamp != null &&
+        now.difference(_cacheTimestamp!).compareTo(_cacheExpiry) < 0) {
+      return _userTasksCache![userId]!;
+    }
+
+    final tasks = await getUserTasks(userId);
+    _userTasksCache ??= {};
+    _userTasksCache![userId] = tasks;
+    _cacheTimestamp = now;
+    return tasks;
+  }
+
+  // Cached getTaskTypes
+  static Future<List<TaskType>> getTaskTypesCached() async {
+    final now = DateTime.now();
+    if (_taskTypesCache != null &&
+        _cacheTimestamp != null &&
+        now.difference(_cacheTimestamp!).compareTo(_cacheExpiry) < 0) {
+      return _taskTypesCache!;
+    }
+
+    final taskTypes = await getTaskTypes();
+    _taskTypesCache = taskTypes;
+    _cacheTimestamp = now;
+    return taskTypes;
+  }
+
+  // Clear cache when data changes
+  static void clearCache() {
+    _userTasksCache = null;
+    _taskTypesCache = null;
+    _cacheTimestamp = null;
   }
 }
