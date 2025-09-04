@@ -32,7 +32,6 @@ class UndoAction {
 class UndoProvider extends ChangeNotifier {
   final List<UndoAction> _undoStack = [];
   final int _maxUndoActions = 10;
-  final SupabaseServiceV2 _supabaseService = SupabaseServiceV2();
 
   List<UndoAction> get undoStack => List.unmodifiable(_undoStack);
   bool get canUndo => _undoStack.isNotEmpty;

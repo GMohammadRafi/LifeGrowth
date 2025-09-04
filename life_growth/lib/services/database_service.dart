@@ -1,10 +1,4 @@
 import '../database/database.dart';
-import '../models/daily_checkin.dart' as model;
-import '../models/habit.dart' as model;
-import '../models/habit.dart' show HabitFrequency;
-import '../models/goal.dart' as model;
-import '../models/goal.dart' show GoalCategory, GoalPriority;
-import '../models/journal_entry.dart' as model;
 
 /// Service class that provides access to the local SQLite database
 class DatabaseService {

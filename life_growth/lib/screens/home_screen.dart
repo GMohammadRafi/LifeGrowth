@@ -9,7 +9,6 @@ import '../services/personalization_service.dart';
 import '../services/telemetry_service.dart';
 import '../services/notification_service.dart';
 import '../models/daily_entry.dart';
-import '../models/daily_entry_extensions.dart';
 import '../models/task_entry.dart';
 import '../models/task.dart';
 import '../models/task_type.dart';

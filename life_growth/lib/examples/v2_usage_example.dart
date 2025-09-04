@@ -1,8 +1,6 @@
 import '../services/supabase_service_v2.dart';
 import '../models/task_type.dart';
 import '../models/task.dart';
-import '../models/daily_entry.dart';
-import '../models/task_entry.dart';
 
 class V2UsageExample {
   // Example 1: Create a new custom task type
