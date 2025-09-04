@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:provider/provider.dart';
 import '../models/daily_entry.dart';
@@ -11,6 +10,7 @@ import '../services/supabase_service_v2.dart';
 import '../services/auth_service.dart';
 import '../services/telemetry_service.dart';
 import '../providers/undo_provider.dart';
+import 'edit_daily_entry_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -25,6 +25,7 @@ class HistoryScreenState extends State<HistoryScreen> {
   final ValueNotifier<DateTime> _focusedDay = ValueNotifier(DateTime.now());
   final ValueNotifier<bool> _isLoading = ValueNotifier(false);
   final ValueNotifier<bool> _includeDeleted = ValueNotifier(false);
+
   
   CalendarFormat _calendarFormat = CalendarFormat.month;
   Map<DateTime, DailyEntry> _entriesByDate = {};
@@ -70,12 +71,22 @@ class HistoryScreenState extends State<HistoryScreen> {
       _userTasks = tasks;
       _taskTypes = taskTypes;
 
-      // Load data for current month only (lazy loading)
-      await _loadMonthData(_focusedDay.value);
+      // Load data for current month and previous 2 months to show historical data by default
+      final now = DateTime.now();
+      final currentMonth = DateTime(now.year, now.month);
+      final previousMonth = DateTime(now.year, now.month - 1);
+      final twoMonthsAgo = DateTime(now.year, now.month - 2);
+      
+      // Load multiple months in parallel for better performance
+      await Future.wait([
+        _loadMonthData(currentMonth),
+        _loadMonthData(previousMonth),
+        _loadMonthData(twoMonthsAgo),
+      ]);
 
       _isLoading.value = false;
 
-      // Update selected entries
+      // Update selected entries to show today's tasks by default
       _selectedEntries.value = _getEntriesForDay(_selectedDay.value);
     } catch (e) {
       _isLoading.value = false;
@@ -207,13 +218,13 @@ class HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
-  if (!isSameDay(_selectedDay.value, selectedDay)) {
-    _selectedDay.value = selectedDay;
-    _focusedDay.value = focusedDay;
-    _selectedEntries.value = _getEntriesForDay(selectedDay);
+  void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
+    if (!isSameDay(_selectedDay.value, selectedDay)) {
+      _selectedDay.value = selectedDay;
+      _focusedDay.value = focusedDay;
+      _selectedEntries.value = _getEntriesForDay(selectedDay);
+    }
   }
-}
 
   Widget _buildEntryCard(DailyEntry entry) {
     final isDeleted = entry.deletedAt != null;
@@ -303,16 +314,18 @@ void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
     
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (context) => IconButton(
-          icon: const Icon(Icons.edit),
-          onPressed: () => _editEntry(entry),
-          tooltip: 'Edit',
+        builder: (context) => EditDailyEntryScreen(
+          dailyEntry: entry,
+          taskEntries: taskEntries,
+          userTasks: _userTasks,
+          taskTypes: _taskTypes,
         ),
       ),
     );
 
     if (result == true) {
       await _loadHistoryData();
+      _selectedEntries.value = _getEntriesForDay(_selectedDay.value);
     }
   }
 
@@ -400,6 +413,32 @@ void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
     );
   }
   
+  Widget _buildCalendarDay(DateTime day, bool isToday, {bool isSelected = false}) {
+    
+    return Container(
+      margin: const EdgeInsets.all(4.0),
+      decoration: BoxDecoration(
+        color: isSelected 
+            ? Theme.of(context).primaryColor
+            : isToday 
+                ? Theme.of(context).primaryColor.withOpacity(0.3)
+                : null,
+        borderRadius: BorderRadius.circular(8.0),
+      ),
+      child: Center(
+        child: Text(
+          '${day.day}',
+          style: TextStyle(
+            color: isSelected || isToday 
+                ? Colors.white 
+                : null,
+            fontWeight: isToday ? FontWeight.bold : null,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildOptimizedCalendar() {
     // Only rebuild calendar when focused day changes significantly
     final currentMonth = DateTime(_focusedDay.value.year, _focusedDay.value.month);
@@ -415,33 +454,44 @@ void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
             valueListenable: _selectedDay,
             builder: (context, selectedDay, child) {
               return TableCalendar<DailyEntry>(
-                firstDay: DateTime.utc(2020, 1, 1),
-                lastDay: DateTime.utc(2030, 12, 31),
-                focusedDay: focusedDay,
-                calendarFormat: _calendarFormat,
-                eventLoader: _getEntriesForDay,
-                startingDayOfWeek: StartingDayOfWeek.monday,
-                calendarStyle: const CalendarStyle(
-                  outsideDaysVisible: false,
-                ),
-                onDaySelected: _onDaySelected,
-                onFormatChanged: (format) {
-                  if (_calendarFormat != format && mounted) {
-                    setState(() {
-                      _calendarFormat = format;
-                    });
-                  }
-                },
-                onPageChanged: (focusedDay) async {
-                  _focusedDay.value = focusedDay;
-                  // Load data for the new month when user navigates
-                  await _loadMonthData(focusedDay);
-                  _selectedEntries.value = _getEntriesForDay(_selectedDay.value);
-                },
-                selectedDayPredicate: (day) {
-                  return isSameDay(_selectedDay.value, day);
-                },
-              );
+                    firstDay: DateTime.utc(2020, 1, 1),
+                    lastDay: DateTime.utc(2030, 12, 31),
+                    focusedDay: focusedDay,
+                    calendarFormat: _calendarFormat,
+                    eventLoader: _getEntriesForDay,
+                    startingDayOfWeek: StartingDayOfWeek.monday,
+                    calendarStyle: const CalendarStyle(
+                      outsideDaysVisible: false,
+                    ),
+                    calendarBuilders: CalendarBuilders(
+                      defaultBuilder: (context, day, focusedDay) {
+                        return _buildCalendarDay(day, false);
+                      },
+                      todayBuilder: (context, day, focusedDay) {
+                        return _buildCalendarDay(day, true);
+                      },
+                      selectedBuilder: (context, day, focusedDay) {
+                        return _buildCalendarDay(day, false, isSelected: true);
+                      },
+                    ),
+                    onDaySelected: _onDaySelected,
+                    onFormatChanged: (format) {
+                      if (_calendarFormat != format && mounted) {
+                        setState(() {
+                          _calendarFormat = format;
+                        });
+                      }
+                    },
+                    onPageChanged: (focusedDay) async {
+                      _focusedDay.value = focusedDay;
+                      // Load data for the new month when user navigates
+                      await _loadMonthData(focusedDay);
+                      _selectedEntries.value = _getEntriesForDay(_selectedDay.value);
+                    },
+                    selectedDayPredicate: (day) {
+                      return isSameDay(_selectedDay.value, day);
+                    },
+                  );
             },
           );
         },

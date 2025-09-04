@@ -6,14 +6,16 @@ class DynamicTaskForm extends StatefulWidget {
   final TaskType taskType;
   final Task task;
   final Map<String, dynamic>? initialData;
-  final Function(Map<String, dynamic> data, bool completed) onSubmit;
+  final Function(Map<String, dynamic> data, bool completed)? onDataChanged;
+  final GlobalKey<FormState>? formKey;
 
   const DynamicTaskForm({
     Key? key,
     required this.taskType,
     required this.task,
     this.initialData,
-    required this.onSubmit,
+    this.onDataChanged,
+    this.formKey,
   }) : super(key: key);
 
   @override
@@ -21,15 +23,22 @@ class DynamicTaskForm extends StatefulWidget {
 }
 
 class _DynamicTaskFormState extends State<DynamicTaskForm> {
-  final _formKey = GlobalKey<FormState>();
+  late GlobalKey<FormState> _formKey;
   late Map<String, dynamic> _formData;
   bool _completed = false;
 
   @override
   void initState() {
     super.initState();
+    _formKey = widget.formKey ?? GlobalKey<FormState>();
     _formData = Map<String, dynamic>.from(widget.initialData ?? {});
     _completed = _formData['completed'] ?? false;
+  }
+
+  void _notifyDataChanged() {
+    if (widget.onDataChanged != null) {
+      widget.onDataChanged!(_formData, _completed);
+    }
   }
 
   @override
@@ -64,14 +73,10 @@ class _DynamicTaskFormState extends State<DynamicTaskForm> {
                       setState(() {
                         _completed = value ?? false;
                       });
+                      _notifyDataChanged();
                     },
                   ),
                   const Text('Mark as completed'),
-                  const Spacer(),
-                  ElevatedButton(
-                    onPressed: _submitForm,
-                    child: const Text('Save'),
-                  ),
                 ],
               ),
             ],
@@ -121,6 +126,12 @@ class _DynamicTaskFormState extends State<DynamicTaskForm> {
           }
           return null;
         } : null,
+        onChanged: (value) {
+          setState(() {
+            _formData[fieldName] = int.tryParse(value ?? '') ?? 0;
+          });
+          _notifyDataChanged();
+        },
         onSaved: (value) {
           if (value != null && value.isNotEmpty) {
             _formData[fieldName] = int.tryParse(value) ?? 0;
@@ -146,6 +157,12 @@ class _DynamicTaskFormState extends State<DynamicTaskForm> {
           }
           return null;
         } : null,
+        onChanged: (value) {
+          setState(() {
+            _formData[fieldName] = double.tryParse(value ?? '') ?? 0.0;
+          });
+          _notifyDataChanged();
+        },
         onSaved: (value) {
           if (value != null && value.isNotEmpty) {
             _formData[fieldName] = double.tryParse(value) ?? 0.0;
@@ -174,6 +191,12 @@ class _DynamicTaskFormState extends State<DynamicTaskForm> {
           }
           return null;
         } : null,
+        onChanged: (value) {
+          setState(() {
+            _formData[fieldName] = value ?? '';
+          });
+          _notifyDataChanged();
+        },
         onSaved: (value) {
           if (value != null && value.isNotEmpty) {
             _formData[fieldName] = value;
@@ -210,6 +233,7 @@ class _DynamicTaskFormState extends State<DynamicTaskForm> {
               _formData[fieldName] = value;
             }
           });
+          _notifyDataChanged();
         },
       ),
     );
@@ -234,6 +258,7 @@ class _DynamicTaskFormState extends State<DynamicTaskForm> {
                 setState(() {
                   _formData[fieldName] = timeString;
                 });
+                _notifyDataChanged();
               }
             },
           ),
@@ -260,6 +285,7 @@ class _DynamicTaskFormState extends State<DynamicTaskForm> {
           setState(() {
             _formData[fieldName] = value ?? false;
           });
+          _notifyDataChanged();
         },
       ),
     );
@@ -272,10 +298,5 @@ class _DynamicTaskFormState extends State<DynamicTaskForm> {
         .join(' ');
   }
 
-  void _submitForm() {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
-      widget.onSubmit(_formData, _completed);
-    }
-  }
+
 }

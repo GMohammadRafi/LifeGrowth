@@ -214,6 +214,14 @@ class HomeScreenState extends State<HomeScreen> {
         );
       }
 
+      // Find the existing task entry to record for undo
+      final existingEntryIndex = _todayTaskEntries.indexWhere((e) => e.taskId == updatedEntry.taskId);
+      TaskEntry? previousEntry;
+      
+      if (existingEntryIndex >= 0) {
+        previousEntry = _todayTaskEntries[existingEntryIndex];
+      }
+
       // Update the task entry
       final savedEntry = await SupabaseServiceV2.createOrUpdateTaskEntry(
         dailyEntryId: _todayEntry!.id,
@@ -222,11 +230,20 @@ class HomeScreenState extends State<HomeScreen> {
         completed: updatedEntry.completed,
       );
 
+      // Record undo action
+      final undoProvider = Provider.of<UndoProvider>(context, listen: false);
+      if (previousEntry != null) {
+        // This is an edit action
+        undoProvider.recordEditTaskEntry(previousEntry, savedEntry);
+      } else {
+        // This is a create action
+        undoProvider.recordCreateTaskEntry(savedEntry);
+      }
+
       if (mounted) {
         setState(() {
-          final index = _todayTaskEntries.indexWhere((e) => e.taskId == savedEntry.taskId);
-          if (index >= 0) {
-            _todayTaskEntries[index] = savedEntry;
+          if (existingEntryIndex >= 0) {
+            _todayTaskEntries[existingEntryIndex] = savedEntry;
           } else {
             _todayTaskEntries.add(savedEntry);
           }
