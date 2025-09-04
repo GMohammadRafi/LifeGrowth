@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/supabase_service_v2.dart';
-import '../services/background_sync_manager.dart';
 import '../services/telemetry_service.dart';
 import '../providers/undo_provider.dart';
 import 'home_screen.dart';
@@ -85,7 +84,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     }
 
     try {
-      await BackgroundSyncManager().scheduleImmediateSync();
       await SupabaseServiceV2.syncAllPendingChanges(AuthService.userId!);
       
       // Refresh home screen if it's the current tab

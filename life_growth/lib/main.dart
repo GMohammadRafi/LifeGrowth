@@ -11,7 +11,7 @@ import 'firebase_options.dart';
 // import 'package:flutter_native_timezone/flutter_native_timezone.dart'; // Removed due to AGP compatibility
 import 'services/auth_service.dart';
 import 'services/database_service.dart';
-import 'services/background_sync_manager.dart';
+
 import 'services/notification_service.dart';
 import 'services/theme_service.dart';
 import 'services/telemetry_service.dart';
@@ -170,19 +170,7 @@ void main() async {
     }
   }
 
-  // Initialize background sync manager (only on mobile platforms)
-  if (!kIsWeb) {
-    try {
-      await BackgroundSyncManager().initialize();
-      if (kDebugMode) {
-        print('Background sync manager initialized successfully');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Failed to initialize background sync manager: $e');
-      }
-    }
-  }
+  // Background sync manager removed - using direct sync only
 
   runApp(
     MultiProvider(
@@ -247,14 +235,10 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
         setState(() {});
       }
 
-      // Trigger sync on sign-in and clear local DB on sign-out
+      // Handle auth state changes
       try {
-        if (data.event == AuthChangeEvent.signedIn) {
-          // Perform an immediate sync after successful login
-          await BackgroundSyncManager().performSync();
-        } else if (data.event == AuthChangeEvent.signedOut) {
-          // Stop any background sync and clear local data upon logout
-          await BackgroundSyncManager().cancelAllSyncTasks();
+        if (data.event == AuthChangeEvent.signedOut) {
+          // Clear local data upon logout
           if (!kIsWeb) {
             await DatabaseService.instance.clearAllData();
           }
@@ -280,14 +264,10 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
     
     _checkBiometricOnStart();
 
-    // If a session already exists (app relaunch), perform an immediate sync
+    // Session restoration completed
     if (AuthService.isAuthenticated) {
-      try {
-        await BackgroundSyncManager().performSync();
-      } catch (e) {
-        if (kDebugMode) {
-          print('Failed to perform initial sync after session restoration: $e');
-        }
+      if (kDebugMode) {
+        print('Session restored successfully');
       }
     }
   }
@@ -326,31 +306,16 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
   }
 
   Future<void> _handleAppBackground() async {
-    try {
-      // Start background sync when app goes to background
-      await BackgroundSyncManager().startBackgroundSync();
-      if (kDebugMode) {
-        print('Background sync started - app went to background');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Failed to start background sync: $e');
-      }
+    // Background sync functionality removed
+    if (kDebugMode) {
+      print('App went to background');
     }
   }
 
   Future<void> _handleAppForeground() async {
-    try {
-      // Stop background sync and perform immediate sync when app comes to foreground
-      await BackgroundSyncManager().stopBackgroundSync();
-      await BackgroundSyncManager().performSync();
-      if (kDebugMode) {
-        print('Background sync stopped and immediate sync performed - app came to foreground');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Failed to handle app foreground: $e');
-      }
+    // Background sync functionality removed
+    if (kDebugMode) {
+      print('App came to foreground');
     }
   }
 

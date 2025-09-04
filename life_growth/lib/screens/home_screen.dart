@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/supabase_service.dart';
 import '../services/supabase_service_v2.dart';
-import '../services/background_sync_manager.dart';
+
 import '../services/personalization_service.dart';
 import '../services/telemetry_service.dart';
 import '../services/notification_service.dart';
@@ -263,10 +263,7 @@ class HomeScreenState extends State<HomeScreen> {
     }
 
     try {
-      // Use background sync manager for immediate sync
-      await BackgroundSyncManager().scheduleImmediateSync();
-
-      // Also perform direct sync for immediate feedback
+      // Perform direct sync
       await SupabaseServiceV2.syncAllPendingChanges(AuthService.userId!);
       await loadTodayData(); // Reload to get any updates
 
