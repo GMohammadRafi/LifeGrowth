@@ -10,7 +10,7 @@ import 'analytics_screen.dart';
 import 'personalization_screen.dart';
 import 'accessibility_settings_screen.dart';
 import 'task_reminder_screen.dart';
-import 'csv_export_screen.dart';
+
 import 'auth_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
@@ -298,12 +298,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                       builder: (context) => const TaskReminderScreen(),
                     ),
                   );
-                } else if (value == 'export') {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const CsvExportScreen(),
-                    ),
-                  );
+
                 } else if (value == 'signout') {
                   _signOut();
                 }
@@ -354,21 +349,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     ),
                   ),
                 ),
-                PopupMenuItem(
-                  value: 'export',
-                  child: Semantics(
-                    label: 'Export Data',
-                    hint: 'Export your data to CSV files',
-                    button: true,
-                    child: const Row(
-                      children: [
-                        Icon(Icons.file_download),
-                        SizedBox(width: 8),
-                        Text('Export Data'),
-                      ],
-                    ),
-                  ),
-                ),
+
                 PopupMenuItem(
                   value: 'signout',
                   child: Semantics(
