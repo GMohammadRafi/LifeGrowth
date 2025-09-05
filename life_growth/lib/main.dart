@@ -75,6 +75,22 @@ void main() async {
     } catch (e) {
       if (kDebugMode) {
         print('Supabase initialization failed: $e');
+        
+        // Provide specific error messages for common network issues
+        if (e.toString().contains('SocketException') || 
+            e.toString().contains('ClientException') ||
+            e.toString().contains('No address associated with hostname')) {
+          print('Network Error Details:');
+          print('- Check your internet connection');
+          print('- Verify the SUPABASE_URL in your .env file');
+          print('- Ensure the Supabase project URL is correct');
+          print('- Check if the domain exists: ${supabaseUrl}');
+        } else if (e.toString().contains('TimeoutException')) {
+          print('Connection timeout - check network stability');
+        } else if (e.toString().contains('FormatException')) {
+          print('Invalid URL format in SUPABASE_URL');
+        }
+        
         print('App will continue with offline mode using local database');
       }
     }
