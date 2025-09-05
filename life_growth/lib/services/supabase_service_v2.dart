@@ -5,6 +5,7 @@ import '../models/task_type.dart';
 import '../models/task.dart';
 import '../models/daily_entry.dart';
 import '../models/task_entry.dart';
+import '../models/custom_reminder.dart';
 
 class SupabaseServiceV2 {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -573,6 +574,41 @@ class SupabaseServiceV2 {
     
     // Get the regular daily data
     return await getDailyData(userId: userId, date: date);
+  }
+
+  // Custom Reminders
+  static Future<List<CustomReminder>> getCustomReminders() async {
+    final response = await _client
+        .from('custom_reminders')
+        .select()
+        .eq('is_active', true)
+        .order('reminder_time');
+
+    return response.map((json) => CustomReminder.fromJson(json)).toList();
+  }
+
+  static Future<CustomReminder> createCustomReminder(CustomReminder reminder) async {
+    final response = await _client
+        .from('custom_reminders')
+        .insert(reminder.toJson())
+        .select()
+        .single();
+
+    return CustomReminder.fromJson(response);
+  }
+
+  static Future<void> updateCustomReminder(CustomReminder reminder) async {
+    await _client
+        .from('custom_reminders')
+        .update(reminder.toJson())
+        .eq('id', reminder.id!);
+  }
+
+  static Future<void> deleteCustomReminder(String reminderId) async {
+    await _client
+        .from('custom_reminders')
+        .update({'is_active': false})
+        .eq('id', reminderId);
   }
 
   // Cache for frequently accessed data

@@ -162,16 +162,41 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(_titles[_currentIndex]),
+            Text(
+              _titles[_currentIndex],
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
             if (_syncStatus != null)
-              Text(
-                _syncStatus!,
-                style: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.normal),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _syncStatus!.contains('failed') 
+                      ? Colors.red.withOpacity(0.1)
+                      : Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  _syncStatus!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: _syncStatus!.contains('failed') 
+                        ? Colors.red
+                        : Colors.green,
+                  ),
+                ),
               ),
           ],
         ),
@@ -186,9 +211,29 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                       ? 'Undo last action: ${undoProvider.getUndoDescription()}'
                       : 'No actions to undo',
                   button: true,
-                  child: IconButton(
-                    icon: const Icon(Icons.undo),
-                    onPressed: undoProvider.canUndo ? () async {
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 4),
+                    decoration: BoxDecoration(
+                      color: undoProvider.canUndo 
+                          ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+                          : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: undoProvider.canUndo ? [
+                        BoxShadow(
+                          color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ] : [],
+                    ),
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.undo,
+                        color: undoProvider.canUndo 
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                      ),
+                      onPressed: undoProvider.canUndo ? () async {
                       final success = await undoProvider.undoLastAction();
                       if (success) {
                         await Future.delayed(const Duration(milliseconds: 200));
@@ -211,9 +256,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                         }
                       }
                     } : null,
-                    tooltip: undoProvider.canUndo 
-                        ? 'Undo: ${undoProvider.getUndoDescription()}'
-                        : 'No actions to undo',
+                      tooltip: undoProvider.canUndo 
+                          ? 'Undo: ${undoProvider.getUndoDescription()}'
+                          : 'No actions to undo',
+                    ),
                   ),
                 );
               },
@@ -222,60 +268,131 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               label: 'Refresh',
               hint: 'Refresh today\'s task data',
               button: true,
-              child: IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: () {
-                  if (_homeScreenKey.currentState != null) {
-                    _homeScreenKey.currentState!.loadTodayData();
-                  }
-                },
-                tooltip: 'Refresh',
+              child: Container(
+                margin: const EdgeInsets.only(right: 4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Theme.of(context).colorScheme.secondary.withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    Icons.refresh,
+                    color: Theme.of(context).colorScheme.secondary,
+                  ),
+                  onPressed: () {
+                    if (_homeScreenKey.currentState != null) {
+                      _homeScreenKey.currentState!.loadTodayData();
+                    }
+                  },
+                  tooltip: 'Refresh',
+                ),
               ),
             ),
             Semantics(
               label: 'Sync Data',
               hint: _isSyncing ? 'Syncing data with server' : 'Sync your data with the server',
               button: true,
-              child: IconButton(
-                icon: _isSyncing
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              child: Container(
+                margin: const EdgeInsets.only(right: 4),
+                decoration: BoxDecoration(
+                  color: _isSyncing 
+                      ? Theme.of(context).colorScheme.primary.withOpacity(0.2)
+                      : Theme.of(context).colorScheme.tertiaryContainer.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (_isSyncing 
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.tertiary).withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  icon: _isSyncing
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        )
+                      : Icon(
+                          Icons.sync,
+                          color: Theme.of(context).colorScheme.tertiary,
                         ),
-                      )
-                    : const Icon(Icons.sync),
-                onPressed: _isSyncing ? null : _syncData,
-                tooltip: 'Sync Data',
+                  onPressed: _isSyncing ? null : _syncData,
+                  tooltip: 'Sync Data',
+                ),
               ),
             ),
           ],
           // Add eye toggle for History screen
           if (_currentIndex == 1) 
-            IconButton(
-              icon: Icon(
-                _includeDeleted ? Icons.visibility : Icons.visibility_off,
-                color: _includeDeleted ? Colors.blue : Colors.grey,
+            Container(
+              margin: const EdgeInsets.only(right: 4),
+              decoration: BoxDecoration(
+                color: _includeDeleted 
+                    ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+                    : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: _includeDeleted ? [
+                  BoxShadow(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ] : [],
               ),
-              onPressed: () {
-                setState(() {
-                  _includeDeleted = !_includeDeleted;
-                });
-                // Notify history screen of the change
-                if (_historyScreenKey.currentState != null) {
-                  _historyScreenKey.currentState!.updateIncludeDeleted(_includeDeleted);
-                }
-              },
-              tooltip: _includeDeleted ? 'Hide deleted entries' : 'Show deleted entries',
+              child: IconButton(
+                icon: Icon(
+                  _includeDeleted ? Icons.visibility : Icons.visibility_off,
+                  color: _includeDeleted 
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                ),
+                onPressed: () {
+                  setState(() {
+                    _includeDeleted = !_includeDeleted;
+                  });
+                  // Notify history screen of the change
+                  if (_historyScreenKey.currentState != null) {
+                    _historyScreenKey.currentState!.updateIncludeDeleted(_includeDeleted);
+                  }
+                },
+                tooltip: _includeDeleted ? 'Hide deleted entries' : 'Show deleted entries',
+              ),
             ),
           // Settings menu for all screens
           Semantics(
             label: 'Menu',
             hint: 'Open menu with options for settings and sign out',
             button: true,
-            child: PopupMenuButton<String>(
+            child: Container(
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: PopupMenuButton<String>(
               onSelected: (value) async {
                 if (value == 'personalization') {
                   final result = await Navigator.of(context).push(
@@ -303,71 +420,162 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   _signOut();
                 }
               },
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: 'personalization',
-                  child: Semantics(
-                    label: 'Personalization',
-                    hint: 'Customize your task preferences and settings',
-                    button: true,
-                    child: const Row(
-                      children: [
-                        Icon(Icons.tune),
-                        SizedBox(width: 8),
-                        Text('Personalization'),
-                      ],
+                icon: Icon(
+                  Icons.more_vert,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                color: Theme.of(context).colorScheme.surface,
+                elevation: 8,
+                shadowColor: Colors.black.withOpacity(0.2),
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'personalization',
+                    child: Semantics(
+                      label: 'Personalization',
+                      hint: 'Customize your task preferences and settings',
+                      button: true,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.tune,
+                                size: 18,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Personalization',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
-                PopupMenuItem(
-                  value: 'accessibility',
-                  child: Semantics(
-                    label: 'Accessibility',
-                    hint: 'Configure accessibility settings and theme preferences',
-                    button: true,
-                    child: const Row(
-                      children: [
-                        Icon(Icons.accessibility),
-                        SizedBox(width: 8),
-                        Text('Accessibility'),
-                      ],
+                  PopupMenuItem(
+                    value: 'accessibility',
+                    child: Semantics(
+                      label: 'Accessibility',
+                      hint: 'Configure accessibility settings and theme preferences',
+                      button: true,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.accessibility,
+                                size: 18,
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Accessibility',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
-                PopupMenuItem(
-                  value: 'reminders',
-                  child: Semantics(
-                    label: 'Task Reminders',
-                    hint: 'Manage reminders for your tasks',
-                    button: true,
-                    child: const Row(
-                      children: [
-                        Icon(Icons.notifications),
-                        SizedBox(width: 8),
-                        Text('Task Reminders'),
-                      ],
+                  PopupMenuItem(
+                    value: 'reminders',
+                    child: Semantics(
+                      label: 'Task Reminders',
+                      hint: 'Manage reminders for your tasks',
+                      button: true,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.tertiaryContainer.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.notifications,
+                                size: 18,
+                                color: Theme.of(context).colorScheme.tertiary,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Task Reminders',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
-
-                PopupMenuItem(
-                  value: 'signout',
-                  child: Semantics(
-                    label: 'Sign Out',
-                    hint: 'Sign out from your account: ${AuthService.userEmail ?? 'Unknown'}',
-                    button: true,
-                    child: const Row(
-                      children: [
-                        Icon(Icons.logout),
-                        SizedBox(width: 8),
-                        Text('Sign Out'),
-                      ],
+                  const PopupMenuDivider(),
+                  PopupMenuItem(
+                    value: 'signout',
+                    child: Semantics(
+                      label: 'Sign Out',
+                      hint: 'Sign out from your account: ${AuthService.userEmail ?? 'Unknown'}',
+                      button: true,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.logout,
+                                size: 18,
+                                color: Colors.red,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Text(
+                              'Sign Out',
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
             ),
           ),
+        ),
         ],
       ),
       // Replace IndexedStack with PageView for swipe navigation
@@ -380,23 +588,90 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           const AnalyticsScreen(),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: _onBottomNavTap, // Use the new method that handles page animation
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: _onBottomNavTap, // Use the new method that handles page animation
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          selectedItemColor: Theme.of(context).colorScheme.primary,
+          unselectedItemColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+          selectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: 'History',
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 11,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.analytics),
-            label: 'Analytics',
-          ),
-        ],
+          type: BottomNavigationBarType.fixed,
+          items: [
+            BottomNavigationBarItem(
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _currentIndex == 0 
+                      ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.home,
+                  color: _currentIndex == 0 
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+              label: 'Home',
+            ),
+            BottomNavigationBarItem(
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _currentIndex == 1 
+                      ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.history,
+                  color: _currentIndex == 1 
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+              label: 'History',
+            ),
+            BottomNavigationBarItem(
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _currentIndex == 2 
+                      ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.analytics,
+                  color: _currentIndex == 2 
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+              label: 'Analytics',
+            ),
+          ],
+        ),
       ),
     );
   }

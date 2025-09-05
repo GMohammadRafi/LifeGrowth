@@ -234,17 +234,47 @@ class HistoryScreenState extends State<HistoryScreen> {
 
     return Opacity(
       opacity: isDeleted ? 0.6 : 1.0,
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.background,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
         child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor: isDeleted
-                ? Colors.grey
-                : (completedCount > (totalCount * 0.7)
-                    ? Colors.green
-                    : completedCount > (totalCount * 0.3)
-                        ? Colors.orange
-                        : Colors.red),
+          contentPadding: const EdgeInsets.all(16),
+          leading: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: isDeleted
+                  ? Colors.grey
+                  : (completedCount > (totalCount * 0.7)
+                      ? Theme.of(context).colorScheme.primary
+                      : completedCount > (totalCount * 0.3)
+                          ? Theme.of(context).colorScheme.secondary
+                          : Theme.of(context).colorScheme.error),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: (isDeleted
+                      ? Colors.grey
+                      : (completedCount > (totalCount * 0.7)
+                          ? Theme.of(context).colorScheme.primary
+                          : completedCount > (totalCount * 0.3)
+                              ? Theme.of(context).colorScheme.secondary
+                              : Theme.of(context).colorScheme.error)).withOpacity(0.3),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
             child: isDeleted
                 ? const Icon(
                     Icons.visibility_off,
@@ -260,46 +290,129 @@ class HistoryScreenState extends State<HistoryScreen> {
           title: Text(
             '${entry.date.day}/${entry.date.month}/${entry.date.year}',
             style: TextStyle(
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
+              color: Theme.of(context).colorScheme.onBackground,
               decoration: isDeleted ? TextDecoration.lineThrough : null,
             ),
           ),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Completed: $completedCount/$totalCount tasks'),
-              if (entry.notes != null && entry.notes!.isNotEmpty)
-                Text(
-                  entry.notes!,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontStyle: FontStyle.italic),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(
+                    Icons.task_alt,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Completed: $completedCount/$totalCount tasks',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              if (entry.notes != null && entry.notes!.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.note,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        entry.notes!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontStyle: FontStyle.italic,
+                          color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              if (isDeleted)
-                const Text(
-                  'Deleted',
-                  style: TextStyle(color: Colors.red, fontSize: 12),
+              ],
+              if (isDeleted) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.delete,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Deleted',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
+              ],
             ],
           ),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (!isDeleted) ...[ // Fixed: added three dots for spread operator
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () => _editEntry(entry),
-                  tooltip: 'Edit',
+              if (!isDeleted) ...[
+                Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: IconButton(
+                    icon: Icon(
+                      Icons.edit,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    onPressed: () => _editEntry(entry),
+                    tooltip: 'Edit',
+                  ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.delete),
-                  onPressed: () => _deleteEntry(entry.date),
+                const SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: IconButton(
+                    icon: Icon(
+                      Icons.delete,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                    onPressed: () => _deleteEntry(entry.date),
+                    tooltip: 'Delete',
+                  ),
                 ),
               ] else
-                IconButton(
-                  icon: const Icon(Icons.restore_rounded),
-                  onPressed: () => _restoreEntry(entry),
-                  tooltip: 'Restore',
+                Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: IconButton(
+                    icon: Icon(
+                      Icons.restore_rounded,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    onPressed: () => _restoreEntry(entry),
+                    tooltip: 'Restore',
+                  ),
                 ),
             ],
           ),
@@ -374,10 +487,24 @@ class HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: Column(
         children: [
-          _buildOptimizedCalendar(),
-          const SizedBox(height: 8.0),
+          Container(
+            margin: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.background,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: _buildOptimizedCalendar(),
+          ),
           Expanded(
             child: ValueListenableBuilder<List<DailyEntry>>(
               valueListenable: _selectedEntries,
@@ -394,6 +521,7 @@ class HistoryScreenState extends State<HistoryScreen> {
                     }
                     
                     return ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: selectedEntries.length,
                       itemBuilder: (context, index) {
                         return _buildEntryCard(selectedEntries[index]);
@@ -406,34 +534,95 @@ class HistoryScreenState extends State<HistoryScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _createNewEntry,
-        child: const Icon(Icons.add),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: [
+              Theme.of(context).colorScheme.primary,
+              Theme.of(context).colorScheme.primary.withOpacity(0.8),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: FloatingActionButton(
+          onPressed: _createNewEntry,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: Icon(
+            Icons.add,
+            color: Theme.of(context).colorScheme.onPrimary,
+          ),
+        ),
       ),
     );
   }
   
   Widget _buildCalendarDay(DateTime day, bool isToday, {bool isSelected = false}) {
+    final hasEntry = _entriesByDate.containsKey(DateTime(day.year, day.month, day.day));
     
     return Container(
-      margin: const EdgeInsets.all(4.0),
+      margin: const EdgeInsets.all(2.0),
       decoration: BoxDecoration(
         color: isSelected 
-            ? Theme.of(context).primaryColor
+            ? Theme.of(context).colorScheme.primary
             : isToday 
-                ? Theme.of(context).primaryColor.withOpacity(0.3)
-                : null,
-        borderRadius: BorderRadius.circular(8.0),
+                ? Theme.of(context).colorScheme.primary.withOpacity(0.2)
+                : hasEntry
+                    ? Theme.of(context).colorScheme.secondary.withOpacity(0.1)
+                    : null,
+        borderRadius: BorderRadius.circular(12.0),
+        border: isToday && !isSelected
+            ? Border.all(
+                color: Theme.of(context).colorScheme.primary,
+                width: 2,
+              )
+            : null,
+        boxShadow: isSelected
+            ? [
+                BoxShadow(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : null,
       ),
       child: Center(
-        child: Text(
-          '${day.day}',
-          style: TextStyle(
-            color: isSelected || isToday 
-                ? Colors.white 
-                : null,
-            fontWeight: isToday ? FontWeight.bold : null,
-          ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              '${day.day}',
+              style: TextStyle(
+                color: isSelected
+                    ? Theme.of(context).colorScheme.onPrimary
+                    : isToday
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.onBackground,
+                fontWeight: isToday || isSelected ? FontWeight.w600 : FontWeight.w500,
+                fontSize: 14,
+              ),
+            ),
+            if (hasEntry && !isSelected)
+              Container(
+                width: 4,
+                height: 4,
+                margin: const EdgeInsets.only(top: 2),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.secondary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -460,8 +649,50 @@ class HistoryScreenState extends State<HistoryScreen> {
                     calendarFormat: _calendarFormat,
                     eventLoader: _getEntriesForDay,
                     startingDayOfWeek: StartingDayOfWeek.monday,
-                    calendarStyle: const CalendarStyle(
+                    calendarStyle: CalendarStyle(
                       outsideDaysVisible: false,
+                      weekendTextStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.onBackground,
+                      ),
+                      defaultTextStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.onBackground,
+                      ),
+                      todayTextStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      selectedTextStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      tablePadding: const EdgeInsets.all(16),
+                      cellMargin: const EdgeInsets.all(2),
+                    ),
+                    headerStyle: HeaderStyle(
+                      formatButtonVisible: true,
+                      titleCentered: true,
+                      formatButtonShowsNext: false,
+                      formatButtonDecoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      formatButtonTextStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      titleTextStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.onBackground,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      leftChevronIcon: Icon(
+                        Icons.chevron_left,
+                        color: Theme.of(context).colorScheme.onBackground,
+                      ),
+                      rightChevronIcon: Icon(
+                        Icons.chevron_right,
+                        color: Theme.of(context).colorScheme.onBackground,
+                      ),
                     ),
                     calendarBuilders: CalendarBuilders(
                       defaultBuilder: (context, day, focusedDay) {
@@ -561,39 +792,105 @@ class HistoryScreenState extends State<HistoryScreen> {
   
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.calendar_today,
-            size: 64,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          ValueListenableBuilder<DateTime>(
-            valueListenable: _selectedDay,
-            builder: (context, selectedDay, child) {
-              return Text(
-                'No data for ${selectedDay.day}/${selectedDay.month}/${selectedDay.year}',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.grey[600],
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => _createNewEntryForDate(_selectedDay.value),
-            icon: const Icon(Icons.add),
-            label: const Text('Add Tasks for This Day'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 12,
+      child: Container(
+        margin: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.background,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(40),
+              ),
+              child: Icon(
+                Icons.calendar_today,
+                size: 40,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            ValueListenableBuilder<DateTime>(
+              valueListenable: _selectedDay,
+              builder: (context, selectedDay, child) {
+                return Text(
+                  'No data for ${selectedDay.day}/${selectedDay.month}/${selectedDay.year}',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onBackground,
+                  ),
+                  textAlign: TextAlign.center,
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Start tracking your daily progress by adding tasks for this day.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                gradient: LinearGradient(
+                  colors: [
+                    Theme.of(context).colorScheme.primary,
+                    Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ElevatedButton.icon(
+                onPressed: () => _createNewEntryForDate(_selectedDay.value),
+                icon: Icon(
+                  Icons.add,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
+                label: Text(
+                  'Add Tasks for This Day',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

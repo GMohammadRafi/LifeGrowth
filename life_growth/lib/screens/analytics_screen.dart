@@ -242,50 +242,53 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 @override
 Widget build(BuildContext context) {
-  return _isLoading
-      ? const Center(child: CircularProgressIndicator())
-      : _errorMessage != null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: Colors.red.withOpacity(0.7),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _errorMessage!,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _loadAnalyticsData,
-                    child: const Text('Retry'),
-                  ),
-                ],
+  return Scaffold(
+    backgroundColor: Theme.of(context).colorScheme.background,
+    body: _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : _errorMessage != null
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red.withOpacity(0.7),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _errorMessage!,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadAnalyticsData,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              )
+            : SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Summary Cards
+                    _buildSummaryCards(),
+                    const SizedBox(height: 32),
+                    
+                    // Weekly Completion Chart
+                    _buildWeeklyCompletionChart(),
+                    const SizedBox(height: 32),
+                    
+                    // Task Completion Breakdown
+                    _buildTaskCompletionBreakdown(),
+                  ],
+                ),
               ),
-            )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Summary Cards
-                  _buildSummaryCards(),
-                  const SizedBox(height: 24),
-                  
-                  // Weekly Completion Chart
-                  _buildWeeklyCompletionChart(),
-                  const SizedBox(height: 24),
-                  
-                  // Task Completion Breakdown
-                  _buildTaskCompletionBreakdown(),
-                ],
-              ),
-            );
+  );
 }
 
 Widget _buildSummaryCards() {
@@ -362,27 +365,46 @@ Widget _buildSummaryCards() {
 }
 
 Widget _buildSummaryCard(String title, String value, IconData icon, Color color) {
-  return Card(
+  return Container(
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
     child: Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, color: color, size: 24),
-              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   title,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Text(
             value,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -397,20 +419,34 @@ Widget _buildSummaryCard(String title, String value, IconData icon, Color color)
 }
 
 Widget _buildWeeklyCompletionChart() {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        'Weekly Completion Trend',
-        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-          fontWeight: FontWeight.bold,
+  return Container(
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
         ),
-      ),
-      const SizedBox(height: 16),
-      SizedBox(
-        height: 200,
-        child: LineChart(
-          LineChartData(
+      ],
+    ),
+    padding: const EdgeInsets.all(20),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Weekly Completion Trend',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          height: 200,
+          child: LineChart(
+            LineChartData(
             gridData: FlGridData(
               show: true,
               drawVerticalLine: true,
@@ -473,59 +509,92 @@ Widget _buildWeeklyCompletionChart() {
           ),
         ),
       ),
-    ],
+      ],
+    ),
   );
 }
 
 Widget _buildTaskCompletionBreakdown() {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        'Task Completion Breakdown',
-        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-          fontWeight: FontWeight.bold,
+  return Container(
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
         ),
-      ),
-      const SizedBox(height: 16),
-      Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: _taskCompletionCounts.entries.map((entry) {
+      ],
+    ),
+    padding: const EdgeInsets.all(20),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Task Completion Breakdown',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Column(
+          children: _taskCompletionCounts.entries.map((entry) {
               if (entry.value == 0) return const SizedBox.shrink();
               
               final percentage = _totalEntries > 0
                   ? (entry.value / _totalEntries) * 100
                   : 0.0;
               
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
+              return Container(
+                margin: const EdgeInsets.symmetric(vertical: 6),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.background,
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 child: Row(
                   children: [
                     Expanded(
                       flex: 2,
                       child: Text(
                         entry.key,
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                       ),
                     ),
                     Expanded(
                       flex: 3,
-                      child: LinearProgressIndicator(
-                        value: percentage / 100,
-                        backgroundColor: Colors.grey[300],
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          _getColorForTask(entry.key),
+                      child: Container(
+                        height: 8,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(4),
+                          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                        ),
+                        child: FractionallySizedBox(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: percentage / 100,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(4),
+                              color: _getColorForTask(entry.key),
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
                     SizedBox(
-                      width: 80,
+                      width: 90,
                       child: Text(
                         '${entry.value}/${_totalEntries} (${percentage.toStringAsFixed(1)}%)',
-                        style: Theme.of(context).textTheme.bodySmall,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                          fontWeight: FontWeight.w500,
+                        ),
                         textAlign: TextAlign.end,
                       ),
                     ),
@@ -533,10 +602,9 @@ Widget _buildTaskCompletionBreakdown() {
                 ),
               );
             }).toList(),
-          ),
         ),
-      ),
-    ],
+      ],
+    ),
   );
 }
 
