@@ -25,48 +25,49 @@ class ThemeService {
     return await _prefs?.setInt(_themeKey, themeMode.index) ?? false;
   }
 
-  // Light theme with warm earth tone color palette
+  // Light theme with enhanced modern color palette
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
       colorScheme: const ColorScheme.light(
-        // Primary: Warm orange for main actions
-        primary: Color(0xFFE2A95A),
-        onPrimary: Color(0xFF2D2D2D),
-        primaryContainer: Color(0xFFF2E9E0),
-        onPrimaryContainer: Color(0xFF2D2D2D),
+        // Primary: Enhanced vibrant blue-green for main actions
+        primary: Color(0xFF006A6B),
+        onPrimary: Color(0xFFFFFFFF),
+        primaryContainer: Color(0xFF6FF6F7),
+        onPrimaryContainer: Color(0xFF002020),
         
-        // Secondary: Olive green for secondary actions
-        secondary: Color(0xFF817C42),
-        onSecondary: Colors.white,
-        secondaryContainer: Color(0xFFE8D4B9),
-        onSecondaryContainer: Color(0xFF2D2D2D),
+        // Secondary: Warm amber for secondary actions
+        secondary: Color(0xFF695C40),
+        onSecondary: Color(0xFFFFFFFF),
+        secondaryContainer: Color(0xFFF1DFBB),
+        onSecondaryContainer: Color(0xFF231B04),
         
-        // Tertiary: Terracotta for accents
-        tertiary: Color(0xFFC15D3B),
-        onTertiary: Colors.white,
-        tertiaryContainer: Color(0xFFEBB99E),
-        onTertiaryContainer: Color(0xFF2D2D2D),
+        // Tertiary: Rich purple for accents
+        tertiary: Color(0xFF5D5B7D),
+        onTertiary: Color(0xFFFFFFFF),
+        tertiaryContainer: Color(0xFFE3DFFF),
+        onTertiaryContainer: Color(0xFF191537),
         
-        // Surface and background: Light cream tones
-        surface: Color(0xFFF2E9E0),
-        onSurface: Color(0xFF2D2D2D),
-        surfaceVariant: Color(0xFFE8D4B9),
-        onSurfaceVariant: Color(0xFF2D2D2D),
+        // Surface and background: Clean whites and light grays
+        surface: Color(0xFFFAFDFD),
+        onSurface: Color(0xFF191C1C),
+        surfaceVariant: Color(0xFFDAE5E5),
+        onSurfaceVariant: Color(0xFF3F4949),
         
-        background: Color(0xFFFFFBF7),
-        onBackground: Color(0xFF2D2D2D),
+        background: Color(0xFFFAFDFD),
+        onBackground: Color(0xFF191C1C),
         
-        // Error colors
-        error: Color(0xFFD32F2F),
-        onError: Colors.white,
-        errorContainer: Color(0xFFFFEBEE),
-        onErrorContainer: Color(0xFFD32F2F),
+        // Error colors with better contrast
+        error: Color(0xFFBA1A1A),
+        onError: Color(0xFFFFFFFF),
+        errorContainer: Color(0xFFFFDAD6),
+        onErrorContainer: Color(0xFF410002),
         
-        // Outline and shadow
-        outline: Color(0xFF817C42),
-        shadow: Color(0xFF2D2D2D),
+        // Outline and shadow with improved visibility
+        outline: Color(0xFF6F7979),
+        shadow: Color(0xFF000000),
+        surfaceContainerHighest: Color(0xFFE0E3E3),
       ),
       // Ensure minimum tap target sizes
       materialTapTargetSize: MaterialTapTargetSize.padded,
@@ -134,48 +135,49 @@ class ThemeService {
     );
   }
 
-  // Dark theme with warm earth tone color palette
+  // Dark theme with enhanced modern color palette
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
       colorScheme: const ColorScheme.dark(
-        // Primary: Muted warm orange for dark mode
-        primary: Color(0xFFE2A95A),
-        onPrimary: Color(0xFF1A1A1A),
-        primaryContainer: Color(0xFF817C42),
-        onPrimaryContainer: Color(0xFFE8D4B9),
+        // Primary: Bright teal for dark mode visibility
+        primary: Color(0xFF4DD0E1),
+        onPrimary: Color(0xFF002020),
+        primaryContainer: Color(0xFF004F50),
+        onPrimaryContainer: Color(0xFF6FF6F7),
         
-        // Secondary: Darker olive green
-        secondary: Color(0xFF9A9456),
-        onSecondary: Color(0xFF1A1A1A),
-        secondaryContainer: Color(0xFF5A5632),
-        onSecondaryContainer: Color(0xFFE8D4B9),
+        // Secondary: Warm gold for secondary actions
+        secondary: Color(0xFFD5C3A0),
+        onSecondary: Color(0xFF231B04),
+        secondaryContainer: Color(0xFF503E26),
+        onSecondaryContainer: Color(0xFFF1DFBB),
         
-        // Tertiary: Muted terracotta
-        tertiary: Color(0xFFD4735A),
-        onTertiary: Color(0xFF1A1A1A),
-        tertiaryContainer: Color(0xFF8B3E26),
-        onTertiaryContainer: Color(0xFFEBB99E),
+        // Tertiary: Soft lavender for accents
+        tertiary: Color(0xFFC7C3E8),
+        onTertiary: Color(0xFF191537),
+        tertiaryContainer: Color(0xFF443A64),
+        onTertiaryContainer: Color(0xFFE3DFFF),
         
-        // Surface and background: Dark warm tones
-        surface: Color(0xFF1F1E1B),
-        onSurface: Color(0xFFE8D4B9),
-        surfaceVariant: Color(0xFF2A2823),
-        onSurfaceVariant: Color(0xFFE8D4B9),
+        // Surface and background: Rich dark grays
+        surface: Color(0xFF0F1419),
+        onSurface: Color(0xFFE0E3E3),
+        surfaceVariant: Color(0xFF3F4949),
+        onSurfaceVariant: Color(0xFFBFC9C9),
         
-        background: Color(0xFF1A1917),
-        onBackground: Color(0xFFE8D4B9),
+        background: Color(0xFF0F1419),
+        onBackground: Color(0xFFE0E3E3),
         
-        // Error colors
-        error: Color(0xFFEF5350),
-        onError: Color(0xFF1A1A1A),
-        errorContainer: Color(0xFF8B1538),
-        onErrorContainer: Color(0xFFFFEBEE),
+        // Error colors with proper dark mode contrast
+        error: Color(0xFFFFB4AB),
+        onError: Color(0xFF410002),
+        errorContainer: Color(0xFF93000A),
+        onErrorContainer: Color(0xFFFFDAD6),
         
-        // Outline and shadow
-        outline: Color(0xFF817C42),
+        // Outline and shadow with better visibility
+        outline: Color(0xFF899393),
         shadow: Color(0xFF000000),
+        surfaceContainerHighest: Color(0xFF2B2F2F),
       ),
       // Ensure minimum tap target sizes
       materialTapTargetSize: MaterialTapTargetSize.padded,

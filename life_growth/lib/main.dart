@@ -37,35 +37,50 @@ void main() async {
     await DatabaseService.initialize();
   }
 
-  // Initialize Supabase
+  // Initialize Supabase with error handling
   final supabaseUrl = dotenv.env['SUPABASE_URL'];
   final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
 
   if (supabaseUrl != null && supabaseAnonKey != null) {
-    await Supabase.initialize(
-      url: supabaseUrl,
-      anonKey: supabaseAnonKey,
-      authOptions: const FlutterAuthClientOptions(
-        authFlowType: AuthFlowType.pkce,
-      ),
-    );
-    
-    // Wait for session recovery on desktop platforms
-    if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
-      // Give Supabase time to restore the session
-      await Future.delayed(const Duration(milliseconds: 1000));
+    try {
+      await Supabase.initialize(
+        url: supabaseUrl,
+        anonKey: supabaseAnonKey,
+        authOptions: const FlutterAuthClientOptions(
+          authFlowType: AuthFlowType.pkce,
+        ),
+      );
       
-      // Try to refresh the session if it exists
-      try {
-        final session = Supabase.instance.client.auth.currentSession;
-        if (session != null) {
-          await Supabase.instance.client.auth.refreshSession();
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          print('Session refresh failed: $e');
+      // Wait for session recovery on desktop platforms
+      if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+        // Give Supabase time to restore the session
+        await Future.delayed(const Duration(milliseconds: 1000));
+        
+        // Try to refresh the session if it exists
+        try {
+          final session = Supabase.instance.client.auth.currentSession;
+          if (session != null) {
+            await Supabase.instance.client.auth.refreshSession();
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('Session refresh failed: $e');
+          }
         }
       }
+      
+      if (kDebugMode) {
+        print('Supabase initialized successfully');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Supabase initialization failed: $e');
+        print('App will continue with offline mode using local database');
+      }
+    }
+  } else {
+    if (kDebugMode) {
+      print('Supabase credentials not found. Running in offline mode.');
     }
   }
 

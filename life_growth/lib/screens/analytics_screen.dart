@@ -476,8 +476,21 @@ Widget _buildWeeklyCompletionChart() {
               leftTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
+                  reservedSize: 40,
                   getTitlesWidget: (value, meta) {
-                    return Text('${value.toInt()}%');
+                    return SizedBox(
+                      width: 35,
+                      child: Text(
+                        '${value.toInt()}%',
+                        textAlign: TextAlign.right,
+                        maxLines: 1,
+                        overflow: TextOverflow.clip,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                        ),
+                      ),
+                    );
                   },
                 ),
               ),

@@ -9,7 +9,6 @@ import 'history_screen.dart';
 import 'analytics_screen.dart';
 import 'personalization_screen.dart';
 import 'accessibility_settings_screen.dart';
-import 'task_reminder_screen.dart';
 
 import 'auth_screen.dart';
 
@@ -409,13 +408,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                       builder: (context) => const AccessibilitySettingsScreen(),
                     ),
                   );
-                } else if (value == 'reminders') {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const TaskReminderScreen(),
-                    ),
-                  );
-
                 } else if (value == 'signout') {
                   _signOut();
                 }
@@ -491,41 +483,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                             const SizedBox(width: 12),
                             Text(
                               'Accessibility',
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.onSurface,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'reminders',
-                    child: Semantics(
-                      label: 'Task Reminders',
-                      hint: 'Manage reminders for your tasks',
-                      button: true,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.tertiaryContainer.withOpacity(0.3),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                Icons.notifications,
-                                size: 18,
-                                color: Theme.of(context).colorScheme.tertiary,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              'Task Reminders',
                               style: TextStyle(
                                 color: Theme.of(context).colorScheme.onSurface,
                                 fontWeight: FontWeight.w500,
@@ -617,55 +574,82 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           type: BottomNavigationBarType.fixed,
           items: [
             BottomNavigationBarItem(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
+              icon: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: _currentIndex == 0 
-                      ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+                      ? Theme.of(context).colorScheme.primaryContainer
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: _currentIndex == 0 ? [
+                    BoxShadow(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ] : null,
                 ),
                 child: Icon(
-                  Icons.home,
+                  _currentIndex == 0 ? Icons.home : Icons.home_outlined,
                   color: _currentIndex == 0 
                       ? Theme.of(context).colorScheme.primary
                       : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  size: 24,
                 ),
               ),
               label: 'Home',
             ),
             BottomNavigationBarItem(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
+              icon: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: _currentIndex == 1 
-                      ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+                      ? Theme.of(context).colorScheme.primaryContainer
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: _currentIndex == 1 ? [
+                    BoxShadow(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ] : null,
                 ),
                 child: Icon(
-                  Icons.history,
+                  _currentIndex == 1 ? Icons.history : Icons.history_outlined,
                   color: _currentIndex == 1 
                       ? Theme.of(context).colorScheme.primary
                       : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  size: 24,
                 ),
               ),
               label: 'History',
             ),
             BottomNavigationBarItem(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
+              icon: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: _currentIndex == 2 
-                      ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+                      ? Theme.of(context).colorScheme.primaryContainer
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: _currentIndex == 2 ? [
+                    BoxShadow(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ] : null,
                 ),
                 child: Icon(
-                  Icons.analytics,
+                  _currentIndex == 2 ? Icons.analytics : Icons.analytics_outlined,
                   color: _currentIndex == 2 
                       ? Theme.of(context).colorScheme.primary
                       : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  size: 24,
                 ),
               ),
               label: 'Analytics',

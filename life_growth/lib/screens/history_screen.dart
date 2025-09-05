@@ -308,11 +308,14 @@ class HistoryScreenState extends State<HistoryScreen> {
                     color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
                   ),
                   const SizedBox(width: 4),
-                  Text(
-                    'Completed: $completedCount/$totalCount tasks',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
-                      fontSize: 14,
+                  Expanded(
+                    child: Text(
+                      'Completed: $completedCount/$totalCount tasks',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ],
@@ -366,55 +369,71 @@ class HistoryScreenState extends State<HistoryScreen> {
               ],
             ],
           ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (!isDeleted) ...[
-                Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: IconButton(
-                    icon: Icon(
-                      Icons.edit,
-                      color: Theme.of(context).colorScheme.primary,
+          trailing: SizedBox(
+            width: !isDeleted ? 120 : 60,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (!isDeleted) ...[
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    onPressed: () => _editEntry(entry),
-                    tooltip: 'Edit',
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.error.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: IconButton(
-                    icon: Icon(
-                      Icons.delete,
-                      color: Theme.of(context).colorScheme.error,
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      icon: Icon(
+                        Icons.edit,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 20,
+                      ),
+                      onPressed: () => _editEntry(entry),
+                      tooltip: 'Edit',
                     ),
-                    onPressed: () => _deleteEntry(entry.date),
-                    tooltip: 'Delete',
                   ),
-                ),
-              ] else
-                Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: IconButton(
-                    icon: Icon(
-                      Icons.restore_rounded,
-                      color: Theme.of(context).colorScheme.primary,
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    onPressed: () => _restoreEntry(entry),
-                    tooltip: 'Restore',
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      icon: Icon(
+                        Icons.delete,
+                        color: Theme.of(context).colorScheme.error,
+                        size: 20,
+                      ),
+                      onPressed: () => _deleteEntry(entry.date),
+                      tooltip: 'Delete',
+                    ),
                   ),
-                ),
-            ],
+                ] else
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      icon: Icon(
+                        Icons.restore_rounded,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 20,
+                      ),
+                      onPressed: () => _restoreEntry(entry),
+                      tooltip: 'Restore',
+                    ),
+                  ),
+              ],
+            ),
           ),
           onTap: isDeleted ? null : () => _editEntry(entry),
         ),

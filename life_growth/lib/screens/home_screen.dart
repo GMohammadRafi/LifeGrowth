@@ -19,7 +19,6 @@ import 'history_screen.dart';
 import 'analytics_screen.dart';
 import 'personalization_screen.dart';
 import 'accessibility_settings_screen.dart';
-import 'task_reminder_screen.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -435,9 +434,42 @@ class HomeScreenState extends State<HomeScreen> {
             label: 'Task completion checkbox',
             hint: completed ? 'Mark task as incomplete' : 'Mark task as complete',
             checked: completed,
-            child: Checkbox(
-              value: completed,
-              onChanged: (_) => onToggle(),
+            child: Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: completed 
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.outline,
+                  width: 2.5,
+                ),
+                color: completed 
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.transparent,
+                boxShadow: completed ? [
+                  BoxShadow(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ] : null,
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: onToggle,
+                  child: completed
+                      ? Icon(
+                          Icons.check_rounded,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                          size: 18,
+                        )
+                      : null,
+                ),
+              ),
             ),
           ),
           title: Text(
@@ -644,13 +676,6 @@ class HomeScreenState extends State<HomeScreen> {
                       builder: (context) => const AccessibilitySettingsScreen(),
                     ),
                   );
-                } else if (value == 'reminders') {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const TaskReminderScreen(),
-                    ),
-                  );
-
                 } else if (value == 'signout') {
                   _signOut();
                 }
@@ -712,21 +737,6 @@ class HomeScreenState extends State<HomeScreen> {
                         Icon(Icons.accessibility),
                         SizedBox(width: 8),
                         Text('Accessibility'),
-                      ],
-                    ),
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'reminders',
-                  child: Semantics(
-                    label: 'Task Reminders',
-                    hint: 'Manage reminders for your tasks',
-                    button: true,
-                    child: const Row(
-                      children: [
-                        Icon(Icons.notifications),
-                        SizedBox(width: 8),
-                        Text('Task Reminders'),
                       ],
                     ),
                   ),
@@ -1289,18 +1299,49 @@ class HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
-              child: Checkbox(
-                value: taskEntry.completed,
-                onChanged: (_) => _updateTaskEntry(taskEntry.copyWith(
-                  completed: !taskEntry.completed,
-                )),
-                activeColor: Colors.green,
-                checkColor: Colors.white,
-                side: BorderSide(
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: taskEntry.completed 
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.outline,
+                    width: 2.5,
+                  ),
                   color: taskEntry.completed 
-                      ? Colors.green 
-                      : Theme.of(context).colorScheme.outline,
-                  width: 2,
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.transparent,
+                  boxShadow: taskEntry.completed ? [
+                    BoxShadow(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.4),
+                      blurRadius: 12,
+                      offset: const Offset(0, 3),
+                    ),
+                  ] : [
+                    BoxShadow(
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => _updateTaskEntry(taskEntry.copyWith(
+                      completed: !taskEntry.completed,
+                    )),
+                    child: taskEntry.completed
+                        ? Icon(
+                            Icons.check_rounded,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            size: 20,
+                          )
+                        : null,
+                  ),
                 ),
               ),
             ),
