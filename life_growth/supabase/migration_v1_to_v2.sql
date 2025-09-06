@@ -153,7 +153,6 @@ SELECT
   t.id as task_id,
   jsonb_build_object(
     'label', COALESCE(dt.avoid_habit_label, 'Avoid Habit'),
-    'value', dt.avoid_habit_value,
     'notes', ''
   ) as data,
   dt.avoid_habit_value

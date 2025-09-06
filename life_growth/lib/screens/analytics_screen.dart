@@ -223,7 +223,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       ).toList();
       
       double completionPercentage = 0.0;
-      if (entriesForDay.isNotEmpty) {
+      if (entriesForDay.isNotEmpty && _userTasks.isNotEmpty) {
         // Calculate average completion rate across all entries for that day
         double totalCompletionRate = 0.0;
         for (final entry in entriesForDay) {
@@ -233,7 +233,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           
           if (entryTaskEntries.isNotEmpty) {
             final completedTasks = entryTaskEntries.where((te) => te.completed).length;
-            totalCompletionRate += (completedTasks / entryTaskEntries.length) * 100;
+            // Use total user tasks count instead of entry-specific tasks
+            totalCompletionRate += (completedTasks / _userTasks.length) * 100;
           }
         }
         completionPercentage = totalCompletionRate / entriesForDay.length;
@@ -259,7 +260,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       ).toList();
       
       double completionPercentage = 0.0;
-      if (entriesForDay.isNotEmpty) {
+      if (entriesForDay.isNotEmpty && _userTasks.isNotEmpty) {
         // Calculate average completion rate across all entries for that day
         double totalCompletionRate = 0.0;
         for (final entry in entriesForDay) {
@@ -269,7 +270,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           
           if (entryTaskEntries.isNotEmpty) {
             final completedTasks = entryTaskEntries.where((te) => te.completed).length;
-            totalCompletionRate += (completedTasks / entryTaskEntries.length) * 100;
+            // Use total user tasks count instead of entry-specific tasks
+            totalCompletionRate += (completedTasks / _userTasks.length) * 100;
           }
         }
         completionPercentage = totalCompletionRate / entriesForDay.length;

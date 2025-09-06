@@ -269,10 +269,8 @@ insert into public.task_types (name, description, schema_definition) values
 }'),
 ('habit', 'General Habit Tracking', '{
   "type": "object",
-  "properties": {
-    "value": {"type": "boolean"}
-  },
-  "required": []
+  "required": [],
+  "properties": {}
 }'),
 ('entertainment', 'Movies/Series/Entertainment', '{
   "type": "object",

@@ -1451,6 +1451,11 @@ class HomeScreenState extends State<HomeScreen> {
     final widgets = <Widget>[];
     final fieldDefinitions = taskType.fieldDefinitions;
     
+    // Early return if no field definitions (e.g., habit types)
+    if (fieldDefinitions.isEmpty) {
+      return widgets;
+    }
+    
     for (final entry in fieldDefinitions.entries) {
       final fieldName = entry.key;
       final fieldDef = entry.value as Map<String, dynamic>;
