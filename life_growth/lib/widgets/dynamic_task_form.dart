@@ -251,33 +251,78 @@ class _DynamicTaskFormState extends State<DynamicTaskForm> {
 
   Widget _buildEnumField(String fieldName, Map<String, dynamic> fieldDef, bool isRequired) {
     final enumValues = (fieldDef['enum'] as List<dynamic>).cast<String>();
+    final fieldTitle = _formatFieldName(fieldName);
+    final currentValue = _formData[fieldName] as String?;
     
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
-      child: DropdownButtonFormField<String>(
-        decoration: InputDecoration(
-          labelText: _formatFieldName(fieldName) + (isRequired ? ' *' : ''),
-          border: const OutlineInputBorder(),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        value: _formData[fieldName] as String?,
-        items: enumValues.map((value) => DropdownMenuItem(
-          value: value,
-          child: Text(value),
-        )).toList(),
-        validator: isRequired ? (value) {
-          if (value == null || value.isEmpty) {
-            return 'This field is required';
-          }
-          return null;
-        } : null,
-        onChanged: (value) {
-          setState(() {
-            if (value != null) {
-              _formData[fieldName] = value;
+        child: DropdownButtonFormField<String>(
+          value: enumValues.contains(currentValue) ? currentValue : null,
+          decoration: InputDecoration(
+            labelText: fieldTitle + (isRequired ? ' *' : ''),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.primary,
+                width: 2,
+              ),
+            ),
+            filled: true,
+            fillColor: Theme.of(context).colorScheme.surface,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          ),
+          items: enumValues.map<DropdownMenuItem<String>>((value) {
+            return DropdownMenuItem<String>(
+              value: value.toString(),
+              child: Text(
+                value.toString(),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            );
+          }).toList(),
+          onChanged: (String? newValue) {
+            if (newValue != null) {
+              setState(() {
+                _formData[fieldName] = newValue;
+              });
+              _notifyDataChanged();
             }
-          });
-          _notifyDataChanged();
-        },
+          },
+          validator: isRequired
+              ? (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'This field is required';
+                  }
+                  return null;
+                }
+              : null,
+        ),
       ),
     );
   }

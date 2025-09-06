@@ -7,6 +7,8 @@ import '../models/daily_entry.dart';
 import '../models/task_entry.dart';
 import '../models/task.dart';
 import '../models/task_type.dart';
+import '../widgets/task_status_table.dart';
+import '../widgets/task_detail_modal.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -15,13 +17,14 @@ class AnalyticsScreen extends StatefulWidget {
   State<AnalyticsScreen> createState() => _AnalyticsScreenState();
 }
 
-class _AnalyticsScreenState extends State<AnalyticsScreen> {
+class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderStateMixin {
   bool _isLoading = true;
   String? _errorMessage;
   List<DailyEntry> _allEntries = [];
   List<TaskEntry> _allTaskEntries = [];
   List<Task> _userTasks = [];
   List<TaskType> _taskTypes = [];
+  late TabController _tabController;
   
   // Analytics data
   int _totalEntries = 0;
@@ -36,9 +39,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     // Track screen view
     TelemetryService().trackScreenView('analytics_screen');
     _loadAnalyticsData();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadAnalyticsData() async {
@@ -310,27 +320,36 @@ Widget build(BuildContext context) {
                   ],
                 ),
               )
-            : SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Summary Cards
-                    _buildSummaryCards(),
-                    const SizedBox(height: 32),
-                    
-                    // Weekly Completion Chart
-                    _buildWeeklyCompletionChart(),
-                    const SizedBox(height: 32),
-                    
-                    // Monthly Completion Chart
-                    _buildMonthlyCompletionChart(),
-                    const SizedBox(height: 32),
-                    
-                    // Task Completion Breakdown
-                    _buildTaskCompletionBreakdown(),
-                  ],
-                ),
+            : Column(
+                children: [
+                  // Tab bar
+                  Container(
+                    color: Theme.of(context).colorScheme.surface,
+                    child: TabBar(
+                      controller: _tabController,
+                      tabs: const [
+                        Tab(
+                          icon: Icon(Icons.analytics),
+                          text: 'Overview',
+                        ),
+                        Tab(
+                          icon: Icon(Icons.table_chart),
+                          text: 'Task Details',
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Tab content
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildOverviewTab(),
+                        _buildTaskDetailsTab(),
+                      ],
+                    ),
+                  ),
+                ],
               ),
   );
 }
@@ -786,12 +805,61 @@ Widget _buildTaskCompletionBreakdown() {
 }
 
 Color _getColorForTask(String taskName) {
-  // Generate colors based on task name hash for consistency
-  final hash = taskName.hashCode;
-  final colors = [
-    Colors.blue, Colors.red, Colors.purple, Colors.cyan,
-    Colors.green, Colors.orange, Colors.brown, Colors.pink,
-    Colors.teal, Colors.indigo, Colors.amber, Colors.deepOrange,
-  ];
-  return colors[hash.abs() % colors.length];
-}}
+    // Generate colors based on task name hash for consistency
+    final hash = taskName.hashCode;
+    final colors = [
+      Colors.blue, Colors.red, Colors.purple, Colors.cyan,
+      Colors.green, Colors.orange, Colors.brown, Colors.pink,
+      Colors.teal, Colors.indigo, Colors.amber, Colors.deepOrange,
+    ];
+    return colors[hash.abs() % colors.length];
+  }
+
+  Widget _buildOverviewTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Summary Cards
+          _buildSummaryCards(),
+          const SizedBox(height: 32),
+          
+          // Weekly Completion Chart
+          _buildWeeklyCompletionChart(),
+          const SizedBox(height: 32),
+          
+          // Monthly Completion Chart
+          _buildMonthlyCompletionChart(),
+          const SizedBox(height: 32),
+          
+          // Task Completion Breakdown
+          _buildTaskCompletionBreakdown(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTaskDetailsTab() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: TaskStatusTable(
+        tasks: _userTasks,
+        taskEntries: _allTaskEntries,
+        dailyEntries: _allEntries,
+        onTaskTap: _showTaskDetail,
+      ),
+    );
+  }
+
+  void _showTaskDetail(Task task, List<TaskEntry> taskEntries) {
+    showDialog(
+      context: context,
+      builder: (context) => TaskDetailModal(
+        task: task,
+        taskEntries: taskEntries,
+        dailyEntries: _allEntries,
+      ),
+    );
+  }
+}
