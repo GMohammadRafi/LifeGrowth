@@ -1148,17 +1148,62 @@ class _TaskDetailModalState extends State<TaskDetailModal> with TickerProviderSt
   }
   
   Set<DateTime> _getCompletedTaskDates(List<TaskEntry> entries) {
-    return entries
-        .where((entry) => entry.completed)
-        .map((entry) => DateTime(entry.updatedAt.year, entry.updatedAt.month, entry.updatedAt.day))
-        .toSet();
+    // Group entries by date and check if ALL tasks for each date are completed
+    final Map<String, List<TaskEntry>> entriesByDate = {};
+    
+    for (final entry in entries) {
+      final dateKey = DateFormat('yyyy-MM-dd').format(entry.updatedAt);
+      if (entriesByDate[dateKey] == null) {
+        entriesByDate[dateKey] = [];
+      }
+      entriesByDate[dateKey]!.add(entry);
+    }
+    
+    final Set<DateTime> fullyCompletedDates = {};
+    
+    for (final dateKey in entriesByDate.keys) {
+      final dateEntries = entriesByDate[dateKey]!;
+      
+      // Check if ALL tasks for this date are completed (BOOL_AND logic)
+      final bool allCompleted = dateEntries.isNotEmpty && 
+          dateEntries.every((entry) => entry.completed);
+      
+      if (allCompleted) {
+        final date = DateTime.parse(dateKey);
+        fullyCompletedDates.add(DateTime(date.year, date.month, date.day));
+      }
+    }
+    
+    return fullyCompletedDates;
   }
 
   Set<DateTime> _getPendingTaskDates(List<TaskEntry> entries) {
-    return entries
-        .where((entry) => !entry.completed)
-        .map((entry) => DateTime(entry.createdAt.year, entry.createdAt.month, entry.createdAt.day))
-        .toSet();
+    // Group entries by date and check for dates with incomplete tasks
+    final Map<String, List<TaskEntry>> entriesByDate = {};
+    
+    for (final entry in entries) {
+      final dateKey = DateFormat('yyyy-MM-dd').format(entry.createdAt);
+      if (entriesByDate[dateKey] == null) {
+        entriesByDate[dateKey] = [];
+      }
+      entriesByDate[dateKey]!.add(entry);
+    }
+    
+    final Set<DateTime> pendingDates = {};
+    
+    for (final dateKey in entriesByDate.keys) {
+      final dateEntries = entriesByDate[dateKey]!;
+      
+      // Check if there are any incomplete tasks for this date
+      final bool hasIncomplete = dateEntries.any((entry) => !entry.completed);
+      
+      if (hasIncomplete) {
+        final date = DateTime.parse(dateKey);
+        pendingDates.add(DateTime(date.year, date.month, date.day));
+      }
+    }
+    
+    return pendingDates;
   }
   
   Widget _buildCalendarDay(DateTime day, Set<DateTime> completedDates, Set<DateTime> pendingDates, {bool isToday = false}) {
