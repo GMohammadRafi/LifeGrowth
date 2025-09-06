@@ -46,6 +46,9 @@ class HomeScreenState extends State<HomeScreen> {
   // Track expanded state for each task
   final Map<String, bool> _expandedTasks = {};
   
+  // Track loading state for each task checkbox
+  final Map<String, bool> _taskLoadingStates = {};
+  
   // Form controllers for task data
   final Map<String, TextEditingController> _controllers = {};
   final _formKey = GlobalKey<FormState>();
@@ -110,8 +113,14 @@ class HomeScreenState extends State<HomeScreen> {
       final today = DateTime.now();
       final userId = AuthService.userId!;
 
-      // First, check if user has any tasks
+      // Load user tasks first and show them immediately
       final userTasks = await SupabaseServiceV2.getUserTasks(userId);
+      
+      if (mounted) {
+        setState(() {
+          _userTasks = userTasks;
+        });
+      }
 
       if (userTasks.isEmpty) {
         // No tasks = show empty state, don't create daily entry
@@ -119,7 +128,6 @@ class HomeScreenState extends State<HomeScreen> {
           setState(() {
             _todayEntry = null;
             _todayTaskEntries = [];
-            _userTasks = [];
             _taskTypes = [];
             _isLoading = false;
           });
@@ -127,11 +135,15 @@ class HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      // User has tasks, proceed with normal flow
-      final dailyData = await SupabaseServiceV2.getDailyDataWithDefaults(
-        userId: userId,
-        date: today,
-      );
+      // Load daily data and task types in parallel for better performance
+      final futures = await Future.wait([
+        SupabaseServiceV2.getDailyDataWithDefaults(
+          userId: userId,
+          date: today,
+        ),
+      ]);
+      
+      final dailyData = futures[0] as Map<String, dynamic>;
 
       // Only create daily entry if user has tasks
       DailyEntry? todayEntry = dailyData['dailyEntry'] as DailyEntry?;
@@ -145,12 +157,12 @@ class HomeScreenState extends State<HomeScreen> {
         setState(() {
           _todayEntry = todayEntry;
           _todayTaskEntries = dailyData['taskEntries'] as List<TaskEntry>;
-          _userTasks = userTasks;
           _taskTypes = dailyData['taskTypes'] as List<TaskType>;
           _isLoading = false;
         });
         
-        _setupFormControllers();
+        // Setup form controllers asynchronously to avoid blocking UI
+        Future.microtask(() => _setupFormControllers());
       }
     } catch (e) {
       if (mounted) {
@@ -204,6 +216,13 @@ class HomeScreenState extends State<HomeScreen> {
 
   Future<void> _updateTaskEntry(TaskEntry updatedEntry) async {
     if (!AuthService.isAuthenticated) return;
+
+    // Set loading state for this task
+    if (mounted) {
+      setState(() {
+        _taskLoadingStates[updatedEntry.taskId] = true;
+      });
+    }
 
     try {
       // Create daily entry if it doesn't exist
@@ -263,6 +282,13 @@ class HomeScreenState extends State<HomeScreen> {
             backgroundColor: Colors.red,
           ),
         );
+      }
+    } finally {
+      // Clear loading state for this task
+      if (mounted) {
+        setState(() {
+          _taskLoadingStates[updatedEntry.taskId] = false;
+        });
       }
     }
   }
@@ -595,55 +621,6 @@ class HomeScreenState extends State<HomeScreen> {
               },
             ),
             Semantics(
-              label: 'Refresh',
-              hint: 'Refresh today\'s task data',
-              button: true,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.refresh,
-                    color: Theme.of(context).colorScheme.onPrimary,
-                  ),
-                  onPressed: loadTodayData,
-                  tooltip: 'Refresh',
-                ),
-              ),
-            ),
-            Semantics(
-              label: 'Sync Data',
-              hint: _isSyncing ? 'Syncing data with server' : 'Sync your data with the server',
-              button: true,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: IconButton(
-                  icon: _isSyncing
-                      ? SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Theme.of(context).colorScheme.onPrimary,
-                            ),
-                          ),
-                        )
-                      : Icon(
-                          Icons.sync,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                  onPressed: _isSyncing ? null : _syncData,
-                  tooltip: 'Sync Data',
-                ),
-              ),
-            ),
-            Semantics(
               label: 'Menu',
               hint: 'Open menu with options for history, analytics, settings, and sign out',
               button: true,
@@ -902,47 +879,7 @@ class HomeScreenState extends State<HomeScreen> {
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 32),
-                          Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Theme.of(context).colorScheme.primary,
-                                  Theme.of(context).colorScheme.primary.withOpacity(0.8),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const PersonalizationScreen(),
-                                  ),
-                                ).then((_) => loadTodayData());
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                shadowColor: Colors.transparent,
-                                foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                              ),
-                              icon: const Icon(Icons.add),
-                              label: const Text(
-                                'Create Tasks',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ),
-                        ],
+                          ],
                       ),
                     ),
                   )
@@ -1331,16 +1268,31 @@ class HomeScreenState extends State<HomeScreen> {
                   color: Colors.transparent,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(10),
-                    onTap: () => _updateTaskEntry(taskEntry.copyWith(
-                      completed: !taskEntry.completed,
-                    )),
-                    child: taskEntry.completed
-                        ? Icon(
-                            Icons.check_rounded,
-                            color: Theme.of(context).colorScheme.onPrimary,
-                            size: 20,
+                    onTap: (_taskLoadingStates[task.id] == true) 
+                        ? null 
+                        : () => _updateTaskEntry(taskEntry.copyWith(
+                            completed: !taskEntry.completed,
+                          )),
+                    child: (_taskLoadingStates[task.id] == true)
+                        ? SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                taskEntry.completed 
+                                    ? Theme.of(context).colorScheme.onPrimary
+                                    : Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
                           )
-                        : null,
+                        : taskEntry.completed
+                            ? Icon(
+                                Icons.check_rounded,
+                                color: Theme.of(context).colorScheme.onPrimary,
+                                size: 20,
+                              )
+                            : null,
                   ),
                 ),
               ),

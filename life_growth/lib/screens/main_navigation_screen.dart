@@ -26,6 +26,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   bool _isSyncing = false;
   String? _syncStatus;
   bool _includeDeleted = false; // Add this state for history screen
+  bool _isMenuOpen = false; // Track menu state for animation
   
   // Add PageController for swipe navigation
   late PageController _pageController;
@@ -102,8 +103,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             content: Text('Data synced successfully'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
-          ),
-        );
+           ),
+         );
       }
     } catch (e) {
       if (mounted) {
@@ -156,6 +157,254 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         );
       }
     }
+  }
+
+  void _toggleMenu() {
+    setState(() {
+      _isMenuOpen = !_isMenuOpen;
+    });
+  }
+
+  void _showQuickActionsMenu() {
+    setState(() {
+      _isMenuOpen = true;
+    });
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+         child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Text(
+                    'Quick Actions',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildMenuOption(
+                    icon: Icons.tune,
+                    title: 'Personalization',
+                    subtitle: 'Customize your preferences',
+                    color: Theme.of(context).colorScheme.primary,
+                    onTap: () async {
+                      Navigator.pop(context);
+                      final result = await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const PersonalizationScreen(),
+                        ),
+                      );
+                      if (result == true && _currentIndex == 0 && _homeScreenKey.currentState != null) {
+                        await _homeScreenKey.currentState!.loadTodayData();
+                      }
+                    },
+                  ),
+                  _buildMenuOption(
+                    icon: Icons.accessibility,
+                    title: 'Accessibility',
+                    subtitle: 'Configure accessibility settings',
+                    color: Theme.of(context).colorScheme.secondary,
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const AccessibilitySettingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const Divider(height: 32),
+                  _buildMenuOption(
+                    icon: Icons.logout,
+                    title: 'Sign Out',
+                    subtitle: 'Sign out from your account',
+                    color: Colors.red,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _signOut();
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ).whenComplete(() {
+      setState(() {
+        _isMenuOpen = false;
+      });
+    });
+  }
+
+  Widget _buildMenuOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: color.withOpacity(0.2),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                icon,
+                color: color,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required IconData icon,
+    required String label,
+    required int index,
+    required bool isSelected,
+  }) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 360;
+    
+    return GestureDetector(
+      onTap: () => _onBottomNavTap(index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+        padding: EdgeInsets.symmetric(
+          horizontal: isSmallScreen ? 8 : 12,
+          vertical: 6,
+        ),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.4)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          border: isSelected ? Border.all(
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+            width: 1,
+          ) : null,
+          boxShadow: isSelected ? [
+            BoxShadow(
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ] : null,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedScale(
+              scale: isSelected ? 1.1 : 1.0,
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                icon,
+                color: isSelected 
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                size: isSmallScreen ? 20 : 22,
+              ),
+            ),
+            SizedBox(height: isSmallScreen ? 1 : 2),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: isSelected 
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                  fontSize: isSmallScreen ? 10 : 11,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  letterSpacing: 0.3,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -262,79 +511,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   ),
                 );
               },
-            ),
-            Semantics(
-              label: 'Refresh',
-              hint: 'Refresh today\'s task data',
-              button: true,
-              child: Container(
-                margin: const EdgeInsets.only(right: 4),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Theme.of(context).colorScheme.secondary.withOpacity(0.2),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.refresh,
-                    color: Theme.of(context).colorScheme.secondary,
-                  ),
-                  onPressed: () {
-                    if (_homeScreenKey.currentState != null) {
-                      _homeScreenKey.currentState!.loadTodayData();
-                    }
-                  },
-                  tooltip: 'Refresh',
-                ),
-              ),
-            ),
-            Semantics(
-              label: 'Sync Data',
-              hint: _isSyncing ? 'Syncing data with server' : 'Sync your data with the server',
-              button: true,
-              child: Container(
-                margin: const EdgeInsets.only(right: 4),
-                decoration: BoxDecoration(
-                  color: _isSyncing 
-                      ? Theme.of(context).colorScheme.primary.withOpacity(0.2)
-                      : Theme.of(context).colorScheme.tertiaryContainer.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: (_isSyncing 
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.tertiary).withOpacity(0.2),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: IconButton(
-                  icon: _isSyncing
-                      ? SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Theme.of(context).colorScheme.primary,
-                            ),
-                          ),
-                        )
-                      : Icon(
-                          Icons.sync,
-                          color: Theme.of(context).colorScheme.tertiary,
-                        ),
-                  onPressed: _isSyncing ? null : _syncData,
-                  tooltip: 'Sync Data',
-                ),
-              ),
             ),
           ],
           // Add eye toggle for History screen
@@ -545,116 +721,58 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           const AnalyticsScreen(),
         ],
       ),
-      bottomNavigationBar: Container(
+     bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
               blurRadius: 8,
               offset: const Offset(0, -2),
             ),
           ],
         ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: _onBottomNavTap, // Use the new method that handles page animation
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          selectedItemColor: Theme.of(context).colorScheme.primary,
-          unselectedItemColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-          selectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
+        child: SafeArea(
+          child: Container(
+            height: 70,
+            padding: EdgeInsets.symmetric(
+              horizontal: MediaQuery.of(context).size.width * 0.06,
+              vertical: 8,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Home navigation item
+                Expanded(
+                  child: _buildNavItem(
+                    icon: _currentIndex == 0 ? Icons.home : Icons.home_outlined,
+                    label: 'Home',
+                    index: 0,
+                    isSelected: _currentIndex == 0,
+                  ),
+                ),
+                // History navigation item
+                Expanded(
+                  child: _buildNavItem(
+                    icon: _currentIndex == 1 ? Icons.history : Icons.history_outlined,
+                    label: 'History',
+                    index: 1,
+                    isSelected: _currentIndex == 1,
+                  ),
+                ),
+                // Analysis navigation item
+                Expanded(
+                  child: _buildNavItem(
+                    icon: _currentIndex == 2 ? Icons.analytics : Icons.analytics_outlined,
+                    label: 'Analysis',
+                    index: 2,
+                    isSelected: _currentIndex == 2,
+                  ),
+                ),
+              ],
+            ),
           ),
-          unselectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.w500,
-            fontSize: 11,
-          ),
-          type: BottomNavigationBarType.fixed,
-          items: [
-            BottomNavigationBarItem(
-              icon: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: _currentIndex == 0 
-                      ? Theme.of(context).colorScheme.primaryContainer
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: _currentIndex == 0 ? [
-                    BoxShadow(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ] : null,
-                ),
-                child: Icon(
-                  _currentIndex == 0 ? Icons.home : Icons.home_outlined,
-                  color: _currentIndex == 0 
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                  size: 24,
-                ),
-              ),
-              label: 'Home',
-            ),
-            BottomNavigationBarItem(
-              icon: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: _currentIndex == 1 
-                      ? Theme.of(context).colorScheme.primaryContainer
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: _currentIndex == 1 ? [
-                    BoxShadow(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ] : null,
-                ),
-                child: Icon(
-                  _currentIndex == 1 ? Icons.history : Icons.history_outlined,
-                  color: _currentIndex == 1 
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                  size: 24,
-                ),
-              ),
-              label: 'History',
-            ),
-            BottomNavigationBarItem(
-              icon: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: _currentIndex == 2 
-                      ? Theme.of(context).colorScheme.primaryContainer
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: _currentIndex == 2 ? [
-                    BoxShadow(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ] : null,
-                ),
-                child: Icon(
-                  _currentIndex == 2 ? Icons.analytics : Icons.analytics_outlined,
-                  color: _currentIndex == 2 
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                  size: 24,
-                ),
-              ),
-              label: 'Analytics',
-            ),
-          ],
         ),
       ),
     );

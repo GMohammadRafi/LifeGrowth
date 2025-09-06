@@ -31,6 +31,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   int _longestStreak = 0;
   Map<String, int> _taskCompletionCounts = {};
   List<FlSpot> _weeklyCompletionData = [];
+  List<FlSpot> _monthlyCompletionData = [];
 
   @override
   void initState() {
@@ -99,6 +100,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     _calculateStreaks();
     _calculateTaskCompletionCounts();
     _calculateWeeklyCompletionData();
+    _calculateMonthlyCompletionData();
   }
 
   bool _isEntryCompleted(DailyEntry entry) {
@@ -240,6 +242,42 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       _weeklyCompletionData.add(FlSpot(i.toDouble(), completionPercentage));
     }
   }
+
+  void _calculateMonthlyCompletionData() {
+    final now = DateTime.now();
+    final startOfMonth = DateTime(now.year, now.month, 1);
+    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    
+    _monthlyCompletionData = [];
+    
+    for (int i = 0; i < daysInMonth; i++) {
+      final date = startOfMonth.add(Duration(days: i));
+      final entriesForDay = _allEntries.where((entry) => 
+        entry.date.year == date.year &&
+        entry.date.month == date.month &&
+        entry.date.day == date.day
+      ).toList();
+      
+      double completionPercentage = 0.0;
+      if (entriesForDay.isNotEmpty) {
+        // Calculate average completion rate across all entries for that day
+        double totalCompletionRate = 0.0;
+        for (final entry in entriesForDay) {
+          final entryTaskEntries = _allTaskEntries.where(
+            (te) => te.dailyEntryId == entry.id
+          ).toList();
+          
+          if (entryTaskEntries.isNotEmpty) {
+            final completedTasks = entryTaskEntries.where((te) => te.completed).length;
+            totalCompletionRate += (completedTasks / entryTaskEntries.length) * 100;
+          }
+        }
+        completionPercentage = totalCompletionRate / entriesForDay.length;
+      }
+      
+      _monthlyCompletionData.add(FlSpot(i.toDouble(), completionPercentage));
+    }
+  }
 @override
 Widget build(BuildContext context) {
   return Scaffold(
@@ -281,6 +319,10 @@ Widget build(BuildContext context) {
                     
                     // Weekly Completion Chart
                     _buildWeeklyCompletionChart(),
+                    const SizedBox(height: 32),
+                    
+                    // Monthly Completion Chart
+                    _buildMonthlyCompletionChart(),
                     const SizedBox(height: 32),
                     
                     // Task Completion Breakdown
@@ -516,6 +558,126 @@ Widget _buildWeeklyCompletionChart() {
                 belowBarData: BarAreaData(
                   show: true,
                   color: Colors.blue.withOpacity(0.3),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      ],
+    ),
+  );
+}
+
+Widget _buildMonthlyCompletionChart() {
+  final now = DateTime.now();
+  final monthName = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][now.month - 1];
+  
+  return Container(
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    padding: const EdgeInsets.all(20),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Monthly Completion Trend ($monthName ${now.year})',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          height: 200,
+          child: LineChart(
+            LineChartData(
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: true,
+              horizontalInterval: 25,
+              verticalInterval: 5,
+            ),
+            titlesData: FlTitlesData(
+              show: true,
+              rightTitles: AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              topTitles: AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  interval: 5,
+                  getTitlesWidget: (value, meta) {
+                    final day = value.toInt() + 1;
+                    if (day % 5 == 0 || day == 1) {
+                      return Text(
+                        day.toString(),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                        ),
+                      );
+                    }
+                    return const Text('');
+                  },
+                ),
+              ),
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 40,
+                  getTitlesWidget: (value, meta) {
+                    return SizedBox(
+                      width: 35,
+                      child: Text(
+                        '${value.toInt()}%',
+                        textAlign: TextAlign.right,
+                        maxLines: 1,
+                        overflow: TextOverflow.clip,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            borderData: FlBorderData(
+              show: true,
+              border: Border.all(color: const Color(0xff37434d)),
+            ),
+            minX: 0,
+            maxX: _monthlyCompletionData.isNotEmpty ? _monthlyCompletionData.length.toDouble() - 1 : 30,
+            minY: 0,
+            maxY: 100,
+            lineBarsData: [
+              LineChartBarData(
+                spots: _monthlyCompletionData,
+                isCurved: true,
+                color: Colors.green,
+                barWidth: 2,
+                isStrokeCapRound: true,
+                dotData: FlDotData(
+                  show: false,
+                ),
+                belowBarData: BarAreaData(
+                  show: true,
+                  color: Colors.green.withOpacity(0.2),
                 ),
               ),
             ],

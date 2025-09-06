@@ -281,10 +281,15 @@ class HistoryScreenState extends State<HistoryScreen> {
                     color: Colors.white,
                     size: 18,
                   )
-                : Text(
-                    '$completedCount',
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold),
+                : Center(
+                    child: Text(
+                      '$completedCount',
+                      style: const TextStyle(
+                          color: Colors.white, 
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
           ),
           title: Text(
@@ -631,13 +636,15 @@ class HistoryScreenState extends State<HistoryScreen> {
                 fontSize: 14,
               ),
             ),
-            if (hasEntry && !isSelected)
+            if (hasEntry)
               Container(
                 width: 4,
                 height: 4,
                 margin: const EdgeInsets.only(top: 2),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.secondary,
+                  color: isSelected 
+                      ? Theme.of(context).colorScheme.onPrimary
+                      : Theme.of(context).colorScheme.secondary,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),

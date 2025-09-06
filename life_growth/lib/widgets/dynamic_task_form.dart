@@ -65,19 +65,62 @@ class _DynamicTaskFormState extends State<DynamicTaskForm> {
                 (entry) => _buildField(entry.key, entry.value),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Checkbox(
-                    value: _completed,
-                    onChanged: (value) {
-                      setState(() {
-                        _completed = value ?? false;
-                      });
-                      _notifyDataChanged();
-                    },
+              // Enhanced Mark as Completed container with distinct visual styling
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _completed 
+                      ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+                      : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _completed 
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                    width: _completed ? 2 : 1,
                   ),
-                  const Text('Mark as completed'),
-                ],
+                ),
+                child: Row(
+                  children: [
+                    Transform.scale(
+                      scale: 1.2,
+                      child: Checkbox(
+                        value: _completed,
+                        onChanged: (value) {
+                          setState(() {
+                            _completed = value ?? false;
+                          });
+                          _notifyDataChanged();
+                        },
+                        activeColor: Theme.of(context).colorScheme.primary,
+                        checkColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Mark as completed',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: _completed ? FontWeight.w600 : FontWeight.w500,
+                          color: _completed 
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    if (_completed)
+                      Icon(
+                        Icons.check_circle,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 24,
+                      ),
+                  ],
+                ),
               ),
             ],
           ),
